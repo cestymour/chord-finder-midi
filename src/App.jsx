@@ -32,52 +32,52 @@ function getNoteNameFR(semitone) {
 // ─────────────────────────────────────────────
 // CHORD DEFINITIONS
 // Intervals are semitones from root, sorted ascending.
-// "required" = must be present, "optional" = can be omitted.
+// ALL intervals must be present for a match (strict mode).
 // ─────────────────────────────────────────────
 
 const CHORD_TEMPLATES = [
   // ── Triads ──────────────────────────────────────────────
-  { suffix: "",        intervals: [0, 4, 7],           required: [0, 4, 7],           label: "Majeur" },
-  { suffix: "m",       intervals: [0, 3, 7],           required: [0, 3, 7],           label: "Mineur" },
-  { suffix: "dim",     intervals: [0, 3, 6],           required: [0, 3, 6],           label: "Diminué" },
-  { suffix: "aug",     intervals: [0, 4, 8],           required: [0, 4, 8],           label: "Augmenté" },
-  { suffix: "sus2",    intervals: [0, 2, 7],           required: [0, 2, 7],           label: "Suspendu 2" },
-  { suffix: "sus4",    intervals: [0, 5, 7],           required: [0, 5, 7],           label: "Suspendu 4" },
-  { suffix: "5",       intervals: [0, 7],              required: [0, 7],              label: "Quinte (power)" },
+  { suffix: "",        intervals: [0, 4, 7],                label: "Majeur" },
+  { suffix: "m",       intervals: [0, 3, 7],                label: "Mineur" },
+  { suffix: "dim",     intervals: [0, 3, 6],                label: "Diminué" },
+  { suffix: "aug",     intervals: [0, 4, 8],                label: "Augmenté" },
+  { suffix: "sus2",    intervals: [0, 2, 7],                label: "Suspendu 2" },
+  { suffix: "sus4",    intervals: [0, 5, 7],                label: "Suspendu 4" },
+  { suffix: "5",       intervals: [0, 7],                   label: "Quinte (power)" },
 
   // ── 6th chords ──────────────────────────────────────────
-  { suffix: "6",       intervals: [0, 4, 7, 9],        required: [0, 4, 9],           label: "Sixte majeure" },
-  { suffix: "m6",      intervals: [0, 3, 7, 9],        required: [0, 3, 9],           label: "Sixte mineure" },
-  { suffix: "6/9",     intervals: [0, 2, 4, 7, 9],    required: [0, 4, 9],           label: "Sixte/Neuvième" },
+  { suffix: "6",       intervals: [0, 4, 7, 9],             label: "Sixte majeure" },
+  { suffix: "m6",      intervals: [0, 3, 7, 9],             label: "Sixte mineure" },
+  { suffix: "6/9",     intervals: [0, 2, 4, 7, 9],          label: "Sixte/Neuvième" },
 
   // ── 7th chords ──────────────────────────────────────────
-  { suffix: "maj7",    intervals: [0, 4, 7, 11],       required: [0, 4, 11],          label: "Septième majeure" },
-  { suffix: "7",       intervals: [0, 4, 7, 10],       required: [0, 4, 10],          label: "Septième dominante" },
-  { suffix: "m7",      intervals: [0, 3, 7, 10],       required: [0, 3, 10],          label: "Septième mineure" },
-  { suffix: "mMaj7",   intervals: [0, 3, 7, 11],       required: [0, 3, 11],          label: "Septième majeure mineure" },
-  { suffix: "dim7",    intervals: [0, 3, 6, 9],        required: [0, 3, 6, 9],        label: "Septième diminuée" },
-  { suffix: "m7b5",    intervals: [0, 3, 6, 10],       required: [0, 3, 6, 10],       label: "Demi-diminué" },
-  { suffix: "aug7",    intervals: [0, 4, 8, 10],       required: [0, 4, 8, 10],       label: "Septième augmentée" },
-  { suffix: "7sus4",   intervals: [0, 5, 7, 10],       required: [0, 5, 10],          label: "Sept. sus4" },
-  { suffix: "7b5",     intervals: [0, 4, 6, 10],       required: [0, 4, 6, 10],       label: "Sept. quinte bémol" },
-  { suffix: "7#5",     intervals: [0, 4, 8, 10],       required: [0, 4, 8, 10],       label: "Sept. quinte augmentée" },
+  { suffix: "maj7",    intervals: [0, 4, 7, 11],            label: "Septième majeure" },
+  { suffix: "7",       intervals: [0, 4, 7, 10],            label: "Septième dominante" },
+  { suffix: "m7",      intervals: [0, 3, 7, 10],            label: "Septième mineure" },
+  { suffix: "mMaj7",   intervals: [0, 3, 7, 11],            label: "Septième majeure mineure" },
+  { suffix: "dim7",    intervals: [0, 3, 6, 9],             label: "Septième diminuée" },
+  { suffix: "m7b5",    intervals: [0, 3, 6, 10],            label: "Demi-diminué" },
+  { suffix: "aug7",    intervals: [0, 4, 8, 10],            label: "Septième augmentée" },
+  { suffix: "7sus4",   intervals: [0, 5, 7, 10],            label: "Sept. sus4" },
+  { suffix: "7b5",     intervals: [0, 4, 6, 10],            label: "Sept. quinte bémol" },
+  { suffix: "7#5",     intervals: [0, 4, 8, 10],            label: "Sept. quinte augmentée" },
 
   // ── 9th chords ──────────────────────────────────────────
-  { suffix: "maj9",    intervals: [0, 2, 4, 7, 11],   required: [0, 4, 11],          label: "Neuvième majeure" },
-  { suffix: "9",       intervals: [0, 2, 4, 7, 10],   required: [0, 4, 10],          label: "Neuvième dominante" },
-  { suffix: "m9",      intervals: [0, 2, 3, 7, 10],   required: [0, 3, 10],          label: "Neuvième mineure" },
-  { suffix: "add9",    intervals: [0, 2, 4, 7],        required: [0, 2, 4, 7],        label: "Ajouté 9" },
-  { suffix: "madd9",   intervals: [0, 2, 3, 7],        required: [0, 2, 3, 7],        label: "Mineur ajouté 9" },
+  { suffix: "maj9",    intervals: [0, 2, 4, 7, 11],         label: "Neuvième majeure" },
+  { suffix: "9",       intervals: [0, 2, 4, 7, 10],         label: "Neuvième dominante" },
+  { suffix: "m9",      intervals: [0, 2, 3, 7, 10],         label: "Neuvième mineure" },
+  { suffix: "add9",    intervals: [0, 2, 4, 7],             label: "Ajouté 9" },
+  { suffix: "madd9",   intervals: [0, 2, 3, 7],             label: "Mineur ajouté 9" },
 
   // ── 11th chords ─────────────────────────────────────────
-  { suffix: "11",      intervals: [0, 2, 4, 5, 7, 10], required: [0, 5, 10],         label: "Onzième" },
-  { suffix: "m11",     intervals: [0, 2, 3, 5, 7, 10], required: [0, 3, 5, 10],      label: "Onzième mineure" },
-  { suffix: "maj11",   intervals: [0, 2, 4, 5, 7, 11], required: [0, 5, 11],         label: "Onzième majeure" },
+  { suffix: "11",      intervals: [0, 2, 4, 5, 7, 10],      label: "Onzième" },
+  { suffix: "m11",     intervals: [0, 2, 3, 5, 7, 10],      label: "Onzième mineure" },
+  { suffix: "maj11",   intervals: [0, 2, 4, 5, 7, 11],      label: "Onzième majeure" },
 
   // ── 13th chords ─────────────────────────────────────────
-  { suffix: "13",      intervals: [0, 2, 4, 5, 7, 9, 10], required: [0, 4, 9, 10],  label: "Treizième" },
-  { suffix: "m13",     intervals: [0, 2, 3, 5, 7, 9, 10], required: [0, 3, 9, 10],  label: "Treizième mineure" },
-  { suffix: "maj13",   intervals: [0, 2, 4, 5, 7, 9, 11], required: [0, 4, 9, 11],  label: "Treizième majeure" },
+  { suffix: "13",      intervals: [0, 2, 4, 5, 7, 9, 10],   label: "Treizième" },
+  { suffix: "m13",     intervals: [0, 2, 3, 5, 7, 9, 10],   label: "Treizième mineure" },
+  { suffix: "maj13",   intervals: [0, 2, 4, 5, 7, 9, 11],   label: "Treizième majeure" },
 ];
 
 // ─────────────────────────────────────────────
@@ -104,8 +104,8 @@ function identifyChords(midiNotes) {
       const intervalsFromRoot = pitchClasses.map(pc => (pc - rootPc + 12) % 12);
       const intervalSet = new Set(intervalsFromRoot);
 
-      // All required intervals must be present
-      const allRequiredPresent = template.required.every(i => intervalSet.has(i));
+      // Strict mode: ALL intervals of the template must be present
+      const allRequiredPresent = template.intervals.every(i => intervalSet.has(i));
       if (!allRequiredPresent) continue;
 
       // Count how many of the template's full intervals are present (coverage)
