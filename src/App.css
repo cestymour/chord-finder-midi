@@ -165,15 +165,12 @@
      flex: 1;
      display: flex;
      flex-direction: column;
-     justify-content: center;
+     justify-content: flex-start;
      align-items: stretch;
-     padding: 24px 20px;
+     padding: 24px 20px 0;
      gap: 20px;
-     overflow-y: auto;
-     /* Hide scrollbar but keep functionality */
-     scrollbar-width: none;
+     overflow: hidden; /* scroll géré par .secondary-chords uniquement */
    }
-   .display-area::-webkit-scrollbar { display: none; }
    
    /* ─────────────────────────────────────────────
       IDLE STATE
@@ -275,6 +272,7 @@
    .chord-card--primary {
      border-color: var(--border-accent);
      background: var(--bg-card);
+     flex-shrink: 0; /* ne rétrécit jamais, toujours affiché en entier */
      /* Subtle glow from top */
      box-shadow:
        inset 0 1px 0 #ffffff08,
@@ -393,7 +391,12 @@
      display: flex;
      flex-direction: column;
      gap: 10px;
+     flex: 1;
+     overflow-y: auto;
+     padding-bottom: max(20px, env(safe-area-inset-bottom));
+     scrollbar-width: none;
    }
+   .secondary-chords::-webkit-scrollbar { display: none; }
    
    .secondary-label {
      font-family: var(--font-mono);
@@ -493,15 +496,15 @@
       SCROLLBAR (desktop fallback)
       ───────────────────────────────────────────── */
    @media (min-width: 481px) {
-     .display-area {
+     .secondary-chords {
        scrollbar-width: thin;
        scrollbar-color: var(--border-mid) transparent;
      }
-     .display-area::-webkit-scrollbar {
+     .secondary-chords::-webkit-scrollbar {
        display: block;
        width: 4px;
      }
-     .display-area::-webkit-scrollbar-thumb {
+     .secondary-chords::-webkit-scrollbar-thumb {
        background: var(--border-mid);
        border-radius: 4px;
      }
@@ -512,9 +515,5 @@
       ───────────────────────────────────────────── */
    .midi-status {
      padding-top: max(10px, env(safe-area-inset-top));
-   }
-   
-   .display-area {
-     padding-bottom: max(24px, env(safe-area-inset-bottom));
    }
    
