@@ -393,10 +393,6 @@
      letter-spacing: 0.05em;
    }
    
-   .chord-card--secondary .chord-type {
-     font-size: 0.56rem;
-   }
-   
    /* ─────────────────────────────────────────────
       SECONDARY CHORDS SECTION
       ───────────────────────────────────────────── */
@@ -436,9 +432,13 @@
      gap: 0;
      background: var(--bg-surface);
      border-color: var(--border-subtle);
-     /* Layout horizontal : nom | meta */
-     flex-direction: row;
-     align-items: center;
+     /* Grille : nom à gauche ; tableau + type d'accord empilés à droite */
+     display: grid;
+     grid-template-columns: 110px 1fr;
+     grid-template-rows: auto auto;
+     column-gap: 0;
+     row-gap: 6px;
+     align-items: start;
    }
    
    .chord-card--secondary::before {
@@ -446,9 +446,11 @@
      opacity: 0.5;
    }
    
-   /* Nom de l'accord — colonne gauche, taille fixe */
+   /* Nom de l'accord — colonne gauche, centré verticalement face au bloc droit */
    .chord-card--secondary .chord-name {
-     flex-shrink: 0;
+     grid-column: 1;
+     grid-row: 1 / -1;
+     align-self: center;
      width: 110px;
      align-items: baseline;
    }
@@ -482,13 +484,24 @@
      margin-left: 2px;
    }
    
-   /* Table — colonne droite, prend le reste */
+   /* Table — première ligne à droite */
    .chord-card--secondary .chord-table {
-     flex: 1;
+     grid-column: 2;
+     grid-row: 1;
+     min-width: 0;
      padding-top: 0;
      padding-left: 12px;
      border-top: none;
      border-left: 1px solid var(--border-subtle);
+   }
+
+   /* Type d'accord — sous le tableau */
+   .chord-card--secondary .chord-type {
+     grid-column: 2;
+     grid-row: 2;
+     font-size: 0.56rem;
+     padding-left: 12px;
+     align-self: start;
    }
    
    /* secondary-chords : plus besoin de scroll, hauteur naturelle */
