@@ -112,6 +112,7 @@ function identifyChords(midiNotes) {
       const templateSet = new Set(template.intervals);
       const matchedOptional = template.intervals.filter(i => intervalSet.has(i)).length;
       const extraNotes = [...intervalSet].filter(i => !templateSet.has(i)).length;
+      if (extraNotes > 0) continue;
 
       // Score: prefer more matched intervals and fewer extra notes
       const score = matchedOptional * 10 - extraNotes * 3;
