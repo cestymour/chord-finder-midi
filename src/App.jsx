@@ -158,10 +158,52 @@ function identifyChords(midiNotes) {
 
   if (results.length === 0) return [];
 
-  // Sort: higher score first; tie-break by fewer extra notes, then alphabetical
+  // Frequency rank per suffix (lower = more common)
+  const SUFFIX_RANK = {
+    "":       1,
+    "m":      1,
+    "7":      1,
+    "m7":     1,
+    "5":      1,
+    "sus2":   1,
+    "sus4":   1,
+    "maj7":   2,
+    "6":      2,
+    "m6":     2,
+    "add9":   2,
+    "madd9":  2,
+    "9":      2,
+    "m9":     2,
+    "7sus4":  2,
+    "6/9":    3,
+    "7#5":    3,
+    "7b5":    3,
+    "m7b5":   3,
+    "dim7":   3,
+    "mMaj7":  4,
+    "dim":    4,
+    "aug":    4,
+    "aug7":   4,
+    "11":     4,
+    "m11":    4,
+    "maj9":   5,
+    "maj11":  5,
+    "maj13":  5,
+    "13":     5,
+    "m13":    5,
+  };
+
+  const getPriority = (r) => {
+    const rank = SUFFIX_RANK[r.suffix] ?? 6;
+    return rank + (r.isInversion ? 0.5 : 0);
+  };
+
+  // Sort: higher score first, then priority (frequency + inversion penalty), then alphabetical
   results.sort((a, b) => {
     if (b.score !== a.score) return b.score - a.score;
-    if (a.extraNotes !== b.extraNotes) return a.extraNotes - b.extraNotes;
+    const pa = getPriority(a);
+    const pb = getPriority(b);
+    if (pa !== pb) return pa - pb;
     return a.chordName.localeCompare(b.chordName);
   });
 
