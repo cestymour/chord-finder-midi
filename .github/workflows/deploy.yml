@@ -1,0 +1,56 @@
+name: Deploy React Vite PWA to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main # Déclenche le workflow à chaque push sur la branche 'main'
+
+  # Permet de lancer le workflow manuellement depuis l'onglet Actions
+  workflow_dispatch:
+
+# Permet aux actions de déployer sur GitHub Pages
+permissions:
+  contents: read      # Pour lire le contenu du dépôt
+  pages: write        # Pour déployer sur GitHub Pages
+  id-token: write     # Pour l'authentification OIDC nécessaire au déploiement
+
+jobs:
+  # Job de compilation (build)
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20 # Utilise la version de Node.js que tu utilises localement
+          cache: 'npm'     # Active la mise en cache des dépendances npm
+      
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build project with Vite
+        run: npm run build # Commande qui génère le dossier 'dist' de ton projet Vite
+
+      - name: Setup Pages
+        id: pages
+        uses: actions/configure-pages@v5 # Configure GitHub Pages pour le déploiement
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: './dist' # Le chemin vers ton dossier de build généré par 'npm run build'
+
+  # Job de déploiement
+  deploy:
+    environment:
+      name: github-pages      # Environnement de déploiement (standard pour GitHub Pages)
+      url: ${{ steps.deployment.outputs.page_url }} # URL du site après déploiement
+    runs-on: ubuntu-latest
+    needs: build              # Ce job dépend du succès du job 'build'
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4 # Action qui déploie l'artefact sur GitHub Pages
