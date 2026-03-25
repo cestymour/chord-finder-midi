@@ -54,7 +54,7 @@ const CHORD_TEMPLATES = [
   { suffix: "maj7",    intervals: [0, 4, 7, 11],            label: "Septième majeure" },
   { suffix: "7",       intervals: [0, 4, 7, 10],            label: "Septième dominante" },
   { suffix: "m7",      intervals: [0, 3, 7, 10],            label: "Septième mineure" },
-  { suffix: "mMaj7",   intervals: [0, 3, 7, 11],            label: "Septième majeure mineure" },
+  { suffix: "mM7",     intervals: [0, 3, 7, 11],            label: "Septième mineure majeure" },
   { suffix: "dim7",    intervals: [0, 3, 6, 9],             label: "Septième diminuée" },
   { suffix: "m7b5",    intervals: [0, 3, 6, 10],            label: "Demi-diminué" },
   { suffix: "aug7",    intervals: [0, 4, 8, 10],            label: "Septième augmentée" },
@@ -66,8 +66,8 @@ const CHORD_TEMPLATES = [
   { suffix: "maj9",    intervals: [0, 2, 4, 7, 11],         label: "Neuvième majeure" },
   { suffix: "9",       intervals: [0, 2, 4, 7, 10],         label: "Neuvième dominante" },
   { suffix: "m9",      intervals: [0, 2, 3, 7, 10],         label: "Neuvième mineure" },
-  { suffix: "add9",    intervals: [0, 2, 4, 7],             label: "Ajouté 9" },
-  { suffix: "madd9",   intervals: [0, 2, 3, 7],             label: "Mineur ajouté 9" },
+  { suffix: "add9",    intervals: [0, 2, 4, 7],             label: "Neuvième ajouté" },
+  { suffix: "madd9",   intervals: [0, 2, 3, 7],             label: "Neuvième mineure ajoutée" },
 
   // ── 11th chords ─────────────────────────────────────────
   { suffix: "11",      intervals: [0, 2, 4, 5, 7, 10],      label: "Onzième" },
