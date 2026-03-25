@@ -122,17 +122,24 @@ function identifyChords(midiNotes) {
       const isInversion = bassPc !== rootPc;
       const bassName = isInversion ? getRootNameEN(bassPc) : null;
 
-      // Build the interval labels from the actual played notes
-      const intervalLabels = pitchClasses
-        .map(pc => (pc - rootPc + 12) % 12)
-        .sort((a, b) => a - b)
-        .map(i => INTERVAL_LABEL[i] ?? `+${i}`);
-
-      // French note names of played notes, sorted from bass
-      const noteNamesFR = sorted
-        .map(n => getNoteNameFR(n % 12))
-        // deduplicate while preserving order
-        .filter((name, idx, arr) => arr.indexOf(name) === idx);
+      // Build note+interval pairs aligned together, ordered bass→treble
+      // Deduplicate by pitch class while preserving lowest-octave occurrence
+      const seenPc = new Set();
+      const noteIntervalPairs = sorted
+        .filter(n => {
+          const pc = n % 12;
+          if (seenPc.has(pc)) return false;
+          seenPc.add(pc);
+          return true;
+        })
+        .map(n => {
+          const pc = n % 12;
+          const interval = (pc - rootPc + 12) % 12;
+          return {
+            note: getNoteNameFR(pc),
+            interval: INTERVAL_LABEL[interval] ?? `+${interval}`,
+          };
+        });
 
       results.push({
         root: getRootNameEN(rootPc),
@@ -144,8 +151,7 @@ function identifyChords(midiNotes) {
         score,
         matchedOptional,
         extraNotes,
-        intervalLabels,
-        noteNamesFR,
+        noteIntervalPairs,
       });
     }
   }
@@ -367,28 +373,21 @@ function ChordCard({ chord, size }) {
         {inversionPart && <span className="chord-inversion">{inversionPart}</span>}
       </div>
 
-      {/* Secondary info */}
-      <div className="chord-meta">
-
-        {/* Notes played */}
-        <div className="meta-row">
-          <span className="meta-key">Notes</span>
-          <span className="meta-value">{chord.noteNamesFR.join(" – ")}</span>
-        </div>
-
-        {/* Intervals */}
-        <div className="meta-row">
-          <span className="meta-key">Intervalles</span>
-          <span className="meta-value">{chord.intervalLabels.join(" – ")}</span>
-        </div>
-
-        {/* Human-readable label */}
-        <div className="meta-row">
-          <span className="meta-key">Type</span>
-          <span className="meta-value meta-value--dim">{chord.label}</span>
-        </div>
-
+      {/* Note / Interval table — 2 rows × N columns */}
+      <div
+        className="chord-table"
+        style={{ gridTemplateColumns: `repeat(${chord.noteIntervalPairs.length}, 1fr)` }}
+      >
+        {chord.noteIntervalPairs.map((pair, i) => (
+          <span key={`n${i}`} className="chord-table__note">{pair.note}</span>
+        ))}
+        {chord.noteIntervalPairs.map((pair, i) => (
+          <span key={`i${i}`} className="chord-table__interval">{pair.interval}</span>
+        ))}
       </div>
+
+      {/* Human-readable label */}
+      <div className="chord-type">{chord.label}</div>
     </div>
   );
 }

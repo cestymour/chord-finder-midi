@@ -337,51 +337,64 @@
    }
    
    /* ─────────────────────────────────────────────
-      CHORD META (notes, intervals, label)
+      CHORD TABLE (notes + intervalles alignés)
       ───────────────────────────────────────────── */
-   .chord-meta {
-     display: flex;
-     flex-direction: column;
-     gap: 6px;
-     padding-top: 12px;
+   .chord-table {
+     display: grid;
+     /* gridTemplateColumns défini inline via style React */
      border-top: 1px solid var(--border-subtle);
+     padding-top: 12px;
    }
    
-   .meta-row {
-     display: flex;
-     align-items: baseline;
-     gap: 12px;
-   }
-   
-   .meta-key {
+   .chord-table__note,
+   .chord-table__interval {
      font-family: var(--font-mono);
-     font-size: 0.58rem;
+     text-align: center;
+     padding: 2px 4px;
+   }
+   
+   .chord-table__note {
+     font-size: 0.8rem;
      font-weight: 600;
-     letter-spacing: 0.18em;
-     text-transform: uppercase;
-     color: var(--txt-dim);
-     min-width: 72px;
-     flex-shrink: 0;
+     color: var(--txt-primary);
+     padding-bottom: 4px;
+     border-bottom: 1px solid var(--border-subtle);
    }
    
-   .meta-value {
-     font-family: var(--font-mono);
-     font-size: 0.82rem;
-     font-weight: 400;
-     color: var(--txt-secondary);
-     letter-spacing: 0.04em;
+   .chord-card--primary .chord-table__note {
+     font-size: 0.88rem;
    }
    
-   .meta-value--dim {
+   .chord-table__interval {
      font-size: 0.72rem;
+     font-weight: 400;
+     color: var(--accent);
+     padding-top: 5px;
+     opacity: 0.85;
+   }
+   
+   .chord-card--secondary .chord-table__note {
+     font-size: 0.7rem;
+   }
+   
+   .chord-card--secondary .chord-table__interval {
+     font-size: 0.62rem;
+   }
+   
+   /* ─────────────────────────────────────────────
+      CHORD TYPE LABEL
+      ───────────────────────────────────────────── */
+   .chord-type {
+     font-family: var(--font-mono);
+     font-size: 0.62rem;
+     font-weight: 400;
      color: var(--txt-dim);
      font-style: italic;
+     letter-spacing: 0.05em;
    }
    
-   /* Primary card meta slightly brighter */
-   .chord-card--primary .meta-value {
-     color: var(--txt-primary);
-     opacity: 0.8;
+   .chord-card--secondary .chord-type {
+     font-size: 0.56rem;
    }
    
    /* ─────────────────────────────────────────────
@@ -415,14 +428,17 @@
    }
    
    /* ─────────────────────────────────────────────
-      CHORD CARD — SECONDARY
+      CHORD CARD — SECONDARY (compact)
       ───────────────────────────────────────────── */
    .chord-card--secondary {
-     padding: 14px 20px 14px;
+     padding: 10px 16px;
      border-radius: var(--radius-md);
-     gap: 10px;
+     gap: 0;
      background: var(--bg-surface);
      border-color: var(--border-subtle);
+     /* Layout horizontal : nom | meta */
+     flex-direction: row;
+     align-items: center;
    }
    
    .chord-card--secondary::before {
@@ -430,9 +446,16 @@
      opacity: 0.5;
    }
    
+   /* Nom de l'accord — colonne gauche, taille fixe */
+   .chord-card--secondary .chord-name {
+     flex-shrink: 0;
+     width: 110px;
+     align-items: baseline;
+   }
+   
    .chord-card--secondary .chord-root {
      font-family: var(--font-display);
-     font-size: clamp(1.8rem, 9vw, 2.8rem);
+     font-size: 2rem;
      font-weight: 600;
      color: var(--txt-secondary);
      letter-spacing: -1px;
@@ -441,36 +464,38 @@
    
    .chord-card--secondary .chord-suffix {
      font-family: var(--font-display);
-     font-size: clamp(1rem, 5vw, 1.5rem);
+     font-size: 1.1rem;
      font-weight: 300;
      color: var(--amber);
      align-self: flex-end;
-     padding-bottom: 2px;
+     padding-bottom: 1px;
    }
    
    .chord-card--secondary .chord-inversion {
      font-family: var(--font-display);
-     font-size: clamp(0.8rem, 3.5vw, 1.1rem);
+     font-size: 0.85rem;
      font-weight: 300;
      color: var(--amber);
      opacity: 0.7;
      align-self: flex-end;
-     padding-bottom: 3px;
+     padding-bottom: 2px;
      margin-left: 2px;
    }
    
-   .chord-card--secondary .chord-meta {
-     padding-top: 8px;
-     gap: 4px;
+   /* Table — colonne droite, prend le reste */
+   .chord-card--secondary .chord-table {
+     flex: 1;
+     padding-top: 0;
+     padding-left: 12px;
+     border-top: none;
+     border-left: 1px solid var(--border-subtle);
    }
    
-   .chord-card--secondary .meta-key {
-     min-width: 60px;
-     font-size: 0.54rem;
-   }
-   
-   .chord-card--secondary .meta-value {
-     font-size: 0.73rem;
+   /* secondary-chords : plus besoin de scroll, hauteur naturelle */
+   .secondary-chords {
+     flex: 0 0 auto;
+     overflow: visible;
+     padding-bottom: max(20px, env(safe-area-inset-bottom));
    }
    
    /* ─────────────────────────────────────────────
