@@ -357,7 +357,7 @@ function BluetoothMIDIButton({ btStatus, btError, onConnect }) {
         <span className="bt-connect-label">
           {btStatus === "scanning" && "Recherche…"}
           {btStatus === "connecting" && "Connexion…"}
-          {btStatus !== "scanning" && btStatus !== "connecting" && "Connecter MIDI Bluetooth"}
+          {btStatus !== "scanning" && btStatus !== "connecting" && "Connexion Bluetooth MIDI"}
         </span>
       </button>
 

@@ -13,9 +13,9 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png'],
       manifest: {
-        name: 'Chord Finder MIDI',
-        short_name: 'ChordFinder',
-        description: 'Trouve les accords depuis ton clavier MIDI',
+        name: 'InstantChordBT',
+        short_name: 'InstantChordBT',
+        description: 'Trouve les accords depuis ton clavier MIDI (Bluetooth ou câble).',
         theme_color: '#1a1a2e',
         background_color: '#1a1a2e',
         display: 'standalone',
