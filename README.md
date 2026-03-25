@@ -1,16 +1,42 @@
-# React + Vite
+# InstantChordBT — Détecteur d’accords MIDI
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Application web (**React** + **Vite**) qui affiche en temps réel le ou les accords correspondant aux notes jouées sur un clavier MIDI. Connexion possible en **USB / filaire** (Web MIDI) ou en **Bluetooth Low Energy** (Web Bluetooth + parsing BLE MIDI).
 
-Currently, two official plugins are available:
+Interface en français (noms de notes, libellés d’accords) ; symboles d’accord au format usuel anglais (C, Dm, Fmaj7, etc.).
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Fonctionnalités
 
-## React Compiler
+- Détection d’accords à partir des notes MIDI actives (analyse par classes de hauteur, plusieurs modèles : triades, 6e, 7e, 9e, 11e, 13e, suspendus, power chords, etc.).
+- **Web MIDI** : sélection d’une entrée MIDI du système (câble, interface, pilote virtuel).
+- **Bluetooth MIDI** : appairage d’un périphérique compatible BLE MIDI (navigateur et OS doivent exposer Web Bluetooth).
+- **PWA** : installable, cache et mise à jour du service worker via `vite-plugin-pwa`.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Prérequis
 
-## Expanding the ESLint configuration
+- **HTTPS** ou `localhost` (obligatoire pour Web MIDI et Web Bluetooth).
+- Navigateur récent avec **Web MIDI** (Chrome, Edge, Opera, etc.).
+- **Web Bluetooth** : surtout **Chrome** ou **Edge** sur desktop/Android ; la prise en charge varie selon l’OS (Safari/Firefox limitent souvent l’API).
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## Installation et scripts
+
+```bash
+npm install
+npm run dev      # serveur de développement (http://localhost:5173)
+npm run build    # build de production dans dist/
+npm run preview  # prévisualisation du build
+npm run lint     # ESLint
+```
+
+## Déploiement
+
+Le fichier `vite.config.js` fixe `base` à `/chord-finder-midi/` en production : hébergez le contenu de `dist/` sous ce chemin (GitHub Pages, etc.), ou adaptez `base` à votre URL.
+
+## Technologies
+
+- [React 19](https://react.dev), [Vite 8](https://vitejs.dev)
+- [ble-midi-parser](https://www.npmjs.com/package/ble-midi-parser) pour les paquets MIDI over BLE
+- Web MIDI API, Web Bluetooth API
+
+## Licence
+
+[MIT](LICENSE)
