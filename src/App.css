@@ -538,6 +538,94 @@
    }
    
    /* ─────────────────────────────────────────────
+      MOBILE PAYSAGE — colonnes : carte principale | autres possibilités
+      (écrans peu hauts : téléphone ou fenêtre courte en largeur)
+      ───────────────────────────────────────────── */
+   @media (orientation: landscape) and (max-height: 560px) {
+     .app {
+       max-width: none;
+     }
+   
+     .display-area {
+       flex-direction: row;
+       align-items: stretch;
+       gap: 12px;
+       padding: 12px max(16px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom))
+         max(16px, env(safe-area-inset-left));
+       min-height: 0;
+     }
+   
+     /* Message d’attente : une colonne centrée sur toute la largeur */
+     .display-area:has(.idle-state) {
+       flex-direction: column;
+       justify-content: center;
+       padding: 16px 20px;
+     }
+   
+     .display-area:has(.idle-state) .idle-state {
+       flex: 1;
+     }
+   
+     /* Carte principale : toujours la moitié gauche (même seule → pas de saut quand d’autres accords arrivent) */
+     .chord-card--primary {
+       flex: 0 0 calc((100% - 12px) / 2);
+       max-width: calc((100% - 12px) / 2);
+       min-width: 0;
+       min-height: 0;
+       align-self: stretch;
+       padding: 14px 16px 12px;
+       overflow-y: auto;
+       -webkit-overflow-scrolling: touch;
+     }
+   
+     .secondary-chords {
+       flex: 0 0 calc((100% - 12px) / 2);
+       max-width: calc((100% - 12px) / 2);
+       min-width: 0;
+       min-height: 0;
+       overflow-y: auto;
+       -webkit-overflow-scrolling: touch;
+       padding-bottom: 0;
+       scrollbar-width: thin;
+       scrollbar-color: var(--border-mid) transparent;
+     }
+   
+     .secondary-chords::-webkit-scrollbar {
+       display: block;
+       width: 4px;
+     }
+   
+     .secondary-chords::-webkit-scrollbar-thumb {
+       background: var(--border-mid);
+       border-radius: 4px;
+     }
+   
+     /* Typo : vmin suit la dimension la plus contrainte (souvent la hauteur en paysage) */
+     .chord-card--primary .chord-root {
+       font-size: clamp(2rem, 14vmin, 4rem);
+       letter-spacing: -1px;
+     }
+   
+     .chord-card--primary .chord-suffix {
+       font-size: clamp(0.95rem, 6vmin, 2rem);
+       padding-bottom: 2px;
+     }
+   
+     .chord-card--primary .chord-inversion {
+       font-size: clamp(0.75rem, 4vmin, 1.35rem);
+       padding-bottom: 4px;
+     }
+   
+     .chord-card--primary .chord-table__note {
+       font-size: 0.75rem;
+     }
+   
+     .chord-card--primary .chord-type {
+       font-size: 0.58rem;
+     }
+   }
+   
+   /* ─────────────────────────────────────────────
       SAFE AREA (notch, home bar)
       ───────────────────────────────────────────── */
    .midi-status {
