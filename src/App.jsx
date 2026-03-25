@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import './App.css';
+import useBluetoothMIDI from "./useBluetoothMIDI";
 
 // ─────────────────────────────────────────────
 // CONSTANTS
@@ -222,7 +223,7 @@ function identifyChords(midiNotes) {
   return deduped.filter(r => r.score >= best - 5).slice(0, 4);
 }
 
-/** Notes pressées → paires pour le tableau (même dédup par classe de hauteur que l’accord). */
+/** Notes pressées → paires pour le tableau (même dédup par classe de hauteur que l'accord). */
 function buildPendingNotePairs(midiNotes) {
   const sorted = [...midiNotes].sort((a, b) => a - b);
   const seenPc = new Set();
@@ -259,7 +260,7 @@ const INTERVAL_LABEL = {
 // MIDI CONNECTION HOOK
 // ─────────────────────────────────────────────
 
-function useMIDI(onNoteOn, onNoteOff) {
+function useMIDI(onNoteOn, onNoteOff, refreshKey) {
   const [midiStatus, setMidiStatus] = useState("pending"); // pending | connected | disconnected | denied
   const inputsRef = useRef([]);
 
@@ -280,7 +281,7 @@ function useMIDI(onNoteOn, onNoteOff) {
       return;
     }
 
-    let access = null;
+    setMidiStatus("pending");
 
     const attachListeners = (midiAccess) => {
       // Detach old listeners
@@ -299,9 +300,8 @@ function useMIDI(onNoteOn, onNoteOff) {
       setMidiStatus(count > 0 ? "connected" : "disconnected");
     };
 
-    navigator.requestMIDIAccess({ sysex: false })
+    navigator.requestMIDIAccess()
       .then(midiAccess => {
-        access = midiAccess;
         attachListeners(midiAccess);
 
         midiAccess.onstatechange = () => {
@@ -319,9 +319,60 @@ function useMIDI(onNoteOn, onNoteOff) {
         });
       }
     };
-  }, [handleMidiMessage]);
+  }, [handleMidiMessage, refreshKey]);
 
   return midiStatus;
+}
+
+// ─────────────────────────────────────────────
+// BLUETOOTH MIDI BUTTON COMPONENT
+// ─────────────────────────────────────────────
+
+function BluetoothMIDIButton({ btStatus, btError, onConnect }) {
+  const isLoading = btStatus === "scanning" || btStatus === "connecting";
+
+  return (
+    <div className="bt-connect-container">
+      <button
+        className={`bt-connect-btn ${isLoading ? "bt-connect-btn--loading" : ""}`}
+        onClick={onConnect}
+        disabled={isLoading}
+        aria-label="Connecter un instrument MIDI via Bluetooth"
+      >
+        <svg
+          className="bt-connect-icon"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <polyline points="6.5 6.5 17.5 17.5" />
+          <polyline points="6.5 17.5 17.5 6.5" />
+          <polyline points="12 2 17.5 6.5 12 11 17.5 17.5 12 22" />
+          <line x1="12" y1="2" x2="12" y2="22" />
+        </svg>
+
+        <span className="bt-connect-label">
+          {btStatus === "scanning" && "Recherche…"}
+          {btStatus === "connecting" && "Connexion…"}
+          {btStatus !== "scanning" && btStatus !== "connecting" && "Connecter MIDI Bluetooth"}
+        </span>
+      </button>
+
+      {btStatus === "error" && btError && (
+        <p className="bt-connect-error">{btError}</p>
+      )}
+
+      {btStatus === "unsupported" && (
+        <p className="bt-connect-error">
+          Web Bluetooth n'est pas supporté par ce navigateur.
+          Utilisez Chrome sur Android ou ordinateur.
+        </p>
+      )}
+    </div>
+  );
 }
 
 // ─────────────────────────────────────────────
@@ -348,7 +399,30 @@ export default function ChordIdentifier() {
     });
   }, []);
 
-  const midiStatus = useMIDI(handleNoteOn, handleNoteOff);
+  const {
+    btStatus,
+    btError,
+    requestBluetoothMIDI,
+  } = useBluetoothMIDI({ onNoteOn: handleNoteOn, onNoteOff: handleNoteOff });
+
+  useEffect(() => {
+    // Lors d'une déconnexion Bluetooth, évite de garder des notes "bloquées".
+    if (btStatus === "connected") return;
+    const t = setTimeout(() => setPressedNotes(new Set()), 0);
+    return () => clearTimeout(t);
+  }, [btStatus]);
+
+  const midiStatusRefreshed = useMIDI(handleNoteOn, handleNoteOff);
+
+  const displayedMidiStatus =
+    btStatus === "scanning" || btStatus === "connecting"
+      ? "pending"
+      : btStatus === "connected"
+        ? "connected"
+        : midiStatusRefreshed;
+
+  const showBluetoothButton =
+    btStatus !== "connected" && midiStatusRefreshed === "disconnected";
 
   // Compute chords whenever pressed notes change
   const midiArray = [...pressedNotes];
@@ -374,23 +448,34 @@ export default function ChordIdentifier() {
     <div className="app">
 
       {/* ── MIDI Status indicator ── */}
-      <div className={`midi-status midi-status--${midiStatus}`}>
+      <div className={`midi-status midi-status--${displayedMidiStatus}`}>
         <span className="midi-dot" />
         <span className="midi-label">
-          {midiStatus === "pending"      && "Connexion MIDI…"}
-          {midiStatus === "connected"    && "MIDI connecté"}
-          {midiStatus === "disconnected" && "Aucun instrument MIDI"}
-          {midiStatus === "denied"       && "MIDI non disponible"}
+          {displayedMidiStatus === "pending" && "Connexion MIDI…"}
+          {displayedMidiStatus === "connected" && "MIDI connecté"}
+          {displayedMidiStatus === "disconnected" && "Aucun instrument MIDI"}
+          {displayedMidiStatus === "denied" && "MIDI non disponible"}
         </span>
       </div>
 
       {/* ── Main display area ── */}
       <div className="display-area">
+
+        {showBluetoothButton && (
+          <BluetoothMIDIButton
+            btStatus={btStatus}
+            btError={btError}
+            onConnect={requestBluetoothMIDI}
+          />
+        )}
+
         {midiArray.length === 0 ? (
-          <div className="idle-state">
-            <span className="idle-icon">🎹</span>
-            <span className="idle-text">Jouez un accord…</span>
-          </div>
+          !showBluetoothButton && (
+            <div className="idle-state">
+              <span className="idle-icon">🎹</span>
+              <span className="idle-text">Jouez un accord…</span>
+            </div>
+          )
         ) : (
           <>
             {primaryChord ? (

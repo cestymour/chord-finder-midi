@@ -632,3 +632,144 @@
      padding-top: max(10px, env(safe-area-inset-top));
    }
    
+/* ─────────────────────────────────────────────
+   BLUETOOTH MIDI CONNECT BUTTON
+   ───────────────────────────────────────────── */
+
+.bt-connect-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  flex: 1;
+  animation: fade-in 0.6s ease;
+}
+
+.bt-connect-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  width: clamp(200px, 55vw, 280px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  border: 2px solid var(--accent);
+  background: var(--bg-card);
+  color: var(--accent);
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition: background 0.3s, border-color 0.3s, box-shadow 0.3s, transform 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.bt-connect-btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 40%, var(--accent-dim), transparent 70%);
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.bt-connect-btn:hover:not(:disabled) {
+  background: var(--bg-card-hover);
+  box-shadow: var(--accent-glow);
+  transform: scale(1.03);
+}
+
+.bt-connect-btn:hover:not(:disabled)::before {
+  opacity: 1;
+}
+
+.bt-connect-btn:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.bt-connect-btn:disabled {
+  cursor: not-allowed;
+  border-color: var(--border-mid);
+  color: var(--txt-secondary);
+}
+
+/* Icône Bluetooth SVG */
+.bt-connect-icon {
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 1;
+}
+
+/* Label sous l'icône */
+.bt-connect-label {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  text-align: center;
+  line-height: 1.4;
+  padding: 0 20px;
+  position: relative;
+  z-index: 1;
+}
+
+/* Animation de chargement (scanning / connecting) */
+.bt-connect-btn--loading {
+  border-color: var(--txt-secondary);
+  color: var(--txt-secondary);
+  animation: bt-pulse 1.5s ease-in-out infinite;
+}
+
+.bt-connect-btn--loading .bt-connect-icon {
+  animation: bt-spin 2s linear infinite;
+}
+
+@keyframes bt-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 transparent; }
+  50%      { box-shadow: 0 0 20px 4px var(--accent-dim); }
+}
+
+@keyframes bt-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+/* Message d'erreur sous le bouton */
+.bt-connect-error {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-weight: 400;
+  color: var(--err);
+  text-align: center;
+  max-width: 280px;
+  line-height: 1.5;
+  letter-spacing: 0.02em;
+}
+
+/* ─────────────────────────────────────────────
+   BLUETOOTH BUTTON — LANDSCAPE OVERRIDE
+   ───────────────────────────────────────────── */
+@media (orientation: landscape) and (max-height: 560px) {
+  .bt-connect-container {
+    flex: 1;
+    justify-content: center;
+  }
+
+  .bt-connect-btn {
+    width: clamp(140px, 30vmin, 200px);
+  }
+
+  .bt-connect-icon {
+    width: 36px;
+    height: 36px;
+  }
+
+  .bt-connect-label {
+    font-size: 0.6rem;
+  }
+}
