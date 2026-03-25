@@ -201,44 +201,6 @@
    }
    
    /* ─────────────────────────────────────────────
-      NO CHORD STATE
-      ───────────────────────────────────────────── */
-   .no-chord {
-     display: flex;
-     flex-direction: column;
-     align-items: center;
-     justify-content: center;
-     gap: 12px;
-     flex: 1;
-     animation: fade-in 0.2s ease;
-   }
-   
-   .no-chord-symbol {
-     font-family: var(--font-display);
-     font-size: 9rem;
-     font-weight: 700;
-     color: var(--txt-dim);
-     line-height: 1;
-     letter-spacing: -4px;
-   }
-   
-   .no-chord-text {
-     font-family: var(--font-mono);
-     font-size: 0.7rem;
-     letter-spacing: 0.18em;
-     text-transform: uppercase;
-     color: var(--txt-dim);
-   }
-   
-   .raw-notes {
-     margin-top: 8px;
-     font-family: var(--font-mono);
-     font-size: 0.85rem;
-     color: var(--txt-secondary);
-     letter-spacing: 0.05em;
-   }
-   
-   /* ─────────────────────────────────────────────
       CHORD CARD — shared
       ───────────────────────────────────────────── */
    .chord-card {
@@ -289,6 +251,33 @@
      height: 40%;
      background: radial-gradient(ellipse 60% 40% at 50% 0%, #00e5a00a, transparent);
      pointer-events: none;
+   }
+
+   /* Carte « en attente » : même mise en page, bordure grise (pas vert = trouvé) */
+   .chord-card--primary.chord-card--pending {
+     border-color: var(--border-mid);
+     box-shadow:
+       inset 0 1px 0 #ffffff06,
+       0 4px 24px #00000035;
+   }
+
+   .chord-card--primary.chord-card--pending::before {
+     background: linear-gradient(to bottom, transparent, var(--txt-dim), transparent);
+     opacity: 0.45;
+   }
+
+   .chord-card--primary.chord-card--pending::after {
+     background: radial-gradient(ellipse 60% 40% at 50% 0%, #ffffff06, transparent);
+   }
+
+   .chord-card--primary.chord-card--pending .chord-root {
+     color: var(--txt-secondary);
+     text-shadow: none;
+   }
+
+   .chord-card--primary.chord-card--pending .chord-table__interval {
+     color: var(--txt-dim);
+     opacity: 0.9;
    }
    
    /* ─────────────────────────────────────────────

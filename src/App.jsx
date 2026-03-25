@@ -222,6 +222,23 @@ function identifyChords(midiNotes) {
   return deduped.filter(r => r.score >= best - 5).slice(0, 4);
 }
 
+/** Notes pressées → paires pour le tableau (même dédup par classe de hauteur que l’accord). */
+function buildPendingNotePairs(midiNotes) {
+  const sorted = [...midiNotes].sort((a, b) => a - b);
+  const seenPc = new Set();
+  return sorted
+    .filter((n) => {
+      const pc = n % 12;
+      if (seenPc.has(pc)) return false;
+      seenPc.add(pc);
+      return true;
+    })
+    .map((n) => ({
+      note: getNoteNameFR(n % 12),
+      interval: "—",
+    }));
+}
+
 // Interval → readable label
 const INTERVAL_LABEL = {
   0: "1",
@@ -340,6 +357,18 @@ export default function ChordIdentifier() {
   const primaryChord = chords[0] ?? null;
   const secondaryChords = chords.slice(1);
 
+  const pendingChordPlaceHolder =
+    midiArray.length > 0 && !primaryChord
+      ? {
+          root: "?",
+          suffix: "",
+          label: "Accord non reconnu",
+          isInversion: false,
+          bassName: null,
+          noteIntervalPairs: buildPendingNotePairs(midiArray),
+        }
+      : null;
+
   // ── Render ────────────────────────────────
   return (
     <div className="app">
@@ -362,13 +391,16 @@ export default function ChordIdentifier() {
             <span className="idle-icon">🎹</span>
             <span className="idle-text">Jouez un accord…</span>
           </div>
-        ) : primaryChord ? (
+        ) : (
           <>
-            {/* Primary chord — large */}
-            <ChordCard chord={primaryChord} size="primary" />
-
-            {/* Secondary chords — smaller */}
-            {secondaryChords.length > 0 && (
+            {primaryChord ? (
+              <ChordCard chord={primaryChord} size="primary" />
+            ) : (
+              pendingChordPlaceHolder && (
+                <ChordCard chord={pendingChordPlaceHolder} size="primary" isPending />
+              )
+            )}
+            {primaryChord && secondaryChords.length > 0 && (
               <div className="secondary-chords">
                 <div className="secondary-label">Autres possibilités</div>
                 <div className="secondary-list">
@@ -379,15 +411,6 @@ export default function ChordIdentifier() {
               </div>
             )}
           </>
-        ) : (
-          <div className="no-chord">
-            <span className="no-chord-symbol">?</span>
-            <span className="no-chord-text">Accord non reconnu</span>
-            {/* Still show the notes played */}
-            <div className="raw-notes">
-              {midiArray.sort((a, b) => a - b).map(n => getNoteNameFR(n % 12)).join(" – ")}
-            </div>
-          </div>
         )}
       </div>
 
@@ -399,14 +422,16 @@ export default function ChordIdentifier() {
 // CHORD CARD SUB-COMPONENT
 // ─────────────────────────────────────────────
 
-function ChordCard({ chord, size }) {
+function ChordCard({ chord, size, isPending = false }) {
   // Split chord name into root + suffix + inversion for styled rendering
   const rootPart = chord.root;
   const suffixPart = chord.suffix;
   const inversionPart = chord.isInversion ? `/${chord.bassName}` : "";
 
   return (
-    <div className={`chord-card chord-card--${size}`}>
+    <div
+      className={`chord-card chord-card--${size}${isPending ? " chord-card--pending" : ""}`}
+    >
 
       {/* Chord name — very large */}
       <div className="chord-name">
