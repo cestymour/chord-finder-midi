@@ -817,22 +817,143 @@
   overflow-wrap: anywhere;
 }
 
-/* Message d'erreur sous le bouton */
-.bt-connect-error,
-.bt-connect-hint {
-  font-family: var(--font-mono);
-  font-size: 0.62rem;
-  font-weight: 400;
-  color: var(--err);
-  text-align: center;
-  max-width: 320px;
-  line-height: 1.5;
-  letter-spacing: 0.02em;
+/* ─────────────────────────────────────────────
+   BULLES D'INFORMATION (bouton ⓘ)
+   ───────────────────────────────────────────── */
+.info-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  padding: 2px;
+  color: var(--txt-dim);
+  background: none;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s;
+  -webkit-tap-highlight-color: transparent;
 }
 
-/* Conseil (sélecteur fermé sans choix) : pas une erreur */
-.bt-connect-hint {
+.info-btn svg {
+  width: 100%;
+  height: 100%;
+}
+
+.info-btn--open {
+  color: var(--accent);
+  background: var(--accent-dim);
+}
+
+@media (hover: hover) {
+  .info-btn:hover {
+    color: var(--accent);
+  }
+}
+
+.info-bubble {
+  margin: 0;
+  padding: 10px 12px;
+  font-size: 0.75rem;
+  line-height: 1.5;
   color: var(--txt-secondary);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-mid);
+  border-left: 2px solid var(--accent);
+  border-radius: var(--radius-sm);
+  text-align: left;
+  animation: info-in 0.2s ease;
+}
+
+@keyframes info-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .info-bubble {
+    animation: none;
+  }
+}
+
+/* Message court + ⓘ, centré (écran de connexion) */
+.info-tip {
+  width: min(100%, 340px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  animation: fade-in 0.4s ease;
+}
+
+.info-tip__head {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.info-tip__label {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--txt-secondary);
+}
+
+.info-tip--error .info-tip__label { color: var(--err); }
+.info-tip--warn .info-tip__label { color: var(--warn); }
+.info-tip--error .info-bubble { border-left-color: var(--err); }
+.info-tip--warn .info-bubble { border-left-color: var(--warn); }
+.info-tip--error .info-btn--open { color: var(--err); background: #ff4d6a22; }
+.info-tip--warn .info-btn--open { color: var(--warn); background: var(--amber-dim); }
+
+/* ─────────────────────────────────────────────
+   INTERRUPTEUR (paramètres)
+   ───────────────────────────────────────────── */
+.switch {
+  position: relative;
+  flex-shrink: 0;
+  width: 46px;
+  height: 26px;
+  padding: 0;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-mid);
+  border-radius: 13px;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.switch__thumb {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--txt-dim);
+  transition: transform 0.2s ease, background 0.2s;
+}
+
+.switch--on {
+  background: var(--accent-dim);
+  border-color: var(--accent);
+}
+
+.switch--on .switch__thumb {
+  transform: translateX(20px);
+  background: var(--accent);
+  box-shadow: 0 0 8px #00e5a066;
+}
+
+.switch:focus-visible,
+.info-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 /* Lien « Connecter un autre piano » */
@@ -1001,37 +1122,6 @@
   animation: fade-in 0.6s ease;
 }
 
-/* Branchement par câble : simple explication sous le bouton Bluetooth */
-.usb-hint {
-  width: min(100%, 440px);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  text-align: center;
-  animation: fade-in 0.6s ease;
-}
-
-.usb-hint__title {
-  font-family: var(--font-mono);
-  font-size: 0.62rem;
-  font-weight: 600;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--txt-secondary);
-}
-
-.usb-hint__text {
-  font-family: var(--font-mono);
-  font-size: 0.62rem;
-  line-height: 1.5;
-  color: var(--txt-dim);
-}
-
-.usb-hint__text--warn {
-  color: var(--warn);
-}
-
 .no-piano {
   width: 100%;
   display: flex;
@@ -1151,12 +1241,11 @@
 }
 
 .settings__label {
-  font-family: var(--font-mono);
-  font-size: 0.58rem;
-  font-weight: 600;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  color: var(--txt-dim);
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  color: var(--txt-primary);
 }
 
 .settings__choices {
@@ -1215,47 +1304,110 @@
   transform: translateY(-0.12em);
 }
 
-/* Son : emoji 🔊 / 🔇, atténué quand il n'est pas choisi (comme les drapeaux) */
-.settings__emoji {
-  display: block;
-  font-size: 1.5rem;
-  line-height: 1;
-}
-
-.settings__choice:not(.settings__choice--active) .settings__emoji {
-  opacity: 0.55;
-}
-
-/* Accords incomplets : boutons Oui / Non en texte, avec une explication au-dessus */
-.settings__text {
-  display: block;
-  font-size: 1rem;
-  line-height: 1.4;
-}
-
-.settings__hint {
-  margin: 0;
-  font-size: 0.75rem;
-  line-height: 1.4;
-  color: var(--txt-secondary);
-}
-
 .settings__choice--active {
   color: var(--accent);
   border-color: var(--accent);
   background: var(--accent-dim);
 }
 
+/* Ligne « libellé à gauche, réglage à droite » */
+.settings__row--inline {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
 
+.settings__label-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Dièses / bémols : deux boutons accolés */
+.settings__segmented {
+  display: flex;
+  flex-shrink: 0;
+}
+
+.settings__segmented .settings__choice {
+  width: 46px;
+  height: 38px;
+  padding: 0;
+  font-size: 1.4rem;
+}
+
+.settings__segmented .settings__choice:first-child {
+  border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+}
+
+.settings__segmented .settings__choice:last-child {
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  margin-left: -1px;
+}
+
+.settings__segmented .settings__choice--active {
+  position: relative; /* bordure active au-dessus de la voisine */
+}
+
+/* Pied : séparé par un trait, version puis auteur et licence */
 .settings__footer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-mid);
   font-family: var(--font-mono);
-  font-size: 0.6rem;
-  letter-spacing: 0.08em;
+  font-size: 0.62rem;
+  letter-spacing: 0.06em;
   color: var(--txt-dim);
   text-align: center;
 }
 
-/* En mode clavier virtuel ou dictionnaire (portrait), le clavier occupe le bas.
+.settings__app {
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  letter-spacing: 0.08em;
+  color: var(--txt-secondary);
+}
+
+.settings__version {
+  margin-left: 4px;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.06em;
+  color: var(--txt-dim);
+}
+
+.settings__credits {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.settings__credits a {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--txt-secondary);
+  text-decoration: none;
+  transition: color 0.15s;
+}
+
+.settings__credits svg {
+  width: 13px;
+  height: 13px;
+}
+
+@media (hover: hover) {
+  .settings__credits a:hover {
+    color: var(--accent);
+  }
+}
+
+/* Quand le clavier est affiché (écran Piano ou dictionnaire, en portrait), il occupe le bas.
    La liste secondaire défile seule tant que la place suffit ; sur un écran court,
    toute la zone d'accords défile pour que rien ne soit coupé.
    Exclu en paysage bas, qui a sa propre mise en page en colonnes. */
@@ -1450,7 +1602,7 @@
   border-color: var(--accent);
 }
 
-/* Fenêtre de défilement horizontal sur le clavier de 3 octaves */
+/* Fenêtre de défilement horizontal sur le clavier de 88 touches */
 .virtual-kb__scroller {
   overflow-x: auto;
   overflow-y: hidden;
@@ -1467,13 +1619,14 @@
   border-radius: 4px;
 }
 
-/* Largeur du clavier : en portrait, 150 % de la fenêtre (= 2 octaves visibles
-   sur 3, le reste par défilement) ; en paysage (téléphone couché, ordinateur),
-   les 3 octaves tiennent sans défilement (voir plus bas). */
+/* Largeur du clavier : --vk-white-keys (52 touches blanches, fixé par le composant)
+   rapporté au nombre de touches blanches visibles à la fois : 14 en portrait
+   (2 octaves), 21 en paysage (3 octaves, téléphone couché ou ordinateur, voir plus bas).
+   Le reste du clavier s'atteint par défilement. */
 .virtual-kb__keys {
   position: relative;
   display: flex;
-  width: 150%;
+  width: calc(var(--vk-white-keys) / 14 * 100%);
   height: clamp(110px, 22vh, 170px);
   user-select: none;
   touch-action: manipulation;
@@ -1549,6 +1702,6 @@
 
 @media (orientation: landscape) {
   .virtual-kb__keys {
-    width: 100%;
+    width: calc(var(--vk-white-keys) / 21 * 100%);
   }
 }

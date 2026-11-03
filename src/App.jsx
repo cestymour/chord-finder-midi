@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo, useId } from "react";
 import './App.css';
 import useBluetoothMIDI from "./useBluetoothMIDI";
 import {
@@ -158,6 +158,14 @@ function BluetoothMIDIButton({ btStatus, btError, knownDevice, onConnect, onReco
   const isLoading = Boolean(loadingLabel);
   const offerReconnect = knownDevice && !isLoading && btStatus !== "unsupported";
 
+  // Sélecteur fermé sans choix : simple conseil, pas une erreur
+  let notice = null;
+  if (btStatus === "lost") notice = { key: "bt.lost", tone: "error" };
+  else if (btStatus === "unsupported") notice = { key: "bt.unsupported", tone: "error" };
+  else if (btStatus === "error" && btError) {
+    notice = { key: `bt.error.${btError}`, tone: btError === "cancelled" ? "hint" : "error" };
+  }
+
   return (
     <div className="bt-connect-container">
       <button
@@ -182,18 +190,12 @@ function BluetoothMIDIButton({ btStatus, btError, knownDevice, onConnect, onReco
         </span>
       </button>
 
-      {btStatus === "lost" && <p className="bt-connect-error">{t("bt.lost")}</p>}
-
-      {/* Sélecteur fermé : simple conseil, pas une erreur */}
-      {btStatus === "error" && btError === "cancelled" && (
-        <p className="bt-connect-hint">{t("bt.error.cancelled")}</p>
-      )}
-      {btStatus === "error" && btError && btError !== "cancelled" && (
-        <p className="bt-connect-error">{t(`bt.error.${btError}`)}</p>
-      )}
-
-      {btStatus === "unsupported" && (
-        <p className="bt-connect-error">{t("bt.unsupported")}</p>
+      {/* Message court ; l'explication s'ouvre avec le bouton ⓘ.
+          (key : un nouveau message repart fermé) */}
+      {notice && (
+        <InfoTip key={notice.key} tone={notice.tone} label={t(notice.key)}>
+          {t(`${notice.key}.help`)}
+        </InfoTip>
       )}
 
       {offerReconnect && (
@@ -205,21 +207,97 @@ function BluetoothMIDIButton({ btStatus, btError, knownDevice, onConnect, onReco
   );
 }
 
+// ─────────────────────────────────────────────
+// BULLES D'INFORMATION : les longues explications restent cachées
+// derrière un bouton ⓘ, pour garder des écrans épurés.
+// ─────────────────────────────────────────────
+
+function InfoIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+      strokeLinecap="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="10" />
+      <line x1="12" y1="11" x2="12" y2="17" />
+      <circle cx="12" cy="7.5" r="0.6" fill="currentColor" />
+    </svg>
+  );
+}
+
+/** Bouton ⓘ seul (ouvre ou ferme la bulle associée, identifiée par bubbleId). */
+function InfoButton({ open, onToggle, bubbleId }) {
+  const { t } = useI18n();
+  return (
+    <button
+      type="button"
+      className={`info-btn${open ? " info-btn--open" : ""}`}
+      aria-expanded={open}
+      aria-controls={bubbleId}
+      aria-label={t("info.more")}
+      title={t("info.more")}
+      onClick={onToggle}
+    >
+      <InfoIcon />
+    </button>
+  );
+}
+
+function InfoBubble({ id, children }) {
+  return <p id={id} className="info-bubble">{children}</p>;
+}
+
+/** Libellé court suivi d'un bouton ⓘ ; l'explication (children) s'affiche dessous. */
+function InfoTip({ label, children, tone, className = "" }) {
+  const [open, setOpen] = useState(false);
+  const bubbleId = useId();
+  return (
+    <div className={`info-tip${tone ? ` info-tip--${tone}` : ""}${className ? ` ${className}` : ""}`}>
+      <div className="info-tip__head">
+        <span className="info-tip__label">{label}</span>
+        <InfoButton open={open} onToggle={() => setOpen((o) => !o)} bubbleId={bubbleId} />
+      </div>
+      {open && <InfoBubble id={bubbleId}>{children}</InfoBubble>}
+    </div>
+  );
+}
+
+/** Interrupteur marche/arrêt (son, accords incomplets). */
+function Switch({ checked, onChange, labelledBy }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-labelledby={labelledBy}
+      className={`switch${checked ? " switch--on" : ""}`}
+      onClick={() => onChange(!checked)}
+    >
+      <span className="switch__thumb" />
+    </button>
+  );
+}
+
 /** Branchement par câble : détecté tout seul par Web MIDI, on explique seulement comment faire. */
 function UsbHint({ midiStatus }) {
   const { t } = useI18n();
   const textKey =
     midiStatus === "denied" ? "usb.denied" : midiStatus === "unsupported" ? "usb.unsupported" : "usb.hint";
   return (
-    <div className="usb-hint">
-      <span className="usb-hint__title">🔌 {t("usb.title")}</span>
-      <p className={`usb-hint__text${textKey === "usb.hint" ? "" : " usb-hint__text--warn"}`}>{t(textKey)}</p>
-    </div>
+    <InfoTip
+      className="usb-hint"
+      tone={textKey === "usb.hint" ? undefined : "warn"}
+      label={<>🔌 {t("usb.title")}</>}
+    >
+      {t(textKey)}
+    </InfoTip>
   );
 }
 
-/** Ligne d'état sous les onglets (écran Piano) : nom du piano connecté et moyen de connexion. */
-function ConnectionStatus({ btStatus, btKnownDevice, midi, onDisconnect }) {
+/**
+ * Ligne d'état sous les onglets (écran Piano) : nom du piano connecté et moyen de connexion.
+ * onConnect (clavier virtuel choisi, aucun piano) : bouton qui ramène à l'écran de connexion,
+ * pour que la connexion du piano reste toujours proposée.
+ */
+function ConnectionStatus({ btStatus, btKnownDevice, midi, onDisconnect, onConnect }) {
   const { t } = useI18n();
   let status;
   let label;
@@ -255,20 +333,29 @@ function ConnectionStatus({ btStatus, btKnownDevice, midi, onDisconnect }) {
           {t("bt.disconnect")}
         </button>
       )}
+      {!bluetooth && status !== "connected" && onConnect && (
+        <button className="midi-status__action" onClick={onConnect}>
+          {t("status.connect")}
+        </button>
+      )}
     </div>
   );
 }
 
 // ─────────────────────────────────────────────
-// VIRTUAL KEYBOARD COMPONENT (mode clavier virtuel et explorateur d'accords)
+// VIRTUAL KEYBOARD COMPONENT (écran Piano et explorateur d'accords)
 // ─────────────────────────────────────────────
 
-const VIRTUAL_KB_FIRST_NOTE = 48; // Do2 en convention française (C3 en convention anglaise)
-const VIRTUAL_KB_OCTAVES = 3; // dont 2 visibles sur écran étroit, le reste par défilement horizontal
+// Clavier de piano complet (88 touches, La0 à Do8 en convention anglaise),
+// dont 2 octaves visibles sur écran étroit, le reste par défilement horizontal.
+const VIRTUAL_KB_FIRST_NOTE = 21;
+const VIRTUAL_KB_KEY_COUNT = 88;
+// Touche placée à gauche à l'ouverture : Do2 en convention française (C3 en anglais)
+const VIRTUAL_KB_START_NOTE = 48;
 
 // Disposition statique du clavier, calculée une seule fois
 const VK_NOTES = Array.from(
-  { length: VIRTUAL_KB_OCTAVES * 12 },
+  { length: VIRTUAL_KB_KEY_COUNT },
   (_, i) => VIRTUAL_KB_FIRST_NOTE + i
 );
 const VK_WHITE_NOTES = VK_NOTES.filter((n) => !BLACK_KEY_PCS.has(n % 12));
@@ -319,10 +406,11 @@ function useScrollIntoView(scrollerRef, lowNote, highNote) {
 }
 
 /**
- * Clavier de 3 octaves défilant horizontalement.
+ * Clavier de 88 touches défilant horizontalement.
  * - activeNotes : touches allumées (couleur pleine)
  * - onKeyClick  : absent → clavier en lecture seule
- * - scrollToNotes : notes à garder visibles (défilement automatique)
+ * - scrollToNotes : notes à garder visibles (défilement automatique ; si l'accord
+ *   est trop large, les notes aiguës peuvent rester masquées)
  * - noteLabels : Map classe de hauteur → note orthographiée (noms des touches
  *   enfoncées selon l'accord : Si♯ et non Do dans Mi augmenté)
  */
@@ -331,6 +419,13 @@ function VirtualKeyboard({ activeNotes, onKeyClick, scrollToNotes, noteLabels, t
   const scrollerRef = useRef(null);
   const interactive = Boolean(onKeyClick);
   const KeyTag = interactive ? "button" : "div";
+
+  // À l'ouverture, le clavier montre la zone centrale (Do2 à gauche), sans animation.
+  useLayoutEffect(() => {
+    const el = scrollerRef.current;
+    if (!el) return;
+    el.scrollLeft = (VK_KEY_SPANS.get(VIRTUAL_KB_START_NOTE).left / 100) * el.scrollWidth;
+  }, []);
 
   // Bref éclat de la touche quand sa note sonne (synchronisé avec l'arpège).
   useEffect(() => subscribePianoNotes((midi, delay) => {
@@ -341,10 +436,12 @@ function VirtualKeyboard({ activeNotes, onKeyClick, scrollToNotes, noteLabels, t
     );
   }), []);
 
+  // Un clavier MIDI transposé peut envoyer des notes hors des 88 touches : ignorées.
+  const scrollNotes = scrollToNotes?.filter((n) => VK_KEY_SPANS.has(n)) ?? [];
   useScrollIntoView(
     scrollerRef,
-    scrollToNotes?.length ? Math.min(...scrollToNotes) : null,
-    scrollToNotes?.length ? Math.max(...scrollToNotes) : null
+    scrollNotes.length ? Math.min(...scrollNotes) : null,
+    scrollNotes.length ? Math.max(...scrollNotes) : null
   );
 
   // Touche blanche : les Do portent leur octave (« Do3 »), les touches enfoncées
@@ -373,7 +470,11 @@ function VirtualKeyboard({ activeNotes, onKeyClick, scrollToNotes, noteLabels, t
     <div className="virtual-kb">
       <div className="virtual-kb__toolbar">{toolbar}</div>
       <div className="virtual-kb__scroller" ref={scrollerRef}>
-        <div className="virtual-kb__keys" aria-hidden={interactive ? undefined : true}>
+        <div
+          className="virtual-kb__keys"
+          aria-hidden={interactive ? undefined : true}
+          style={{ "--vk-white-keys": VK_WHITE_NOTES.length }}
+        >
           {VK_WHITE_NOTES.map((n) => {
             const { isDown, props } = keyProps(n, "white");
             return (
@@ -456,9 +557,8 @@ function ChordExplorer({ rootPc, template, onRootChange, onSuffixChange }) {
 // ─────────────────────────────────────────────
 
 const MODE_TABS = [
-  { mode: "midi",    labelKey: "tabs.piano",    icon: "🎹" },
-  { mode: "virtual", labelKey: "tabs.keyboard", icon: "👆" },
-  { mode: "explore", labelKey: "tabs.chords",   icon: "📖" },
+  { mode: "midi",    labelKey: "tabs.piano",  icon: "🎹" },
+  { mode: "explore", labelKey: "tabs.chords", icon: "📖" },
 ];
 
 function TopBar({ mode, onModeChange, onOpenSettings }) {
@@ -491,13 +591,13 @@ function TopBar({ mode, onModeChange, onOpenSettings }) {
 }
 
 /** Solutions de secours proposées sous le bouton Bluetooth quand aucun piano n'est connecté. */
-function NoPianoFallback({ onModeChange }) {
+function NoPianoFallback({ onUseKeyboard, onModeChange }) {
   const { t } = useI18n();
   return (
     <div className="no-piano">
       <span className="no-piano__label">{t("fallback.title")}</span>
       <div className="no-piano__actions">
-        <button className="no-piano__btn" onClick={() => onModeChange("virtual")}>
+        <button className="no-piano__btn" onClick={onUseKeyboard}>
           👆 {t("fallback.keyboard")}
         </button>
         <button className="no-piano__btn" onClick={() => onModeChange("explore")}>
@@ -523,16 +623,17 @@ const ACCIDENTAL_OPTIONS = [
   { value: "flat",  symbol: "♭", labelKey: "settings.flats" },
 ];
 
-const SOUND_OPTIONS = [
-  { value: "on",  symbol: "🔊", labelKey: "settings.soundOn" },
-  { value: "off", symbol: "🔇", labelKey: "settings.soundOff" },
-];
+// Auteur et dépôt (licence MIT, voir le fichier LICENSE)
+const APP_AUTHOR = "cestymour";
+const APP_REPOSITORY = "https://github.com/cestymour/chord-finder-midi";
 
-// Accords incomplets : reconnaître un accord sans ses notes facultatives (quinte…)
-const INCOMPLETE_OPTIONS = [
-  { value: "on",  labelKey: "settings.yes" },
-  { value: "off", labelKey: "settings.no" },
-];
+function GitHubIcon() {
+  return (
+    <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+      <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" />
+    </svg>
+  );
+}
 
 /** Réglage mémorisé dans le navigateur (valeur par défaut si absent ou invalide). */
 function usePersistentSetting(storageKey, allowedValues, defaultValue) {
@@ -599,6 +700,8 @@ function SettingsDialog({
 }) {
   const { t, language, accidentals } = useI18n();
   const dialogRef = useRef(null);
+  const [incompleteInfo, setIncompleteInfo] = useState(false);
+  const incompleteInfoId = useId();
 
   // <dialog> natif : fond assombri, Échap pour fermer, focus gardé dans la fenêtre
   useEffect(() => {
@@ -641,9 +744,9 @@ function SettingsDialog({
           </div>
         </div>
 
-        <div className="settings__row">
+        <div className="settings__row settings__row--inline">
           <span className="settings__label" id="settings-accidentals">{t("settings.accidentals")}</span>
-          <div className="settings__choices" role="group" aria-labelledby="settings-accidentals">
+          <div className="settings__segmented" role="group" aria-labelledby="settings-accidentals">
             {ACCIDENTAL_OPTIONS.map((opt) => (
               <button
                 key={opt.value}
@@ -659,42 +762,55 @@ function SettingsDialog({
           </div>
         </div>
 
-        <div className="settings__row">
+        <div className="settings__row settings__row--inline">
           <span className="settings__label" id="settings-sound">{t("settings.sound")}</span>
-          <div className="settings__choices" role="group" aria-labelledby="settings-sound">
-            {SOUND_OPTIONS.map((opt) => (
-              <button
-                key={opt.value}
-                className={`settings__choice${sound === opt.value ? " settings__choice--active" : ""}`}
-                onClick={() => onSoundChange(opt.value)}
-                aria-pressed={sound === opt.value}
-                aria-label={t(opt.labelKey)}
-                title={t(opt.labelKey)}
-              >
-                <span className="settings__emoji" aria-hidden="true">{opt.symbol}</span>
-              </button>
-            ))}
-          </div>
+          <Switch
+            checked={sound === "on"}
+            onChange={(on) => onSoundChange(on ? "on" : "off")}
+            labelledBy="settings-sound"
+          />
         </div>
 
         <div className="settings__row">
-          <span className="settings__label" id="settings-incomplete">{t("settings.incomplete")}</span>
-          <p className="settings__hint">{t("settings.incompleteHint")}</p>
-          <div className="settings__choices" role="group" aria-labelledby="settings-incomplete">
-            {INCOMPLETE_OPTIONS.map((opt) => (
-              <button
-                key={opt.value}
-                className={`settings__choice${incomplete === opt.value ? " settings__choice--active" : ""}`}
-                onClick={() => onIncompleteChange(opt.value)}
-                aria-pressed={incomplete === opt.value}
-              >
-                <span className="settings__text">{t(opt.labelKey)}</span>
-              </button>
-            ))}
+          <div className="settings__row--inline">
+            <span className="settings__label-group">
+              <span className="settings__label" id="settings-incomplete">{t("settings.incomplete")}</span>
+              <InfoButton
+                open={incompleteInfo}
+                onToggle={() => setIncompleteInfo((o) => !o)}
+                bubbleId={incompleteInfoId}
+              />
+            </span>
+            <Switch
+              checked={incomplete === "on"}
+              onChange={(on) => onIncompleteChange(on ? "on" : "off")}
+              labelledBy="settings-incomplete"
+            />
           </div>
+          {incompleteInfo && <InfoBubble id={incompleteInfoId}>{t("settings.incompleteHint")}</InfoBubble>}
         </div>
 
-        <div className="settings__footer">InstantChordBT · {t("settings.version")} {APP_VERSION}</div>
+        <footer className="settings__footer">
+          <div className="settings__app">
+            InstantChordBT <span className="settings__version">{t("settings.version")} {APP_VERSION}</span>
+          </div>
+          <div className="settings__credits">
+            <a
+              className="settings__author"
+              href={APP_REPOSITORY}
+              target="_blank"
+              rel="noopener noreferrer"
+              title={t("settings.source")}
+            >
+              <GitHubIcon />
+              {APP_AUTHOR}
+            </a>
+            <span aria-hidden="true">·</span>
+            <a href={`${APP_REPOSITORY}/blob/main/LICENSE`} target="_blank" rel="noopener noreferrer">
+              {t("settings.license")}
+            </a>
+          </div>
+        </footer>
       </div>
     </dialog>
   );
@@ -713,14 +829,30 @@ export default function ChordIdentifier() {
   //   (elles sonnent encore, donc elles comptent pour l'accord)
   const [pianoNotes, setPianoNotes] = useState(EMPTY_PIANO_NOTES);
 
+  // Touches cliquées sur le clavier virtuel : ensemble séparé des notes du piano,
+  // pour qu'un note-off MIDI ne relâche pas une touche cliquée à l'écran.
+  const [virtualNotes, setVirtualNotes] = useState(new Set());
+  const virtualNotesRef = useRef(virtualNotes);
+  useEffect(() => {
+    virtualNotesRef.current = virtualNotes;
+  }, [virtualNotes]);
+
+  const clearVirtualNotes = useCallback(() => {
+    stopAllPianoNotes();
+    virtualNotesRef.current = new Set();
+    setVirtualNotes(virtualNotesRef.current);
+  }, []);
+
   const handleNoteOn = useCallback((note) => {
+    // Jouer sur le vrai piano efface les touches cliquées : pas de mélange des deux sources.
+    if (virtualNotesRef.current.size > 0) clearVirtualNotes();
     setPianoNotes(prev => {
       const held = new Set(prev.held).add(note);
       const sustained = new Set(prev.sustained);
       sustained.delete(note);
       return { ...prev, held, sustained };
     });
-  }, []);
+  }, [clearVirtualNotes]);
 
   const handleNoteOff = useCallback((note) => {
     setPianoNotes(prev => {
@@ -758,20 +890,25 @@ export default function ChordIdentifier() {
 
   useEffect(() => {
     // À chaque changement de connexion (Bluetooth coupé, câble débranché…),
-    // évite de garder des notes "bloquées".
-    const timer = setTimeout(() => setPianoNotes(EMPTY_PIANO_NOTES), 0);
+    // évite de garder des notes "bloquées" (le clavier peut aussi apparaître ou disparaître).
+    const timer = setTimeout(() => {
+      setPianoNotes(EMPTY_PIANO_NOTES);
+      if (virtualNotesRef.current.size > 0) clearVirtualNotes();
+    }, 0);
     return () => clearTimeout(timer);
-  }, [btStatus, midiDevicesKey]);
+  }, [btStatus, midiDevicesKey, clearVirtualNotes]);
 
-  // Mode d'affichage : "midi" (piano connecté), "virtual" (clavier virtuel)
+  const pianoConnected = btStatus === "connected" || midi.status === "connected";
+
+  // Écran affiché : "midi" (onglet Piano : vrai piano et/ou clavier virtuel)
   // ou "explore" (dictionnaire : choisir un accord pour voir ses touches)
   const [mode, setMode] = useState("midi");
-  const virtualMode = mode === "virtual";
   const exploreMode = mode === "explore";
 
-  // Mode clavier virtuel : notes séparées de celles du piano physique,
-  // pour qu'un note-off MIDI ne relâche pas une touche cliquée à l'écran.
-  const [virtualNotes, setVirtualNotes] = useState(new Set());
+  // Sans piano, le clavier virtuel n'apparaît que si l'utilisateur le demande
+  // (la connexion du piano reste la proposition principale).
+  const [keyboardChosen, setKeyboardChosen] = useState(false);
+  const showKeyboard = mode === "midi" && (pianoConnected || keyboardChosen);
 
   // Une touche enfoncée joue sa note ; relâchée, elle est étouffée.
   // (Le son est déclenché hors du updater de setState, que StrictMode exécute deux fois.)
@@ -786,13 +923,13 @@ export default function ChordIdentifier() {
     });
   }, [virtualNotes]);
 
-  const clearVirtualNotes = useCallback(() => {
-    stopAllPianoNotes();
-    setVirtualNotes(new Set());
-  }, []);
-
   const changeMode = (target) => {
     setMode(target);
+    clearVirtualNotes();
+  };
+
+  const showConnectScreen = () => {
+    setKeyboardChosen(false);
     clearVirtualNotes();
   };
 
@@ -854,13 +991,14 @@ export default function ChordIdentifier() {
   // ne sont que des solutions de secours.
   // (Aussi pendant que Web MIDI attend : la demande d'autorisation du navigateur
   // peut rester sans réponse, et le Bluetooth ne doit pas en dépendre.)
-  const showBluetoothButton =
-    mode === "midi" &&
-    btStatus !== "connected" &&
-    midi.status !== "connected";
+  const showBluetoothButton = mode === "midi" && !showKeyboard;
 
-  // Compute chords whenever pressed notes change
-  const midiArray = [...(virtualMode ? virtualNotes : pressedNotes)];
+  // Accord calculé sur les touches du piano et celles cliquées à l'écran
+  const playedNotes = useMemo(
+    () => new Set([...pressedNotes, ...virtualNotes]),
+    [pressedNotes, virtualNotes]
+  );
+  const midiArray = exploreMode ? [] : [...playedNotes];
   const chords = identifyChords(midiArray, accidentals, { allowIncomplete: incomplete === "on" });
 
   const primaryChord = chords[0] ?? null;
@@ -885,7 +1023,7 @@ export default function ChordIdentifier() {
   // ── Render ────────────────────────────────
   return (
     <I18nContext.Provider value={i18n}>
-      <div className={`app${mode !== "midi" ? " app--keyboard" : ""}`}>
+      <div className={`app${showKeyboard || exploreMode ? " app--keyboard" : ""}`}>
 
         <TopBar
           mode={mode}
@@ -900,6 +1038,7 @@ export default function ChordIdentifier() {
             btKnownDevice={btKnownDevice}
             midi={midi}
             onDisconnect={disconnectBluetooth}
+            onConnect={showKeyboard && !pianoConnected ? showConnectScreen : undefined}
           />
         )}
 
@@ -917,7 +1056,7 @@ export default function ChordIdentifier() {
                 onReconnect={reconnectBluetooth}
               />
               <UsbHint midiStatus={midi.status} />
-              <NoPianoFallback onModeChange={changeMode} />
+              <NoPianoFallback onUseKeyboard={() => setKeyboardChosen(true)} onModeChange={changeMode} />
             </div>
           )}
 
@@ -937,7 +1076,7 @@ export default function ChordIdentifier() {
               <div className="idle-state">
                 <span className="idle-icon">🎹</span>
                 <span className="idle-text">
-                  {virtualMode ? t("idle.touch") : t("idle.play")}
+                  {pianoConnected ? t("idle.play") : t("idle.touch")}
                 </span>
               </div>
             )
@@ -964,10 +1103,11 @@ export default function ChordIdentifier() {
           )}
         </div>
 
-        {virtualMode && (
+        {showKeyboard && (
           <VirtualKeyboard
-            activeNotes={virtualNotes}
+            activeNotes={playedNotes}
             onKeyClick={toggleVirtualNote}
+            scrollToNotes={[...pressedNotes]}
             noteLabels={virtualNoteLabels}
             toolbar={
               <>

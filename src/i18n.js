@@ -50,13 +50,13 @@ const MESSAGES = {
   fr: {
     "tabs.aria": "Écran affiché",
     "tabs.piano": "Piano",
-    "tabs.keyboard": "Clavier",
     "tabs.chords": "Accords",
 
     "midi.pending": "Connexion…",
     "midi.disconnected": "Aucun piano connecté",
     "midi.denied": "MIDI non autorisé",
     "midi.unsupported": "MIDI non disponible",
+    "status.connect": "Connecter un piano",
 
     "connect.title": "Connectez votre piano",
 
@@ -70,12 +70,18 @@ const MESSAGES = {
     "bt.disconnect": "Déconnecter",
     "bt.piano": "Piano Bluetooth",
     "bt.statusReconnecting": "Connexion perdue · reconnexion…",
-    "bt.lost": "La connexion avec le piano a été perdue. Vérifiez qu'il est allumé et à portée, puis reconnectez-le.",
-    "bt.error.cancelled": "Votre piano n'apparaît pas dans la liste ? Vérifiez que son Bluetooth est allumé et qu'il n'est pas déjà connecté à un autre appareil ou à une autre application.",
-    "bt.error.adapterOff": "Le Bluetooth de cet appareil est désactivé. Activez-le, puis réessayez.",
-    "bt.error.denied": "L'accès au Bluetooth a été refusé. Autorisez-le dans les paramètres du site (icône à gauche de l'adresse), puis réessayez.",
-    "bt.error.failed": "Impossible de se connecter au piano. S'il est déjà connecté à un autre appareil ou à une autre application, déconnectez-le, puis réessayez.",
-    "bt.unsupported": "Web Bluetooth n'est pas supporté par ce navigateur. Utilisez Chrome sur Android ou ordinateur.",
+    "bt.lost": "Connexion perdue",
+    "bt.lost.help": "La connexion avec le piano a été perdue. Vérifiez qu'il est allumé et à portée, puis reconnectez-le.",
+    "bt.error.cancelled": "Votre piano n'apparaît pas ?",
+    "bt.error.cancelled.help": "Vérifiez que son Bluetooth est allumé et qu'il n'est pas déjà connecté à un autre appareil ou à une autre application.",
+    "bt.error.adapterOff": "Bluetooth désactivé",
+    "bt.error.adapterOff.help": "Le Bluetooth de cet appareil est désactivé. Activez-le, puis réessayez.",
+    "bt.error.denied": "Accès au Bluetooth refusé",
+    "bt.error.denied.help": "L'accès au Bluetooth a été refusé. Autorisez-le dans les paramètres du site (icône à gauche de l'adresse), puis réessayez.",
+    "bt.error.failed": "Connexion impossible",
+    "bt.error.failed.help": "Impossible de se connecter au piano. S'il est déjà connecté à un autre appareil ou à une autre application, déconnectez-le, puis réessayez.",
+    "bt.unsupported": "Bluetooth non disponible",
+    "bt.unsupported.help": "Web Bluetooth n'est pas supporté par ce navigateur. Utilisez Chrome sur Android ou ordinateur.",
 
     "usb.title": "Câble USB",
     "usb.hint": "Branchez le piano en USB : il est détecté tout seul. Sur un téléphone, il faut un adaptateur USB OTG.",
@@ -98,6 +104,8 @@ const MESSAGES = {
 
     "explorer.root": "Fondamentale",
 
+    "info.more": "Plus d'informations",
+
     "settings.open": "Paramètres",
     "settings.title": "Paramètres",
     "settings.close": "Fermer",
@@ -106,25 +114,23 @@ const MESSAGES = {
     "settings.sharps": "Dièses",
     "settings.flats": "Bémols",
     "settings.sound": "Son",
-    "settings.soundOn": "Son activé",
-    "settings.soundOff": "Son coupé",
     "settings.incomplete": "Accords incomplets",
     "settings.incompleteHint": "Reconnaître un accord joué sans ses notes facultatives, comme la quinte : Do Mi Si♭ donne C7.",
-    "settings.yes": "Oui",
-    "settings.no": "Non",
     "settings.version": "version",
+    "settings.license": "Licence MIT",
+    "settings.source": "Code source sur GitHub",
   },
 
   en: {
     "tabs.aria": "Screen",
     "tabs.piano": "Piano",
-    "tabs.keyboard": "Keyboard",
     "tabs.chords": "Chords",
 
     "midi.pending": "Connecting…",
     "midi.disconnected": "No piano connected",
     "midi.denied": "MIDI not allowed",
     "midi.unsupported": "MIDI unavailable",
+    "status.connect": "Connect a piano",
 
     "connect.title": "Connect your piano",
 
@@ -138,12 +144,18 @@ const MESSAGES = {
     "bt.disconnect": "Disconnect",
     "bt.piano": "Bluetooth piano",
     "bt.statusReconnecting": "Connection lost · reconnecting…",
-    "bt.lost": "The connection to the piano was lost. Check that it is on and within range, then reconnect it.",
-    "bt.error.cancelled": "Your piano isn't in the list? Check that its Bluetooth is on and that it isn't already connected to another device or app.",
-    "bt.error.adapterOff": "Bluetooth is turned off on this device. Turn it on, then try again.",
-    "bt.error.denied": "Bluetooth access was denied. Allow it in the site settings (icon left of the address), then try again.",
-    "bt.error.failed": "Couldn't connect to the piano. If it is already connected to another device or app, disconnect it, then try again.",
-    "bt.unsupported": "This browser doesn't support Web Bluetooth. Use Chrome on Android or desktop.",
+    "bt.lost": "Connection lost",
+    "bt.lost.help": "The connection to the piano was lost. Check that it is on and within range, then reconnect it.",
+    "bt.error.cancelled": "Piano not in the list?",
+    "bt.error.cancelled.help": "Check that its Bluetooth is on and that it isn't already connected to another device or app.",
+    "bt.error.adapterOff": "Bluetooth is off",
+    "bt.error.adapterOff.help": "Bluetooth is turned off on this device. Turn it on, then try again.",
+    "bt.error.denied": "Bluetooth access denied",
+    "bt.error.denied.help": "Bluetooth access was denied. Allow it in the site settings (icon left of the address), then try again.",
+    "bt.error.failed": "Couldn't connect",
+    "bt.error.failed.help": "Couldn't connect to the piano. If it is already connected to another device or app, disconnect it, then try again.",
+    "bt.unsupported": "Bluetooth unavailable",
+    "bt.unsupported.help": "This browser doesn't support Web Bluetooth. Use Chrome on Android or desktop.",
 
     "usb.title": "USB cable",
     "usb.hint": "Plug the piano in over USB: it is detected automatically. On a phone, you need a USB OTG adapter.",
@@ -166,6 +178,8 @@ const MESSAGES = {
 
     "explorer.root": "Root",
 
+    "info.more": "More information",
+
     "settings.open": "Settings",
     "settings.title": "Settings",
     "settings.close": "Close",
@@ -174,25 +188,23 @@ const MESSAGES = {
     "settings.sharps": "Sharps",
     "settings.flats": "Flats",
     "settings.sound": "Sound",
-    "settings.soundOn": "Sound on",
-    "settings.soundOff": "Sound off",
     "settings.incomplete": "Incomplete chords",
     "settings.incompleteHint": "Recognize a chord played without its optional notes, such as the fifth: C E B♭ gives C7.",
-    "settings.yes": "Yes",
-    "settings.no": "No",
     "settings.version": "version",
+    "settings.license": "MIT License",
+    "settings.source": "Source code on GitHub",
   },
 
   de: {
     "tabs.aria": "Ansicht",
     "tabs.piano": "Klavier",
-    "tabs.keyboard": "Tastatur",
     "tabs.chords": "Akkorde",
 
     "midi.pending": "Verbinde…",
     "midi.disconnected": "Kein Klavier verbunden",
     "midi.denied": "MIDI nicht erlaubt",
     "midi.unsupported": "MIDI nicht verfügbar",
+    "status.connect": "Klavier verbinden",
 
     "connect.title": "Verbinde dein Klavier",
 
@@ -206,12 +218,18 @@ const MESSAGES = {
     "bt.disconnect": "Trennen",
     "bt.piano": "Bluetooth-Klavier",
     "bt.statusReconnecting": "Verbindung verloren · neu verbinden…",
-    "bt.lost": "Die Verbindung zum Klavier ist abgebrochen. Prüfe, ob es eingeschaltet und in Reichweite ist, und verbinde es neu.",
-    "bt.error.cancelled": "Dein Klavier steht nicht in der Liste? Prüfe, ob sein Bluetooth eingeschaltet ist und ob es nicht schon mit einem anderen Gerät oder einer anderen App verbunden ist.",
-    "bt.error.adapterOff": "Bluetooth ist auf diesem Gerät ausgeschaltet. Schalte es ein und versuche es erneut.",
-    "bt.error.denied": "Der Bluetooth-Zugriff wurde verweigert. Erlaube ihn in den Website-Einstellungen (Symbol links neben der Adresse) und versuche es erneut.",
-    "bt.error.failed": "Verbindung zum Klavier nicht möglich. Wenn es schon mit einem anderen Gerät oder einer anderen App verbunden ist, trenne es und versuche es erneut.",
-    "bt.unsupported": "Dieser Browser unterstützt Web Bluetooth nicht. Verwende Chrome auf Android oder am Computer.",
+    "bt.lost": "Verbindung abgebrochen",
+    "bt.lost.help": "Die Verbindung zum Klavier ist abgebrochen. Prüfe, ob es eingeschaltet und in Reichweite ist, und verbinde es neu.",
+    "bt.error.cancelled": "Klavier nicht in der Liste?",
+    "bt.error.cancelled.help": "Prüfe, ob sein Bluetooth eingeschaltet ist und ob es nicht schon mit einem anderen Gerät oder einer anderen App verbunden ist.",
+    "bt.error.adapterOff": "Bluetooth ausgeschaltet",
+    "bt.error.adapterOff.help": "Bluetooth ist auf diesem Gerät ausgeschaltet. Schalte es ein und versuche es erneut.",
+    "bt.error.denied": "Bluetooth-Zugriff verweigert",
+    "bt.error.denied.help": "Der Bluetooth-Zugriff wurde verweigert. Erlaube ihn in den Website-Einstellungen (Symbol links neben der Adresse) und versuche es erneut.",
+    "bt.error.failed": "Verbindung nicht möglich",
+    "bt.error.failed.help": "Verbindung zum Klavier nicht möglich. Wenn es schon mit einem anderen Gerät oder einer anderen App verbunden ist, trenne es und versuche es erneut.",
+    "bt.unsupported": "Bluetooth nicht verfügbar",
+    "bt.unsupported.help": "Dieser Browser unterstützt Web Bluetooth nicht. Verwende Chrome auf Android oder am Computer.",
 
     "usb.title": "USB-Kabel",
     "usb.hint": "Schließe das Klavier per USB an: Es wird automatisch erkannt. Am Handy brauchst du einen USB-OTG-Adapter.",
@@ -234,6 +252,8 @@ const MESSAGES = {
 
     "explorer.root": "Grundton",
 
+    "info.more": "Mehr Informationen",
+
     "settings.open": "Einstellungen",
     "settings.title": "Einstellungen",
     "settings.close": "Schließen",
@@ -242,25 +262,23 @@ const MESSAGES = {
     "settings.sharps": "Kreuze",
     "settings.flats": "Bes",
     "settings.sound": "Ton",
-    "settings.soundOn": "Ton an",
-    "settings.soundOff": "Ton aus",
     "settings.incomplete": "Unvollständige Akkorde",
     "settings.incompleteHint": "Einen Akkord auch ohne seine optionalen Töne erkennen, etwa ohne Quinte: C E B ergibt C7.",
-    "settings.yes": "Ja",
-    "settings.no": "Nein",
     "settings.version": "Version",
+    "settings.license": "MIT-Lizenz",
+    "settings.source": "Quellcode auf GitHub",
   },
 
   es: {
     "tabs.aria": "Pantalla",
     "tabs.piano": "Piano",
-    "tabs.keyboard": "Teclado",
     "tabs.chords": "Acordes",
 
     "midi.pending": "Conectando…",
     "midi.disconnected": "Ningún piano conectado",
     "midi.denied": "MIDI no autorizado",
     "midi.unsupported": "MIDI no disponible",
+    "status.connect": "Conectar un piano",
 
     "connect.title": "Conecta tu piano",
 
@@ -274,12 +292,18 @@ const MESSAGES = {
     "bt.disconnect": "Desconectar",
     "bt.piano": "Piano Bluetooth",
     "bt.statusReconnecting": "Conexión perdida · reconectando…",
-    "bt.lost": "Se perdió la conexión con el piano. Comprueba que está encendido y al alcance, y vuelve a conectarlo.",
-    "bt.error.cancelled": "¿Tu piano no aparece en la lista? Comprueba que su Bluetooth está activado y que no está ya conectado a otro dispositivo o a otra aplicación.",
-    "bt.error.adapterOff": "El Bluetooth de este dispositivo está desactivado. Actívalo y vuelve a intentarlo.",
-    "bt.error.denied": "Se denegó el acceso al Bluetooth. Permítelo en la configuración del sitio (icono a la izquierda de la dirección) y vuelve a intentarlo.",
-    "bt.error.failed": "No se pudo conectar con el piano. Si ya está conectado a otro dispositivo o a otra aplicación, desconéctalo y vuelve a intentarlo.",
-    "bt.unsupported": "Este navegador no es compatible con Web Bluetooth. Usa Chrome en Android o en el ordenador.",
+    "bt.lost": "Conexión perdida",
+    "bt.lost.help": "Se perdió la conexión con el piano. Comprueba que está encendido y al alcance, y vuelve a conectarlo.",
+    "bt.error.cancelled": "¿Tu piano no aparece?",
+    "bt.error.cancelled.help": "Comprueba que su Bluetooth está activado y que no está ya conectado a otro dispositivo o a otra aplicación.",
+    "bt.error.adapterOff": "Bluetooth desactivado",
+    "bt.error.adapterOff.help": "El Bluetooth de este dispositivo está desactivado. Actívalo y vuelve a intentarlo.",
+    "bt.error.denied": "Acceso al Bluetooth denegado",
+    "bt.error.denied.help": "Se denegó el acceso al Bluetooth. Permítelo en la configuración del sitio (icono a la izquierda de la dirección) y vuelve a intentarlo.",
+    "bt.error.failed": "No se pudo conectar",
+    "bt.error.failed.help": "No se pudo conectar con el piano. Si ya está conectado a otro dispositivo o a otra aplicación, desconéctalo y vuelve a intentarlo.",
+    "bt.unsupported": "Bluetooth no disponible",
+    "bt.unsupported.help": "Este navegador no es compatible con Web Bluetooth. Usa Chrome en Android o en el ordenador.",
 
     "usb.title": "Cable USB",
     "usb.hint": "Conecta el piano por USB: se detecta automáticamente. En un teléfono necesitas un adaptador USB OTG.",
@@ -302,6 +326,8 @@ const MESSAGES = {
 
     "explorer.root": "Fundamental",
 
+    "info.more": "Más información",
+
     "settings.open": "Ajustes",
     "settings.title": "Ajustes",
     "settings.close": "Cerrar",
@@ -310,13 +336,11 @@ const MESSAGES = {
     "settings.sharps": "Sostenidos",
     "settings.flats": "Bemoles",
     "settings.sound": "Sonido",
-    "settings.soundOn": "Sonido activado",
-    "settings.soundOff": "Sonido desactivado",
     "settings.incomplete": "Acordes incompletos",
     "settings.incompleteHint": "Reconocer un acorde tocado sin sus notas opcionales, como la quinta: Do Mi Si♭ da C7.",
-    "settings.yes": "Sí",
-    "settings.no": "No",
     "settings.version": "versión",
+    "settings.license": "Licencia MIT",
+    "settings.source": "Código fuente en GitHub",
   },
 };
 

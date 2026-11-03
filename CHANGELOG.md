@@ -6,6 +6,16 @@ Le format s’inspire de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/
 
 ## [Non publié]
 
+## [0.6.0] — 2026-11-03
+
+### Modifié
+
+- **Écrans Piano et Clavier réunis** : il ne reste que deux onglets, Piano et Accords. Sans piano connecté, l’écran Piano propose toujours d’abord la connexion. Le bouton « Clavier virtuel » affiche le clavier à l’écran, et un bouton « Connecter un piano » dans la ligne d’état ramène à la connexion.
+- **Clavier affiché avec un piano connecté** : les touches jouées sur le vrai piano s’allument à l’écran, avec le nom des notes. Le clavier défile tout seul vers les notes jouées. On peut aussi toucher le clavier à l’écran ; jouer sur le vrai piano efface les touches touchées.
+- **Clavier de 88 touches** (au lieu de 3 octaves), ouvert sur la zone centrale, le reste par défilement. Le dictionnaire l’utilise aussi.
+- **Écrans plus épurés** : les longues explications (câble USB, messages d’erreur Bluetooth, accords incomplets) sont remplacées par un message court suivi d’un bouton ⓘ qui affiche le détail.
+- **Paramètres redessinés** : le son et les accords incomplets se règlent avec un interrupteur, dièses/bémols avec deux boutons accolés. En bas, sous un trait, la version, l’auteur (cestymour, lien vers le code sur GitHub) et la licence MIT.
+
 ## [0.5.0] — 2026-11-03
 
 ### Ajouté
@@ -113,7 +123,8 @@ Première version numérotée. Elle regroupe tout ce qui a été développé dep
 - Application installable (PWA).
 - Déploiement automatique sur GitHub Pages à chaque mise à jour de la branche `main`.
 
-[Non publié]: https://github.com/cestymour/chord-finder-midi/compare/v0.5.0...HEAD
+[Non publié]: https://github.com/cestymour/chord-finder-midi/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/cestymour/chord-finder-midi/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/cestymour/chord-finder-midi/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/cestymour/chord-finder-midi/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/cestymour/chord-finder-midi/compare/v0.2.0...v0.3.0
