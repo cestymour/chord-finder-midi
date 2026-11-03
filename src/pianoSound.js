@@ -136,7 +136,9 @@ export function stopPianoNote(midi) {
   voice.gain.gain.setValueAtTime(voice.gain.gain.value, now);
   voice.gain.gain.setTargetAtTime(0, now, RELEASE_S / 3);
   voice.nodes.forEach((node) => {
-    if (node instanceof AudioScheduledSourceNode) {
+    // Sources (oscillateurs, buffers) seulement ; pas d'instanceof AudioScheduledSourceNode,
+    // absent des anciens Safari qui n'ont que webkitAudioContext.
+    if (typeof node.stop === "function") {
       try { node.stop(now + RELEASE_S * 2); } catch { /* déjà arrêté */ }
     }
   });

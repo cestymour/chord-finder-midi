@@ -6,6 +6,16 @@ Le format s’inspire de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/
 
 ## [Non publié]
 
+## [0.6.1] — 2026-11-03
+
+### Corrigé
+
+- **Accord tenu conservé** : brancher ou débrancher un autre instrument MIDI n’efface plus l’accord en cours ni l’état de la pédale. Seules les notes du piano qui se déconnecte sont relâchées, et chaque piano a sa propre pédale de sustain.
+- **Reconnexion Bluetooth plus fiable** : après une déconnexion puis une reconnexion rapides, une nouvelle coupure relance bien la reconnexion automatique (l’appli ne reste plus « connectée » sans recevoir de notes).
+- **Piano Bluetooth libéré** : une connexion annulée (« Déconnecter » pendant la connexion) ou ratée ne garde plus le piano connecté en arrière-plan, ce qui empêchait d’autres appareils de s’y connecter.
+- **Touches cliquées conservées** quand on touche l’onglet déjà affiché.
+- **Son** : le clavier et le dictionnaire ne deviennent plus muets sur les anciens Safari (iOS).
+
 ## [0.6.0] — 2026-11-03
 
 ### Modifié
@@ -123,7 +133,8 @@ Première version numérotée. Elle regroupe tout ce qui a été développé dep
 - Application installable (PWA).
 - Déploiement automatique sur GitHub Pages à chaque mise à jour de la branche `main`.
 
-[Non publié]: https://github.com/cestymour/chord-finder-midi/compare/v0.6.0...HEAD
+[Non publié]: https://github.com/cestymour/chord-finder-midi/compare/v0.6.1...HEAD
+[0.6.1]: https://github.com/cestymour/chord-finder-midi/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/cestymour/chord-finder-midi/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/cestymour/chord-finder-midi/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/cestymour/chord-finder-midi/compare/v0.3.0...v0.4.0

@@ -1,6 +1,7 @@
 import { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo, useId } from "react";
 import './App.css';
 import useBluetoothMIDI from "./useBluetoothMIDI";
+import { dispatchMidiMessage } from "./midiMessages";
 import {
   playPianoNote,
   playPianoArpeggio,
@@ -35,55 +36,65 @@ import {
 // MIDI CONNECTION HOOK
 // ─────────────────────────────────────────────
 
-// Pédale de sustain : contrôleur 64, enfoncée à partir de 64
-const SUSTAIN_CONTROLLER = 64;
-
 // Ports MIDI virtuels du système (« Midi Through » sous Linux) : ce ne sont pas des instruments.
 const VIRTUAL_MIDI_PORT = /\bthrough\b/i;
 
 /**
  * Entrées Web MIDI : câble USB, ou piano Bluetooth jumelé au niveau du système.
+ * Chaque callback reçoit d'abord la source (`midi:<id du port>`), pour que les notes
+ * et la pédale de chaque instrument restent séparées. onRelease(source) signale un port
+ * disparu : ses touches tenues ne recevront plus de note off.
  * Retourne { status, devices } :
  * - status : "pending" | "connected" | "disconnected" | "denied" (accès refusé) | "unsupported"
  * - devices : noms des instruments écoutés
  */
-function useMIDI(onNoteOn, onNoteOff, onSustain) {
+function useMIDI(callbacks) {
   const [midiState, setMidiState] = useState(() => ({
     status: navigator.requestMIDIAccess ? "pending" : "unsupported",
     devices: [],
   }));
-  const inputsRef = useRef([]);
 
-  const handleMidiMessage = useCallback((event) => {
-    const [status, note, velocity] = event.data;
-    const type = status & 0xf0;
-
-    if (type === 0x90 && velocity > 0) {
-      onNoteOn(note);
-    } else if (type === 0x80 || (type === 0x90 && velocity === 0)) {
-      onNoteOff(note);
-    } else if (type === 0xb0 && note === SUSTAIN_CONTROLLER) {
-      onSustain(velocity >= 64);
-    }
-  }, [onNoteOn, onNoteOff, onSustain]);
+  // Callbacks lus au moment du message : l'accès MIDI n'est demandé qu'une fois.
+  const callbacksRef = useRef(callbacks);
+  useEffect(() => {
+    callbacksRef.current = callbacks;
+  }, [callbacks]);
 
   useEffect(() => {
     if (!navigator.requestMIDIAccess) return; // état initial "unsupported"
 
-    const attachListeners = (midiAccess) => {
-      // Detach old listeners
-      inputsRef.current.forEach(inp => {
-        inp.onmidimessage = null;
-      });
-      inputsRef.current = [];
+    let cancelled = false;
+    let access = null;
+    let inputs = new Map(); // source → port écouté
 
+    const handleMidiMessage = (event) => {
+      const [status, data1 = 0, data2 = 0] = event.data;
+      const source = `midi:${event.currentTarget?.id ?? event.target?.id}`;
+      const { onNoteOn, onNoteOff, onSustain } = callbacksRef.current;
+      dispatchMidiMessage(status, data1, data2, {
+        onNoteOn: (note) => onNoteOn(source, note),
+        onNoteOff: (note) => onNoteOff(source, note),
+        onSustain: (down) => onSustain(source, down),
+      });
+    };
+
+    const attachListeners = () => {
+      const next = new Map();
       const names = new Set();
-      midiAccess.inputs.forEach(input => {
+      access.inputs.forEach(input => {
         if (input.state === "disconnected" || VIRTUAL_MIDI_PORT.test(input.name ?? "")) return;
         input.onmidimessage = handleMidiMessage;
-        inputsRef.current.push(input);
+        next.set(`midi:${input.id}`, input);
         names.add(input.name || "MIDI");
       });
+      // Ports disparus : on ne les écoute plus, et seules leurs notes sont relâchées
+      // (brancher ou débrancher un autre instrument ne touche pas à l'accord en cours).
+      inputs.forEach((input, source) => {
+        if (next.has(source)) return;
+        input.onmidimessage = null;
+        callbacksRef.current.onRelease(source);
+      });
+      inputs = next;
 
       const devices = [...names];
       setMidiState(prev =>
@@ -95,24 +106,25 @@ function useMIDI(onNoteOn, onNoteOff, onSustain) {
 
     navigator.requestMIDIAccess()
       .then(midiAccess => {
-        attachListeners(midiAccess);
-
-        midiAccess.onstatechange = () => {
-          attachListeners(midiAccess);
-        };
+        if (cancelled) return;
+        access = midiAccess;
+        attachListeners();
+        access.onstatechange = attachListeners;
       })
       .catch(() => {
-        setMidiState({ status: "denied", devices: [] });
+        if (!cancelled) setMidiState({ status: "denied", devices: [] });
       });
 
     return () => {
-      if (inputsRef.current) {
-        inputsRef.current.forEach(inp => {
-          inp.onmidimessage = null;
-        });
-      }
+      cancelled = true;
+      if (access) access.onstatechange = null;
+      inputs.forEach((input, source) => {
+        input.onmidimessage = null;
+        callbacksRef.current.onRelease(source);
+      });
+      inputs = new Map();
     };
-  }, [handleMidiMessage]);
+  }, []);
 
   return midiState;
 }
@@ -820,14 +832,36 @@ function SettingsDialog({
 // MAIN COMPONENT
 // ─────────────────────────────────────────────
 
-const EMPTY_PIANO_NOTES = { held: new Set(), sustained: new Set(), pedal: false };
+const EMPTY_SOURCE_NOTES = { held: new Set(), sustained: new Set(), pedal: false };
+const BLUETOOTH_SOURCE = "bt";
 
 export default function ChordIdentifier() {
-  // Notes du piano physique :
+  // Notes des pianos physiques, par source ("bt" ou "midi:<id du port>") :
   // - held : touches enfoncées
-  // - sustained : touches relâchées pendant que la pédale de sustain est enfoncée
+  // - sustained : touches relâchées pendant que la pédale de sustain de ce piano est enfoncée
   //   (elles sonnent encore, donc elles comptent pour l'accord)
-  const [pianoNotes, setPianoNotes] = useState(EMPTY_PIANO_NOTES);
+  // Chaque source a sa pédale, et une source coupée ne relâche que ses propres notes.
+  const [pianoSources, setPianoSources] = useState(() => new Map());
+
+  const updateSource = useCallback((source, update) => {
+    setPianoSources(prev => {
+      const current = prev.get(source) ?? EMPTY_SOURCE_NOTES;
+      const next = update(current);
+      if (next === current) return prev;
+      return new Map(prev).set(source, next);
+    });
+  }, []);
+
+  // Source coupée (piano déconnecté, câble débranché) : ses touches ne recevront plus
+  // de note off, on les relâche pour qu'elles ne restent pas bloquées.
+  const releaseSource = useCallback((source) => {
+    setPianoSources(prev => {
+      if (!prev.has(source)) return prev;
+      const next = new Map(prev);
+      next.delete(source);
+      return next;
+    });
+  }, []);
 
   // Touches cliquées sur le clavier virtuel : ensemble séparé des notes du piano,
   // pour qu'un note-off MIDI ne relâche pas une touche cliquée à l'écran.
@@ -843,38 +877,50 @@ export default function ChordIdentifier() {
     setVirtualNotes(virtualNotesRef.current);
   }, []);
 
-  const handleNoteOn = useCallback((note) => {
+  const handleNoteOn = useCallback((source, note) => {
     // Jouer sur le vrai piano efface les touches cliquées : pas de mélange des deux sources.
     if (virtualNotesRef.current.size > 0) clearVirtualNotes();
-    setPianoNotes(prev => {
+    updateSource(source, prev => {
       const held = new Set(prev.held).add(note);
       const sustained = new Set(prev.sustained);
       sustained.delete(note);
       return { ...prev, held, sustained };
     });
-  }, [clearVirtualNotes]);
+  }, [clearVirtualNotes, updateSource]);
 
-  const handleNoteOff = useCallback((note) => {
-    setPianoNotes(prev => {
+  const handleNoteOff = useCallback((source, note) => {
+    updateSource(source, prev => {
+      if (!prev.held.has(note)) return prev;
       const held = new Set(prev.held);
       held.delete(note);
       const sustained = prev.pedal ? new Set(prev.sustained).add(note) : prev.sustained;
       return { ...prev, held, sustained };
     });
-  }, []);
+  }, [updateSource]);
 
-  const handleSustain = useCallback((down) => {
-    setPianoNotes(prev => {
+  const handleSustain = useCallback((source, down) => {
+    updateSource(source, prev => {
       if (down === prev.pedal) return prev;
       // Pédale relâchée : les notes qu'elle tenait s'arrêtent
       return down ? { ...prev, pedal: true } : { ...prev, pedal: false, sustained: new Set() };
     });
-  }, []);
+  }, [updateSource]);
 
-  const pressedNotes = useMemo(
-    () => new Set([...pianoNotes.held, ...pianoNotes.sustained]),
-    [pianoNotes]
-  );
+  const pressedNotes = useMemo(() => {
+    const notes = new Set();
+    pianoSources.forEach(({ held, sustained }) => {
+      held.forEach(n => notes.add(n));
+      sustained.forEach(n => notes.add(n));
+    });
+    return notes;
+  }, [pianoSources]);
+
+  const bluetoothCallbacks = useMemo(() => ({
+    onNoteOn: (note) => handleNoteOn(BLUETOOTH_SOURCE, note),
+    onNoteOff: (note) => handleNoteOff(BLUETOOTH_SOURCE, note),
+    onSustain: (down) => handleSustain(BLUETOOTH_SOURCE, down),
+    onRelease: () => releaseSource(BLUETOOTH_SOURCE),
+  }), [handleNoteOn, handleNoteOff, handleSustain, releaseSource]);
 
   const {
     btStatus,
@@ -883,20 +929,16 @@ export default function ChordIdentifier() {
     requestBluetoothMIDI,
     reconnectBluetooth,
     disconnectBluetooth,
-  } = useBluetoothMIDI({ onNoteOn: handleNoteOn, onNoteOff: handleNoteOff, onSustain: handleSustain });
+  } = useBluetoothMIDI(bluetoothCallbacks);
 
-  const midi = useMIDI(handleNoteOn, handleNoteOff, handleSustain);
-  const midiDevicesKey = midi.devices.join("\n");
+  const midiCallbacks = useMemo(() => ({
+    onNoteOn: handleNoteOn,
+    onNoteOff: handleNoteOff,
+    onSustain: handleSustain,
+    onRelease: releaseSource,
+  }), [handleNoteOn, handleNoteOff, handleSustain, releaseSource]);
 
-  useEffect(() => {
-    // À chaque changement de connexion (Bluetooth coupé, câble débranché…),
-    // évite de garder des notes "bloquées" (le clavier peut aussi apparaître ou disparaître).
-    const timer = setTimeout(() => {
-      setPianoNotes(EMPTY_PIANO_NOTES);
-      if (virtualNotesRef.current.size > 0) clearVirtualNotes();
-    }, 0);
-    return () => clearTimeout(timer);
-  }, [btStatus, midiDevicesKey, clearVirtualNotes]);
+  const midi = useMIDI(midiCallbacks);
 
   const pianoConnected = btStatus === "connected" || midi.status === "connected";
 
@@ -909,6 +951,12 @@ export default function ChordIdentifier() {
   // (la connexion du piano reste la proposition principale).
   const [keyboardChosen, setKeyboardChosen] = useState(false);
   const showKeyboard = mode === "midi" && (pianoConnected || keyboardChosen);
+
+  // Clavier masqué (piano déconnecté sans clavier choisi) : ses touches cliquées
+  // ne doivent ni rester sonores ni compter pour l'accord.
+  useEffect(() => {
+    if (!showKeyboard && virtualNotesRef.current.size > 0) clearVirtualNotes();
+  }, [showKeyboard, clearVirtualNotes]);
 
   // Une touche enfoncée joue sa note ; relâchée, elle est étouffée.
   // (Le son est déclenché hors du updater de setState, que StrictMode exécute deux fois.)
@@ -924,6 +972,7 @@ export default function ChordIdentifier() {
   }, [virtualNotes]);
 
   const changeMode = (target) => {
+    if (target === mode) return; // onglet déjà actif : garder les touches cliquées
     setMode(target);
     clearVirtualNotes();
   };
@@ -958,10 +1007,17 @@ export default function ChordIdentifier() {
   const [exploreInversion, setExploreInversion] = useState(0);
 
   const exploreTemplate = CHORD_TEMPLATES.find(t => t.suffix === exploreSuffix);
-  const exploreVoicing = buildChordVoicing(exploreRoot, exploreTemplate, exploreInversion);
-  const exploreChord = describeVoicing(exploreRoot, exploreTemplate, exploreVoicing, accidentals);
-  const exploreNotes = exploreVoicing.map(n => n.midi);
-  const exploreActive = new Set(exploreNotes);
+  // Calculé seulement sur l'écran Dictionnaire, et pas à chaque note jouée sur le piano.
+  const explore = useMemo(() => {
+    if (!exploreMode) return null;
+    const voicing = buildChordVoicing(exploreRoot, exploreTemplate, exploreInversion);
+    const notes = voicing.map(n => n.midi);
+    return {
+      chord: describeVoicing(exploreRoot, exploreTemplate, voicing, accidentals),
+      notes,
+      active: new Set(notes),
+    };
+  }, [exploreMode, exploreRoot, exploreTemplate, exploreInversion, accidentals]);
 
   // Chaque choix dans le dictionnaire fait entendre l'accord en arpège.
   const playExploreChord = (rootPc, template, inversion) => {
@@ -998,26 +1054,44 @@ export default function ChordIdentifier() {
     () => new Set([...pressedNotes, ...virtualNotes]),
     [pressedNotes, virtualNotes]
   );
-  const midiArray = exploreMode ? [] : [...playedNotes];
-  const chords = identifyChords(midiArray, accidentals, { allowIncomplete: incomplete === "on" });
+  const midiArray = useMemo(
+    () => (exploreMode ? [] : [...playedNotes]),
+    [exploreMode, playedNotes]
+  );
+  const allowIncomplete = incomplete === "on";
+  const chords = useMemo(
+    () => identifyChords(midiArray, accidentals, { allowIncomplete }),
+    [midiArray, accidentals, allowIncomplete]
+  );
 
   const primaryChord = chords[0] ?? null;
   const secondaryChords = chords.slice(1);
 
   // Pas d'accord reconnu : un point par touche enfoncée à la place du nom
-  const pendingChordPlaceHolder =
-    midiArray.length > 0 && !primaryChord
-      ? {
-          placeholder: ".".repeat(midiArray.length),
-          suffix: "",
-          isInversion: false,
-          noteIntervalPairs: buildPendingNotePairs(midiArray, accidentals),
-        }
-      : null;
+  const pendingChordPlaceHolder = useMemo(
+    () =>
+      midiArray.length > 0 && !primaryChord
+        ? {
+            placeholder: ".".repeat(midiArray.length),
+            suffix: "",
+            isInversion: false,
+            noteIntervalPairs: buildPendingNotePairs(midiArray, accidentals),
+          }
+        : null,
+    [midiArray, primaryChord, accidentals]
+  );
 
   // Noms des touches enfoncées du clavier virtuel, orthographiés selon l'accord affiché
-  const virtualNoteLabels = new Map(
-    (primaryChord ?? pendingChordPlaceHolder)?.noteIntervalPairs.map((p) => [p.pc, p.note]) ?? []
+  const virtualNoteLabels = useMemo(
+    () => new Map(
+      (primaryChord ?? pendingChordPlaceHolder)?.noteIntervalPairs.map((p) => [p.pc, p.note]) ?? []
+    ),
+    [primaryChord, pendingChordPlaceHolder]
+  );
+
+  const exploreNoteLabels = useMemo(
+    () => new Map(explore?.chord.noteIntervalPairs.map((p) => [p.pc, p.note]) ?? []),
+    [explore]
   );
 
   // ── Render ────────────────────────────────
@@ -1063,7 +1137,7 @@ export default function ChordIdentifier() {
           {exploreMode ? (
             <>
               {/* Carte compacte : les sélecteurs doivent tenir sous elle sur mobile */}
-              <ChordCard chord={exploreChord} size="secondary" className="chord-card--explore" />
+              <ChordCard chord={explore.chord}size="secondary" className="chord-card--explore" />
               <ChordExplorer
                 rootPc={exploreRoot}
                 template={exploreTemplate}
@@ -1126,9 +1200,9 @@ export default function ChordIdentifier() {
 
         {exploreMode && (
           <VirtualKeyboard
-            activeNotes={exploreActive}
-            scrollToNotes={exploreNotes}
-            noteLabels={new Map(exploreChord.noteIntervalPairs.map((p) => [p.pc, p.note]))}
+            activeNotes={explore.active}
+            scrollToNotes={explore.notes}
+            noteLabels={exploreNoteLabels}
             toolbar={
               <>
                 <span className="virtual-kb__hint">{inversionLabel(exploreInversion)}</span>

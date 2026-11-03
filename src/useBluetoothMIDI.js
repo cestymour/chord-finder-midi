@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { parsePacket } from "ble-midi-parser";
+import { dispatchMidiMessage } from "./midiMessages.js";
 
 // UUID standard du service MIDI over BLE (défini par la spécification Bluetooth)
 const MIDI_SERVICE_UUID = "03b80e5a-ede8-4b33-a751-6ce34ec4c700";
@@ -32,7 +33,7 @@ function errorCode(err) {
 }
 
 /** Décode une notification BLE MIDI et appelle les callbacks note on / note off / sustain. */
-function decodeNotification(value, { onNoteOn, onNoteOff, onSustain }) {
+function decodeNotification(value, callbacks) {
   if (!value) return;
   let info;
   try {
@@ -43,11 +44,16 @@ function decodeNotification(value, { onNoteOn, onNoteOff, onSustain }) {
   for (const ev of info?.events ?? []) {
     const { midiStatus: status, midiOne: one, midiTwo: two } = ev;
     if (typeof status !== "number" || typeof one !== "number" || typeof two !== "number") continue;
-    const type = status & 0xf0;
-    if (type === 0x90 && two > 0) onNoteOn?.(one);
-    else if (type === 0x80 || (type === 0x90 && two === 0)) onNoteOff?.(one);
-    // Pédale de sustain (contrôleur 64), enfoncée à partir de 64
-    else if (type === 0xb0 && one === 64) onSustain?.(two >= 64);
+    dispatchMidiMessage(status, one, two, callbacks);
+  }
+}
+
+/** Coupe le lien GATT d'un appareil s'il est ouvert (sans erreur s'il est déjà coupé). */
+function disconnectGatt(device) {
+  try {
+    if (device?.gatt?.connected) device.gatt.disconnect();
+  } catch {
+    // déjà déconnecté
   }
 }
 
@@ -61,8 +67,11 @@ function createBluetoothController({ setStatus, setError, setKnownDevice }) {
     attempt: 0,
     device: null, // dernier piano choisi (gardé après une coupure pour s'y reconnecter)
     link: null, // { characteristic, listener } quand les notifications sont actives
+    // Piano auquel on veut être connecté (null après une déconnexion demandée) :
+    // une ouverture de lien périmée ne coupe GATT que si ce piano n'est plus voulu.
+    target: null,
     stopWatching: null,
-    reconnecting: false,
+    reconnecting: null, // numéro de l'action dont la boucle de reconnexion tourne
     callbacks: {},
   };
 
@@ -81,6 +90,8 @@ function createBluetoothController({ setStatus, setError, setKnownDevice }) {
     } catch {
       // déjà déconnecté
     }
+    // Plus aucune note ne viendra de ce lien : les touches tenues ne doivent pas rester bloquées.
+    ctx.callbacks.onRelease?.();
   };
 
   /** Coupe tout lien avec le piano courant (sans l'oublier). */
@@ -88,7 +99,7 @@ function createBluetoothController({ setStatus, setError, setKnownDevice }) {
     ctx.stopWatching?.();
     ctx.stopWatching = null;
     releaseLink();
-    if (ctx.device?.gatt?.connected) ctx.device.gatt.disconnect();
+    disconnectGatt(ctx.device);
   };
 
   /** Ouvre le lien GATT et s'abonne aux notes. Renvoie false si une action plus récente a pris la main. */
@@ -99,7 +110,12 @@ function createBluetoothController({ setStatus, setError, setKnownDevice }) {
         const service = await server.getPrimaryService(MIDI_SERVICE_UUID);
         const characteristic = await service.getCharacteristic(MIDI_CHARACTERISTIC_UUID);
         await characteristic.startNotifications();
-        if (attempt !== ctx.attempt) return false;
+        if (attempt !== ctx.attempt) {
+          // Action plus récente (déconnexion, autre piano) : ne pas laisser un lien ouvert
+          // sans personne pour l'écouter, sauf si la nouvelle action vise ce même piano.
+          if (ctx.target !== device) disconnectGatt(device);
+          return false;
+        }
         // Décodage direct : certains systèmes (Chrome sous Windows) n'exposent pas
         // le piano BLE comme port Web MIDI.
         const listener = (event) => decodeNotification(event.target.value, ctx.callbacks);
@@ -107,11 +123,17 @@ function createBluetoothController({ setStatus, setError, setKnownDevice }) {
         ctx.link = { characteristic, listener };
         return true;
       } catch (err) {
-        if (attempt !== ctx.attempt) return false;
+        if (attempt !== ctx.attempt) {
+          if (ctx.target !== device) disconnectGatt(device);
+          return false;
+        }
         if (i < OPEN_RETRIES - 1 && /disconnected/i.test(err?.message || "")) {
           await wait(250 * (i + 1));
           continue;
         }
+        // GATT a pu s'ouvrir avant l'échec (service MIDI absent, notifications refusées) :
+        // le refermer, sinon ce navigateur garde le piano pour lui.
+        disconnectGatt(device);
         throw err;
       }
     }
@@ -119,8 +141,9 @@ function createBluetoothController({ setStatus, setError, setKnownDevice }) {
 
   /** Coupure non demandée (piano éteint, trop loin) : on réessaie seul pendant un moment. */
   const autoReconnect = async (device, attempt) => {
-    if (ctx.reconnecting) return;
-    ctx.reconnecting = true;
+    // Une seule boucle par action ; celle d'une action périmée (qui attend encore) ne bloque pas.
+    if (ctx.reconnecting === attempt) return;
+    ctx.reconnecting = attempt;
     releaseLink();
     setStatus("reconnecting");
     const deadline = Date.now() + RECONNECT_WINDOW_MS;
@@ -137,7 +160,7 @@ function createBluetoothController({ setStatus, setError, setKnownDevice }) {
       }
       if (attempt === ctx.attempt) setStatus("lost");
     } finally {
-      ctx.reconnecting = false;
+      if (ctx.reconnecting === attempt) ctx.reconnecting = null;
     }
   };
 
@@ -151,6 +174,7 @@ function createBluetoothController({ setStatus, setError, setKnownDevice }) {
   };
 
   const connect = async (device, attempt) => {
+    ctx.target = device;
     setStatus("connecting");
     setError(null);
     try {
@@ -178,6 +202,7 @@ function createBluetoothController({ setStatus, setError, setKnownDevice }) {
         return;
       }
       const attempt = ++ctx.attempt;
+      ctx.target = null; // aucun piano voulu tant que le sélecteur est ouvert
       setStatus("scanning");
       setError(null);
       let device;
@@ -214,6 +239,7 @@ function createBluetoothController({ setStatus, setError, setKnownDevice }) {
     /** Déconnexion demandée : le piano reste proposé pour une reconnexion. */
     disconnect() {
       ++ctx.attempt;
+      ctx.target = null;
       detach();
       setStatus("idle");
       setError(null);
@@ -239,6 +265,7 @@ function createBluetoothController({ setStatus, setError, setKnownDevice }) {
 
     dispose() {
       ++ctx.attempt;
+      ctx.target = null;
       detach();
     },
   };
@@ -255,8 +282,11 @@ function createBluetoothController({ setStatus, setError, setKnownDevice }) {
  * - requestBluetoothMIDI : ouvre le sélecteur (à appeler sur un geste de l'utilisateur)
  * - reconnectBluetooth   : se reconnecte au dernier piano sans sélecteur
  * - disconnectBluetooth  : déconnexion manuelle
+ *
+ * onRelease est appelé quand le lien avec le piano est coupé (coupure, déconnexion,
+ * autre piano) : ses touches tenues ne recevront plus de note off.
  */
-export default function useBluetoothMIDI({ onNoteOn, onNoteOff, onSustain } = {}) {
+export default function useBluetoothMIDI({ onNoteOn, onNoteOff, onSustain, onRelease } = {}) {
   const [btStatus, setBtStatus] = useState(() => (navigator.bluetooth ? "idle" : "unsupported"));
   const [btError, setBtError] = useState(null);
   const [btKnownDevice, setBtKnownDevice] = useState(null);
@@ -270,8 +300,8 @@ export default function useBluetoothMIDI({ onNoteOn, onNoteOff, onSustain } = {}
   );
 
   useEffect(() => {
-    controller.setCallbacks({ onNoteOn, onNoteOff, onSustain });
-  }, [controller, onNoteOn, onNoteOff, onSustain]);
+    controller.setCallbacks({ onNoteOn, onNoteOff, onSustain, onRelease });
+  }, [controller, onNoteOn, onNoteOff, onSustain, onRelease]);
 
   useEffect(() => {
     controller.restore();

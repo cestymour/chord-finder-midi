@@ -96,7 +96,7 @@ function parseDegree(label) {
 // `degrees` : notes de l'accord, dans l'ordre où le dictionnaire les empile
 //   du grave à l'aigu (9, 11 et 13 au-dessus de l'octave).
 // `optional` : degrés qu'on peut ne pas jouer (la quinte juste des accords de
-//   7e et plus, la 9e et la 11e des 13e). Tous les autres sont obligatoires,
+//   7e et plus et du 6/9, la 9e et la 11e des 13e). Tous les autres sont obligatoires,
 //   et aucune note en dehors de `degrees` n'est acceptée.
 // ─────────────────────────────────────────────
 
