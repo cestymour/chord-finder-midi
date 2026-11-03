@@ -12,33 +12,25 @@ export const ACCIDENTALS = ["sharp", "flat"];
 // Valeur par défaut (avant tout choix de l'utilisateur dans les paramètres)
 export const DEFAULT_ACCIDENTALS = "sharp";
 
-// Index = semitone 0–11
-const NOTE_NAMES = {
-  sharp: {
-    en: ["C", "C♯", "D", "D♯", "E", "F", "F♯", "G", "G♯", "A", "A♯", "B"],
-    fr: ["Do", "Do♯", "Ré", "Ré♯", "Mi", "Fa", "Fa♯", "Sol", "Sol♯", "La", "La♯", "Si"],
-  },
-  flat: {
-    en: ["C", "D♭", "D", "E♭", "E", "F", "G♭", "G", "A♭", "A", "B♭", "B"],
-    fr: ["Do", "Ré♭", "Ré", "Mi♭", "Mi", "Fa", "Sol♭", "Sol", "La♭", "La", "Si♭", "Si"],
-  },
+// Index = semitone 0–11. Les symboles d'accords restent en notation anglaise
+// quelle que soit la langue ; les noms de notes traduits sont dans src/i18n.js.
+const ROOT_NAMES = {
+  sharp: ["C", "C♯", "D", "D♯", "E", "F", "F♯", "G", "G♯", "A", "A♯", "B"],
+  flat:  ["C", "D♭", "D", "E♭", "E", "F", "G♭", "G", "A♭", "A", "B♭", "B"],
 };
 
 // Black-key pitch classes: C♯/D♭, D♯/E♭, F♯/G♭, G♯/A♭, A♯/B♭ (virtual keyboard layout).
 export const BLACK_KEY_PCS = new Set([1, 3, 6, 8, 10]);
 
-/** Nom anglais d'une note (fondamentale / basse des accords). */
+/** Nom anglais d'une note (fondamentale / basse des symboles d'accords). */
 export function getRootNameEN(semitone, accidentals) {
-  return (NOTE_NAMES[accidentals] ?? NOTE_NAMES[DEFAULT_ACCIDENTALS]).en[semitone % 12];
-}
-
-/** Nom français d'une note (tableau des notes, étiquettes du clavier). */
-export function getNoteNameFR(semitone, accidentals) {
-  return (NOTE_NAMES[accidentals] ?? NOTE_NAMES[DEFAULT_ACCIDENTALS]).fr[semitone % 12];
+  return (ROOT_NAMES[accidentals] ?? ROOT_NAMES[DEFAULT_ACCIDENTALS])[semitone % 12];
 }
 
 // ─────────────────────────────────────────────
 // CHORD DEFINITIONS
+// Les libellés (nom du type d'accord, nom du groupe) sont traduits dans
+// src/i18n.js, indexés par `suffix` et par `id` de groupe.
 // `intervals`: semitones from root, sorted ascending, all within one octave.
 //   ALL intervals must be present for a match (strict mode).
 // `voicing` (optional): how the chord is laid out on the keyboard in the
@@ -48,75 +40,75 @@ export function getNoteNameFR(semitone, accidentals) {
 
 export const CHORD_TEMPLATE_GROUPS = [
   {
-    label: "Triades",
+    id: "triads",
     templates: [
-      { suffix: "",      intervals: [0, 4, 7],              label: "Majeur" },
-      { suffix: "m",     intervals: [0, 3, 7],              label: "Mineur" },
-      { suffix: "dim",   intervals: [0, 3, 6],              label: "Diminué" },
-      { suffix: "aug",   intervals: [0, 4, 8],              label: "Augmenté" },
-      { suffix: "sus2",  intervals: [0, 2, 7],              label: "Suspendu 2" },
-      { suffix: "sus4",  intervals: [0, 5, 7],              label: "Suspendu 4" },
-      { suffix: "5",     intervals: [0, 7],                 label: "Quinte (power)" },
+      { suffix: "",      intervals: [0, 4, 7] },
+      { suffix: "m",     intervals: [0, 3, 7] },
+      { suffix: "dim",   intervals: [0, 3, 6] },
+      { suffix: "aug",   intervals: [0, 4, 8] },
+      { suffix: "sus2",  intervals: [0, 2, 7] },
+      { suffix: "sus4",  intervals: [0, 5, 7] },
+      { suffix: "5",     intervals: [0, 7] },
     ],
   },
   {
-    label: "Sixtes",
+    id: "sixths",
     templates: [
-      { suffix: "6",     intervals: [0, 4, 7, 9],           label: "Sixte majeure" },
-      { suffix: "m6",    intervals: [0, 3, 7, 9],           label: "Sixte mineure" },
-      { suffix: "6/9",   intervals: [0, 2, 4, 7, 9],        label: "Sixte/Neuvième",
+      { suffix: "6",     intervals: [0, 4, 7, 9] },
+      { suffix: "m6",    intervals: [0, 3, 7, 9] },
+      { suffix: "6/9",   intervals: [0, 2, 4, 7, 9],
         voicing: [0, 4, 7, 9, 14] },
     ],
   },
   {
-    label: "Septièmes",
+    id: "sevenths",
     templates: [
-      { suffix: "maj7",  intervals: [0, 4, 7, 11],          label: "Septième majeure" },
-      { suffix: "7",     intervals: [0, 4, 7, 10],          label: "Septième dominante" },
-      { suffix: "m7",    intervals: [0, 3, 7, 10],          label: "Septième mineure" },
-      { suffix: "mM7",   intervals: [0, 3, 7, 11],          label: "Septième mineure majeure" },
-      { suffix: "dim7",  intervals: [0, 3, 6, 9],           label: "Septième diminuée" },
-      { suffix: "m7♭5",  intervals: [0, 3, 6, 10],          label: "Demi-diminué" },
-      { suffix: "aug7",  intervals: [0, 4, 8, 10],          label: "Septième augmentée" },
-      { suffix: "7sus4", intervals: [0, 5, 7, 10],          label: "Sept. sus4" },
-      { suffix: "7♭5",   intervals: [0, 4, 6, 10],          label: "Sept. quinte bémol" },
-      { suffix: "7♯5",   intervals: [0, 4, 8, 10],          label: "Sept. quinte augmentée" },
+      { suffix: "maj7",  intervals: [0, 4, 7, 11] },
+      { suffix: "7",     intervals: [0, 4, 7, 10] },
+      { suffix: "m7",    intervals: [0, 3, 7, 10] },
+      { suffix: "mM7",   intervals: [0, 3, 7, 11] },
+      { suffix: "dim7",  intervals: [0, 3, 6, 9] },
+      { suffix: "m7♭5",  intervals: [0, 3, 6, 10] },
+      { suffix: "aug7",  intervals: [0, 4, 8, 10] },
+      { suffix: "7sus4", intervals: [0, 5, 7, 10] },
+      { suffix: "7♭5",   intervals: [0, 4, 6, 10] },
+      { suffix: "7♯5",   intervals: [0, 4, 8, 10] },
     ],
   },
   {
-    label: "Neuvièmes",
+    id: "ninths",
     templates: [
-      { suffix: "maj9",  intervals: [0, 2, 4, 7, 11],       label: "Neuvième majeure",
+      { suffix: "maj9",  intervals: [0, 2, 4, 7, 11],
         voicing: [0, 4, 7, 11, 14] },
-      { suffix: "9",     intervals: [0, 2, 4, 7, 10],       label: "Neuvième dominante",
+      { suffix: "9",     intervals: [0, 2, 4, 7, 10],
         voicing: [0, 4, 7, 10, 14] },
-      { suffix: "m9",    intervals: [0, 2, 3, 7, 10],       label: "Neuvième mineure",
+      { suffix: "m9",    intervals: [0, 2, 3, 7, 10],
         voicing: [0, 3, 7, 10, 14] },
-      { suffix: "add9",  intervals: [0, 2, 4, 7],           label: "Neuvième ajouté",
+      { suffix: "add9",  intervals: [0, 2, 4, 7],
         voicing: [0, 4, 7, 14] },
-      { suffix: "madd9", intervals: [0, 2, 3, 7],           label: "Neuvième mineure ajoutée",
+      { suffix: "madd9", intervals: [0, 2, 3, 7],
         voicing: [0, 3, 7, 14] },
     ],
   },
   {
-    label: "Onzièmes",
+    id: "elevenths",
     templates: [
-      { suffix: "11",    intervals: [0, 2, 4, 5, 7, 10],    label: "Onzième",
+      { suffix: "11",    intervals: [0, 2, 4, 5, 7, 10],
         voicing: [0, 4, 7, 10, 14, 17] },
-      { suffix: "m11",   intervals: [0, 2, 3, 5, 7, 10],    label: "Onzième mineure",
+      { suffix: "m11",   intervals: [0, 2, 3, 5, 7, 10],
         voicing: [0, 3, 7, 10, 14, 17] },
-      { suffix: "maj11", intervals: [0, 2, 4, 5, 7, 11],    label: "Onzième majeure",
+      { suffix: "maj11", intervals: [0, 2, 4, 5, 7, 11],
         voicing: [0, 4, 7, 11, 14, 17] },
     ],
   },
   {
-    label: "Treizièmes",
+    id: "thirteenths",
     templates: [
-      { suffix: "13",    intervals: [0, 2, 4, 5, 7, 9, 10], label: "Treizième",
+      { suffix: "13",    intervals: [0, 2, 4, 5, 7, 9, 10],
         voicing: [0, 4, 7, 10, 14, 17, 21] },
-      { suffix: "m13",   intervals: [0, 2, 3, 5, 7, 9, 10], label: "Treizième mineure",
+      { suffix: "m13",   intervals: [0, 2, 3, 5, 7, 9, 10],
         voicing: [0, 3, 7, 10, 14, 17, 21] },
-      { suffix: "maj13", intervals: [0, 2, 4, 5, 7, 9, 11], label: "Treizième majeure",
+      { suffix: "maj13", intervals: [0, 2, 4, 5, 7, 9, 11],
         voicing: [0, 4, 7, 11, 14, 17, 21] },
     ],
   },
@@ -131,7 +123,8 @@ export const CHORD_TEMPLATES = CHORD_TEMPLATE_GROUPS.flatMap((g) => g.templates)
 /**
  * Given a set of MIDI note numbers, returns an array of matching chords
  * sorted by likelihood (most complete match first).
- * `accidentals` : "sharp" | "flat" (noms des notes et des accords).
+ * `accidentals` : "sharp" | "flat" (symboles d'accords). Les notes sont renvoyées
+ * en classes de hauteur (`pc`), nommées par l'interface selon la langue.
  */
 export function identifyChords(midiNotes, accidentals = DEFAULT_ACCIDENTALS) {
   if (midiNotes.length < 2) return [];
@@ -181,15 +174,16 @@ export function identifyChords(midiNotes, accidentals = DEFAULT_ACCIDENTALS) {
           const pc = n % 12;
           const interval = (pc - rootPc + 12) % 12;
           return {
-            note: getNoteNameFR(pc, accidentals),
+            pc,
             interval: INTERVAL_LABEL[interval] ?? `+${interval}`,
           };
         });
 
       results.push({
+        rootPc,
+        bassPc: isInversion ? bassPc : null,
         root: getRootNameEN(rootPc, accidentals),
         suffix: template.suffix,
-        label: template.label,
         chordName: getRootNameEN(rootPc, accidentals) + template.suffix + (isInversion ? "/" + bassName : ""),
         isInversion,
         bassName,
@@ -269,7 +263,7 @@ export function identifyChords(midiNotes, accidentals = DEFAULT_ACCIDENTALS) {
 }
 
 /** Notes pressées → paires pour le tableau (même dédup par classe de hauteur que l'accord). */
-export function buildPendingNotePairs(midiNotes, accidentals = DEFAULT_ACCIDENTALS) {
+export function buildPendingNotePairs(midiNotes) {
   const sorted = [...midiNotes].sort((a, b) => a - b);
   const seenPc = new Set();
   return sorted
@@ -280,7 +274,7 @@ export function buildPendingNotePairs(midiNotes, accidentals = DEFAULT_ACCIDENTA
       return true;
     })
     .map((n) => ({
-      note: getNoteNameFR(n % 12, accidentals),
+      pc: n % 12,
       interval: "—",
     }));
 }
@@ -354,14 +348,15 @@ export function describeVoicing(rootPc, template, voicing, accidentals = DEFAULT
   const bassName = isInversion ? getRootNameEN(bassPc, accidentals) : null;
 
   return {
+    rootPc,
+    bassPc: isInversion ? bassPc : null,
     root,
     suffix: template.suffix,
-    label: template.label,
     chordName: root + template.suffix + (isInversion ? "/" + bassName : ""),
     isInversion,
     bassName,
     noteIntervalPairs: voicing.map((n) => ({
-      note: getNoteNameFR(n.midi % 12, accidentals),
+      pc: n.midi % 12,
       interval: intervalLabel(n.interval),
     })),
   };

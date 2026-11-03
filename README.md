@@ -18,13 +18,14 @@ L’application comporte trois écrans, accessibles par les onglets en haut : **
 - **Écran Piano**, pour jouer sur un vrai clavier MIDI :
   - **USB / câble** via Web MIDI : toutes les entrées MIDI du système sont écoutées automatiquement.
   - **Bluetooth MIDI (BLE)** via Web Bluetooth : tant qu’aucun instrument n’est connecté, un grand bouton « Connexion Bluetooth MIDI » est proposé. En dessous, des raccourcis mènent au clavier virtuel et au dictionnaire.
-  - Le voyant de l’onglet Piano indique l’état de la connexion MIDI depuis n’importe quel écran.
+  - Sur l’écran Piano, une ligne d’état indique la connexion MIDI (connecté, aucun instrument, non disponible).
 - **Écran Clavier** (clavier virtuel, sans piano) : un clavier de 3 octaves (Do2–Si4). En portrait, 2 octaves sont visibles et on fait défiler pour la troisième ; en paysage et sur ordinateur, les 3 octaves sont affichées. Chaque clic enfonce une touche et la laisse enfoncée, un second clic la relâche ; « Effacer » relâche tout. La détection d’accord est la même qu’avec un piano.
 - **Écran Accords** (dictionnaire) : le sens inverse. Choisissez une fondamentale et un type d’accord, et ses notes s’allument sur le clavier. Les extensions (9e, 11e, 13e) sont placées au-dessus de l’octave, comme on les joue. « Renverser » passe d’un renversement à l’autre, et le clavier défile tout seul si une note sort de l’écran.
-- **Paramètres** (roue crantée) : choix de l’affichage des altérations, en dièses (♯) ou en bémols (♭), pour toute l’application. Le choix est mémorisé. La version de l’application y est aussi indiquée.
+- **Paramètres** (roue crantée) : choix de la langue et de l’affichage des altérations, en dièses (♯) ou en bémols (♭), pour toute l’application. Ces choix sont mémorisés pour les ouvertures suivantes. La version de l’application y est aussi indiquée.
+- **Quatre langues** : français (par défaut), anglais, allemand et espagnol. Les noms de notes suivent l’usage de chaque langue (Do Ré Mi, C D E, Do Re Mi, et en allemand H pour si et B pour si bémol).
 - **PWA installable** : ajoutez-la à l’écran d’accueil pour l’utiliser comme une application native.
 
-Interface en français ; symboles d’accords au format anglais usuel (C, Dm, Fmaj7, C♯m7♭5, etc.).
+Symboles d’accords au format anglais usuel (C, Dm, Fmaj7, C♯m7♭5, etc.), sauf en allemand où le si s’écrit H (Hmaj7).
 
 ## Prérequis
 
@@ -44,7 +45,7 @@ npm run preview  # prévisualisation du build
 npm run lint     # ESLint
 ```
 
-La version affichée dans les paramètres est celle du champ `version` de `package.json`.
+La version affichée dans les paramètres est celle du champ `version` de `package.json`. L’historique des versions est dans [CHANGELOG.md](CHANGELOG.md).
 
 ## Déploiement
 
@@ -67,10 +68,10 @@ The app has three screens, picked from the tabs at the top. It always opens on *
 - **Piano**: connect by cable (Web MIDI, all inputs are picked up automatically) or over Bluetooth LE MIDI (Web Bluetooth). Until an instrument is connected, a large Bluetooth button is shown, with shortcuts to the two other screens.
 - **Clavier** (virtual keyboard, no piano needed): a 3-octave on-screen keyboard (2 octaves visible in portrait, scroll for the third). Click keys to hold them down (click again to release) and the chord is detected the same way.
 - **Accords** (chord dictionary): pick a root and a chord type to see its keys light up on the keyboard, and step through its inversions.
-- **Settings** (gear icon): show accidentals as sharps (♯) or flats (♭) throughout the app. The app version is shown here too.
+- **Settings** (gear icon): pick the language (French by default, English, German or Spanish) and show accidentals as sharps (♯) or flats (♭) throughout the app. Both choices are remembered. The app version is shown here too.
 - **Browser**: Chrome or Edge on desktop or Android. Firefox and Safari (including every iOS browser) don’t support Web Bluetooth.
 - **Install** it as a PWA from your browser.
-- The interface is in French; chord symbols use standard English notation.
+- Chord symbols use standard English notation, except in German, which writes B natural as H (Hmaj7).
 
 Run it locally with `npm install` then `npm run dev`.
 

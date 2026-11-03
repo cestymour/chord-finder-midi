@@ -36,7 +36,7 @@ export default function useBluetoothMIDI({ onNoteOn, onNoteOff } = {}) {
   const requestBluetoothMIDI = useCallback(async () => {
     if (!navigator.bluetooth) {
       setBtStatus("unsupported");
-      setBtError("Web Bluetooth non supporté par ce navigateur.");
+      setBtError(null); // message affiché (traduit) par l'interface
       return;
     }
 
@@ -244,7 +244,8 @@ export default function useBluetoothMIDI({ onNoteOn, onNoteOff } = {}) {
         setBtError(null);
       } else {
         setBtStatus("error");
-        setBtError(err.message || "Erreur de connexion Bluetooth.");
+        // Message du navigateur s'il existe ; sinon l'interface affiche un message traduit
+        setBtError(err.message || null);
       }
     }
   }, [onNoteOn, onNoteOff]);

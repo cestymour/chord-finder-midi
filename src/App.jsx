@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import './App.css';
 import useBluetoothMIDI from "./useBluetoothMIDI";
 import {
@@ -10,11 +10,17 @@ import {
   buildChordVoicing,
   buildPendingNotePairs,
   describeVoicing,
-  getNoteNameFR,
-  getRootNameEN,
   identifyChords,
   inversionCount,
 } from "./chords";
+import {
+  DEFAULT_LANGUAGE,
+  I18nContext,
+  LANGUAGES,
+  LANGUAGE_CODES,
+  createI18n,
+  useI18n,
+} from "./i18n";
 
 // ─────────────────────────────────────────────
 // MIDI CONNECTION HOOK
@@ -89,6 +95,7 @@ function useMIDI(onNoteOn, onNoteOff, refreshKey) {
 // ─────────────────────────────────────────────
 
 function BluetoothMIDIButton({ btStatus, btError, onConnect }) {
+  const { t } = useI18n();
   const isLoading = btStatus === "scanning" || btStatus === "connecting";
 
   return (
@@ -97,7 +104,7 @@ function BluetoothMIDIButton({ btStatus, btError, onConnect }) {
         className={`bt-connect-btn ${isLoading ? "bt-connect-btn--loading" : ""}`}
         onClick={onConnect}
         disabled={isLoading}
-        aria-label="Connecter un instrument MIDI via Bluetooth"
+        aria-label={t("bt.connectAria")}
       >
         <svg
           className="bt-connect-icon"
@@ -115,21 +122,19 @@ function BluetoothMIDIButton({ btStatus, btError, onConnect }) {
         </svg>
 
         <span className="bt-connect-label">
-          {btStatus === "scanning" && "Recherche…"}
-          {btStatus === "connecting" && "Connexion…"}
-          {btStatus !== "scanning" && btStatus !== "connecting" && "Connexion Bluetooth MIDI"}
+          {btStatus === "scanning" && t("bt.scanning")}
+          {btStatus === "connecting" && t("bt.connecting")}
+          {btStatus !== "scanning" && btStatus !== "connecting" && t("bt.connect")}
         </span>
       </button>
 
-      {btStatus === "error" && btError && (
-        <p className="bt-connect-error">{btError}</p>
+      {/* Message du navigateur s'il en donne un (déjà dans sa langue), sinon message générique */}
+      {btStatus === "error" && (
+        <p className="bt-connect-error">{btError || t("bt.error")}</p>
       )}
 
       {btStatus === "unsupported" && (
-        <p className="bt-connect-error">
-          Web Bluetooth n'est pas supporté par ce navigateur.
-          Utilisez Chrome sur Android ou ordinateur.
-        </p>
+        <p className="bt-connect-error">{t("bt.unsupported")}</p>
       )}
     </div>
   );
@@ -169,10 +174,6 @@ const VK_KEY_SPANS = (() => {
 })();
 const VK_BLACK_NOTES = VK_NOTES.filter((n) => BLACK_KEY_PCS.has(n % 12));
 
-// Convention française : le Do central (MIDI 60) est Do3
-const octaveOfFR = (n) => Math.floor(n / 12) - 2;
-const keyLabel = (n, accidentals) => `${getNoteNameFR(n % 12, accidentals)}${octaveOfFR(n)}`;
-
 /**
  * Fait défiler le clavier pour que [lowNote, highNote] soit visible :
  * si une des deux extrémités est masquée, la note grave est amenée à gauche.
@@ -204,7 +205,8 @@ function useScrollIntoView(scrollerRef, lowNote, highNote) {
  * - onKeyClick  : absent → clavier en lecture seule
  * - scrollToNotes : notes à garder visibles (défilement automatique)
  */
-function VirtualKeyboard({ activeNotes, onKeyClick, scrollToNotes, toolbar, accidentals }) {
+function VirtualKeyboard({ activeNotes, onKeyClick, scrollToNotes, toolbar }) {
+  const { keyLabel, noteName } = useI18n();
   const scrollerRef = useRef(null);
   const interactive = Boolean(onKeyClick);
   const KeyTag = interactive ? "button" : "div";
@@ -222,7 +224,7 @@ function VirtualKeyboard({ activeNotes, onKeyClick, scrollToNotes, toolbar, acci
       props: {
         className: `vk-key vk-key--${color}${isDown ? " vk-key--down" : ""}${interactive ? "" : " vk-key--static"}`,
         ...(interactive
-          ? { onClick: () => onKeyClick(n), "aria-pressed": isDown, "aria-label": keyLabel(n, accidentals) }
+          ? { onClick: () => onKeyClick(n), "aria-pressed": isDown, "aria-label": keyLabel(n) }
           : {}),
       },
     };
@@ -239,7 +241,7 @@ function VirtualKeyboard({ activeNotes, onKeyClick, scrollToNotes, toolbar, acci
               <KeyTag key={n} {...props} style={{ width: `${VK_WHITE_WIDTH}%` }}>
                 {(n % 12 === 0 || isDown) && (
                   <span className="vk-key__label">
-                    {n % 12 === 0 ? keyLabel(n, accidentals) : getNoteNameFR(n % 12, accidentals)}
+                    {n % 12 === 0 ? keyLabel(n) : noteName(n)}
                   </span>
                 )}
               </KeyTag>
@@ -267,11 +269,12 @@ function VirtualKeyboard({ activeNotes, onKeyClick, scrollToNotes, toolbar, acci
 
 const ROOT_PCS = Array.from({ length: 12 }, (_, pc) => pc);
 
-function ChordExplorer({ rootPc, suffix, onRootChange, onSuffixChange, accidentals }) {
+function ChordExplorer({ rootPc, suffix, onRootChange, onSuffixChange }) {
+  const { t, rootName, groupName, chordTypeName } = useI18n();
   return (
     <div className="explorer">
       <div className="explorer__section">
-        <div className="explorer__label">Fondamentale</div>
+        <div className="explorer__label">{t("explorer.root")}</div>
         <div className="explorer__roots">
           {ROOT_PCS.map((pc) => (
             <button
@@ -280,24 +283,24 @@ function ChordExplorer({ rootPc, suffix, onRootChange, onSuffixChange, accidenta
               onClick={() => onRootChange(pc)}
               aria-pressed={pc === rootPc}
             >
-              {getRootNameEN(pc, accidentals)}
+              {rootName(pc)}
             </button>
           ))}
         </div>
       </div>
       {CHORD_TEMPLATE_GROUPS.map((group) => (
-        <div className="explorer__section" key={group.label}>
-          <div className="explorer__label">{group.label}</div>
+        <div className="explorer__section" key={group.id}>
+          <div className="explorer__label">{groupName(group.id)}</div>
           <div className="explorer__types">
-            {group.templates.map((t) => (
+            {group.templates.map((tpl) => (
               <button
-                key={t.suffix}
-                className={`explorer-chip${t.suffix === suffix ? " explorer-chip--active" : ""}`}
-                onClick={() => onSuffixChange(t.suffix)}
-                aria-pressed={t.suffix === suffix}
-                title={t.label}
+                key={tpl.suffix}
+                className={`explorer-chip${tpl.suffix === suffix ? " explorer-chip--active" : ""}`}
+                onClick={() => onSuffixChange(tpl.suffix)}
+                aria-pressed={tpl.suffix === suffix}
+                title={chordTypeName(tpl.suffix)}
               >
-                {getRootNameEN(rootPc, accidentals)}{t.suffix}
+                {rootName(rootPc)}{tpl.suffix}
               </button>
             ))}
           </div>
@@ -307,23 +310,21 @@ function ChordExplorer({ rootPc, suffix, onRootChange, onSuffixChange, accidenta
   );
 }
 
-const inversionLabel = (i) =>
-  i === 0 ? "État fondamental" : i === 1 ? "1er renversement" : `${i}e renversement`;
-
 // ─────────────────────────────────────────────
 // TOP BAR : onglets d'écran + paramètres
 // ─────────────────────────────────────────────
 
 const MODE_TABS = [
-  { mode: "midi",    label: "Piano" },
-  { mode: "virtual", label: "Clavier", icon: "👆" },
-  { mode: "explore", label: "Accords", icon: "📖" },
+  { mode: "midi",    labelKey: "tabs.piano",    icon: "🎹" },
+  { mode: "virtual", labelKey: "tabs.keyboard", icon: "👆" },
+  { mode: "explore", labelKey: "tabs.chords",   icon: "📖" },
 ];
 
-function TopBar({ mode, onModeChange, midiStatus, onOpenSettings }) {
+function TopBar({ mode, onModeChange, onOpenSettings }) {
+  const { t } = useI18n();
   return (
     <header className="top-bar">
-      <nav className="mode-tabs" role="tablist" aria-label="Écran affiché">
+      <nav className="mode-tabs" role="tablist" aria-label={t("tabs.aria")}>
         {MODE_TABS.map((tab) => (
           <button
             key={tab.mode}
@@ -332,15 +333,12 @@ function TopBar({ mode, onModeChange, midiStatus, onOpenSettings }) {
             className={`mode-tab${mode === tab.mode ? " mode-tab--active" : ""}`}
             onClick={() => onModeChange(tab.mode)}
           >
-            {/* L'onglet Piano porte le voyant MIDI, visible depuis tous les écrans */}
-            {tab.mode === "midi"
-              ? <span className={`midi-dot midi-dot--${midiStatus}`} aria-hidden="true" />
-              : <span aria-hidden="true">{tab.icon}</span>}
-            {tab.label}
+            <span aria-hidden="true">{tab.icon}</span>
+            {t(tab.labelKey)}
           </button>
         ))}
       </nav>
-      <button className="settings-btn" onClick={onOpenSettings} aria-label="Paramètres">
+      <button className="settings-btn" onClick={onOpenSettings} aria-label={t("settings.open")}>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
           strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <circle cx="12" cy="12" r="3" />
@@ -353,15 +351,16 @@ function TopBar({ mode, onModeChange, midiStatus, onOpenSettings }) {
 
 /** Solutions de secours proposées sous le bouton Bluetooth quand aucun piano n'est connecté. */
 function NoPianoFallback({ onModeChange }) {
+  const { t } = useI18n();
   return (
     <div className="no-piano">
-      <span className="no-piano__label">Pas de piano sous la main ?</span>
+      <span className="no-piano__label">{t("fallback.title")}</span>
       <div className="no-piano__actions">
         <button className="no-piano__btn" onClick={() => onModeChange("virtual")}>
-          👆 Clavier virtuel
+          👆 {t("fallback.keyboard")}
         </button>
         <button className="no-piano__btn" onClick={() => onModeChange("explore")}>
-          📖 Dictionnaire d'accords
+          📖 {t("fallback.dictionary")}
         </button>
       </div>
     </div>
@@ -374,22 +373,75 @@ function NoPianoFallback({ onModeChange }) {
 
 const APP_VERSION = import.meta.env.VITE_APP_VERSION;
 const ACCIDENTALS_STORAGE_KEY = "instantchordbt.accidentals";
+const LANGUAGE_STORAGE_KEY = "instantchordbt.language";
 
 const ACCIDENTAL_OPTIONS = [
-  { value: "sharp", symbol: "♯", label: "Dièses" },
-  { value: "flat",  symbol: "♭", label: "Bémols" },
+  { value: "sharp", symbol: "♯", labelKey: "settings.sharps" },
+  { value: "flat",  symbol: "♭", labelKey: "settings.flats" },
 ];
 
-function loadAccidentals() {
-  try {
-    const stored = localStorage.getItem(ACCIDENTALS_STORAGE_KEY);
-    return ACCIDENTALS.includes(stored) ? stored : DEFAULT_ACCIDENTALS;
-  } catch {
-    return DEFAULT_ACCIDENTALS;
-  }
+/** Réglage mémorisé dans le navigateur (valeur par défaut si absent ou invalide). */
+function usePersistentSetting(storageKey, allowedValues, defaultValue) {
+  const [value, setValue] = useState(() => {
+    try {
+      const stored = localStorage.getItem(storageKey);
+      return allowedValues.includes(stored) ? stored : defaultValue;
+    } catch {
+      return defaultValue;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(storageKey, value);
+    } catch {
+      // stockage indisponible (navigation privée…) : le choix vaut pour la session
+    }
+  }, [storageKey, value]);
+
+  return [value, setValue];
 }
 
-function SettingsDialog({ open, onClose, accidentals, onAccidentalsChange }) {
+// Drapeaux en SVG : les emoji drapeaux ne s'affichent pas sous Windows
+// (le système affiche les lettres « FR », « DE »… à la place).
+// Affichés en 3:2 ; le drapeau britannique (2:1) est recadré au centre.
+const FLAGS = {
+  fr: (
+    <svg viewBox="0 0 3 2" preserveAspectRatio="xMidYMid slice">
+      <rect width="1" height="2" fill="#002654" />
+      <rect x="1" width="1" height="2" fill="#fff" />
+      <rect x="2" width="1" height="2" fill="#ce1126" />
+    </svg>
+  ),
+  en: (
+    <svg viewBox="0 0 60 30" preserveAspectRatio="xMidYMid slice">
+      <clipPath id="flag-uk-diagonals">
+        <path d="M30,15 h30 v15 z v15 h-30 z h-30 v-15 z v-15 h30 z" />
+      </clipPath>
+      <rect width="60" height="30" fill="#012169" />
+      <path d="M0,0 L60,30 M60,0 L0,30" stroke="#fff" strokeWidth="6" />
+      <path d="M0,0 L60,30 M60,0 L0,30" stroke="#c8102e" strokeWidth="4" clipPath="url(#flag-uk-diagonals)" />
+      <path d="M30,0 v30 M0,15 h60" stroke="#fff" strokeWidth="10" />
+      <path d="M30,0 v30 M0,15 h60" stroke="#c8102e" strokeWidth="6" />
+    </svg>
+  ),
+  de: (
+    <svg viewBox="0 0 5 3" preserveAspectRatio="xMidYMid slice">
+      <rect width="5" height="1" fill="#000" />
+      <rect y="1" width="5" height="1" fill="#dd0000" />
+      <rect y="2" width="5" height="1" fill="#ffce00" />
+    </svg>
+  ),
+  es: (
+    <svg viewBox="0 0 4 4" preserveAspectRatio="xMidYMid slice">
+      <rect width="4" height="4" fill="#aa151b" />
+      <rect y="1" width="4" height="2" fill="#f1bf00" />
+    </svg>
+  ),
+};
+
+function SettingsDialog({ open, onClose, onLanguageChange, onAccidentalsChange }) {
+  const { t, language, accidentals } = useI18n();
   const dialogRef = useRef(null);
 
   // <dialog> natif : fond assombri, Échap pour fermer, focus gardé dans la fenêtre
@@ -410,12 +462,31 @@ function SettingsDialog({ open, onClose, accidentals, onAccidentalsChange }) {
     >
       <div className="settings__content">
         <div className="settings__header">
-          <h2 className="settings__title">Paramètres</h2>
-          <button className="settings__close" onClick={onClose} aria-label="Fermer">✕</button>
+          <h2 className="settings__title">{t("settings.title")}</h2>
+          <button className="settings__close" onClick={onClose} aria-label={t("settings.close")}>✕</button>
         </div>
 
         <div className="settings__row">
-          <span className="settings__label" id="settings-accidentals">Affichage des altérations</span>
+          <span className="settings__label" id="settings-language">{t("settings.language")}</span>
+          <div className="settings__choices settings__choices--flags" role="group" aria-labelledby="settings-language">
+            {LANGUAGES.map((lang) => (
+              <button
+                key={lang.code}
+                lang={lang.code}
+                className={`settings__choice${language === lang.code ? " settings__choice--active" : ""}`}
+                onClick={() => onLanguageChange(lang.code)}
+                aria-pressed={language === lang.code}
+                aria-label={lang.name}
+                title={lang.name}
+              >
+                <span className="settings__flag" aria-hidden="true">{FLAGS[lang.code]}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="settings__row">
+          <span className="settings__label" id="settings-accidentals">{t("settings.accidentals")}</span>
           <div className="settings__choices" role="group" aria-labelledby="settings-accidentals">
             {ACCIDENTAL_OPTIONS.map((opt) => (
               <button
@@ -423,16 +494,16 @@ function SettingsDialog({ open, onClose, accidentals, onAccidentalsChange }) {
                 className={`settings__choice${accidentals === opt.value ? " settings__choice--active" : ""}`}
                 onClick={() => onAccidentalsChange(opt.value)}
                 aria-pressed={accidentals === opt.value}
-                aria-label={opt.label}
-                title={opt.label}
+                aria-label={t(opt.labelKey)}
+                title={t(opt.labelKey)}
               >
-                {opt.symbol}
+                <span className="settings__symbol" aria-hidden="true">{opt.symbol}</span>
               </button>
             ))}
           </div>
         </div>
 
-        <div className="settings__footer">InstantChordBT · version {APP_VERSION}</div>
+        <div className="settings__footer">InstantChordBT · {t("settings.version")} {APP_VERSION}</div>
       </div>
     </dialog>
   );
@@ -471,8 +542,8 @@ export default function ChordIdentifier() {
   useEffect(() => {
     // Lors d'une déconnexion Bluetooth, évite de garder des notes "bloquées".
     if (btStatus === "connected") return;
-    const t = setTimeout(() => setPressedNotes(new Set()), 0);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setPressedNotes(new Set()), 0);
+    return () => clearTimeout(timer);
   }, [btStatus]);
 
   const midiStatusRefreshed = useMIDI(handleNoteOn, handleNoteOff);
@@ -512,17 +583,18 @@ export default function ChordIdentifier() {
     clearVirtualNotes();
   };
 
-  // Paramètres
+  // Paramètres (mémorisés pour les ouvertures suivantes)
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [accidentals, setAccidentals] = useState(loadAccidentals);
+  const [language, setLanguage] = usePersistentSetting(LANGUAGE_STORAGE_KEY, LANGUAGE_CODES, DEFAULT_LANGUAGE);
+  const [accidentals, setAccidentals] = usePersistentSetting(ACCIDENTALS_STORAGE_KEY, ACCIDENTALS, DEFAULT_ACCIDENTALS);
 
+  const i18n = useMemo(() => createI18n(language, accidentals), [language, accidentals]);
+  const { t, inversionLabel } = i18n;
+
+  // Langue du document (lecteurs d'écran, césure, traduction automatique du navigateur)
   useEffect(() => {
-    try {
-      localStorage.setItem(ACCIDENTALS_STORAGE_KEY, accidentals);
-    } catch {
-      // stockage indisponible (navigation privée…) : le choix vaut pour la session
-    }
-  }, [accidentals]);
+    document.documentElement.lang = i18n.language;
+  }, [i18n.language]);
 
   // Explorateur d'accords
   const [exploreRoot, setExploreRoot] = useState(0); // Do
@@ -569,139 +641,133 @@ export default function ChordIdentifier() {
       ? {
           root: "?",
           suffix: "",
-          label: "Accord non reconnu",
           isInversion: false,
           bassName: null,
-          noteIntervalPairs: buildPendingNotePairs(midiArray, accidentals),
+          noteIntervalPairs: buildPendingNotePairs(midiArray),
         }
       : null;
 
   // ── Render ────────────────────────────────
   return (
-    <div className={`app${mode !== "midi" ? " app--keyboard" : ""}`}>
+    <I18nContext.Provider value={i18n}>
+      <div className={`app${mode !== "midi" ? " app--keyboard" : ""}`}>
 
-      <TopBar
-        mode={mode}
-        onModeChange={changeMode}
-        midiStatus={displayedMidiStatus}
-        onOpenSettings={() => setSettingsOpen(true)}
-      />
+        <TopBar
+          mode={mode}
+          onModeChange={changeMode}
+          onOpenSettings={() => setSettingsOpen(true)}
+        />
 
-      {/* ── MIDI Status (écran Piano uniquement) ── */}
-      {mode === "midi" && (
-        <div className={`midi-status midi-status--${displayedMidiStatus}`}>
-          <span className="midi-dot" />
-          <span className="midi-label">
-            {displayedMidiStatus === "pending" && "Connexion MIDI…"}
-            {displayedMidiStatus === "connected" && "MIDI connecté"}
-            {displayedMidiStatus === "disconnected" && "Aucun instrument MIDI"}
-            {displayedMidiStatus === "denied" && "MIDI non disponible"}
-          </span>
-        </div>
-      )}
-
-      {/* ── Main display area ── */}
-      <div className="display-area">
-
-        {showBluetoothButton && (
-          <div className="connect-screen">
-            <BluetoothMIDIButton
-              btStatus={btStatus}
-              btError={btError}
-              onConnect={requestBluetoothMIDI}
-            />
-            <NoPianoFallback onModeChange={changeMode} />
+        {/* ── MIDI Status (écran Piano uniquement) ── */}
+        {mode === "midi" && (
+          <div className={`midi-status midi-status--${displayedMidiStatus}`}>
+            <span className="midi-dot" />
+            <span className="midi-label">
+              {t(`midi.${displayedMidiStatus}`)}
+            </span>
           </div>
         )}
 
-        {exploreMode ? (
-          <>
-            {/* Carte compacte : les sélecteurs doivent tenir sous elle sur mobile */}
-            <ChordCard chord={exploreChord} size="secondary" className="chord-card--explore" />
-            <ChordExplorer
-              rootPc={exploreRoot}
-              suffix={exploreSuffix}
-              onRootChange={changeExploreRoot}
-              onSuffixChange={changeExploreSuffix}
-              accidentals={accidentals}
-            />
-          </>
-        ) : midiArray.length === 0 ? (
-          !showBluetoothButton && (
-            <div className="idle-state">
-              <span className="idle-icon">🎹</span>
-              <span className="idle-text">
-                {virtualMode ? "Touchez le clavier…" : "Jouez un accord…"}
-              </span>
+        {/* ── Main display area ── */}
+        <div className="display-area">
+
+          {showBluetoothButton && (
+            <div className="connect-screen">
+              <BluetoothMIDIButton
+                btStatus={btStatus}
+                btError={btError}
+                onConnect={requestBluetoothMIDI}
+              />
+              <NoPianoFallback onModeChange={changeMode} />
             </div>
-          )
-        ) : (
-          <>
-            {primaryChord ? (
-              <ChordCard chord={primaryChord} size="primary" />
-            ) : (
-              pendingChordPlaceHolder && (
-                <ChordCard chord={pendingChordPlaceHolder} size="primary" isPending />
-              )
-            )}
-            {primaryChord && secondaryChords.length > 0 && (
-              <div className="secondary-chords">
-                <div className="secondary-label">Autres possibilités</div>
-                <div className="secondary-list">
-                  {secondaryChords.map((c, i) => (
-                    <ChordCard key={i} chord={c} size="secondary" />
-                  ))}
-                </div>
+          )}
+
+          {exploreMode ? (
+            <>
+              {/* Carte compacte : les sélecteurs doivent tenir sous elle sur mobile */}
+              <ChordCard chord={exploreChord} size="secondary" className="chord-card--explore" />
+              <ChordExplorer
+                rootPc={exploreRoot}
+                suffix={exploreSuffix}
+                onRootChange={changeExploreRoot}
+                onSuffixChange={changeExploreSuffix}
+              />
+            </>
+          ) : midiArray.length === 0 ? (
+            !showBluetoothButton && (
+              <div className="idle-state">
+                <span className="idle-icon">🎹</span>
+                <span className="idle-text">
+                  {virtualMode ? t("idle.touch") : t("idle.play")}
+                </span>
               </div>
-            )}
-          </>
+            )
+          ) : (
+            <>
+              {primaryChord ? (
+                <ChordCard chord={primaryChord} size="primary" />
+              ) : (
+                pendingChordPlaceHolder && (
+                  <ChordCard chord={pendingChordPlaceHolder} size="primary" isPending />
+                )
+              )}
+              {primaryChord && secondaryChords.length > 0 && (
+                <div className="secondary-chords">
+                  <div className="secondary-label">{t("chord.alternatives")}</div>
+                  <div className="secondary-list">
+                    {secondaryChords.map((c, i) => (
+                      <ChordCard key={i} chord={c} size="secondary" />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+
+        {virtualMode && (
+          <VirtualKeyboard
+            activeNotes={virtualNotes}
+            onKeyClick={toggleVirtualNote}
+            toolbar={
+              <>
+                <span className="virtual-kb__hint">{t("keyboard.hint")}</span>
+                <button
+                  className="virtual-kb__clear"
+                  onClick={clearVirtualNotes}
+                  disabled={virtualNotes.size === 0}
+                >
+                  {t("keyboard.clear")}
+                </button>
+              </>
+            }
+          />
         )}
+
+        {exploreMode && (
+          <VirtualKeyboard
+            activeNotes={exploreActive}
+            scrollToNotes={exploreNotes}
+            toolbar={
+              <>
+                <span className="virtual-kb__hint">{inversionLabel(exploreInversion)}</span>
+                <button className="virtual-kb__action" onClick={nextInversion}>
+                  {t("keyboard.invert")}
+                </button>
+              </>
+            }
+          />
+        )}
+
+        <SettingsDialog
+          open={settingsOpen}
+          onClose={() => setSettingsOpen(false)}
+          onLanguageChange={setLanguage}
+          onAccidentalsChange={setAccidentals}
+        />
+
       </div>
-
-      {virtualMode && (
-        <VirtualKeyboard
-          activeNotes={virtualNotes}
-          onKeyClick={toggleVirtualNote}
-          accidentals={accidentals}
-          toolbar={
-            <>
-              <span className="virtual-kb__hint">Touchez les notes de l'accord</span>
-              <button
-                className="virtual-kb__clear"
-                onClick={clearVirtualNotes}
-                disabled={virtualNotes.size === 0}
-              >
-                Effacer
-              </button>
-            </>
-          }
-        />
-      )}
-
-      {exploreMode && (
-        <VirtualKeyboard
-          activeNotes={exploreActive}
-          scrollToNotes={exploreNotes}
-          accidentals={accidentals}
-          toolbar={
-            <>
-              <span className="virtual-kb__hint">{inversionLabel(exploreInversion)}</span>
-              <button className="virtual-kb__action" onClick={nextInversion}>
-                Renverser ↻
-              </button>
-            </>
-          }
-        />
-      )}
-
-      <SettingsDialog
-        open={settingsOpen}
-        onClose={() => setSettingsOpen(false)}
-        accidentals={accidentals}
-        onAccidentalsChange={setAccidentals}
-      />
-
-    </div>
+    </I18nContext.Provider>
   );
 }
 
@@ -710,10 +776,12 @@ export default function ChordIdentifier() {
 // ─────────────────────────────────────────────
 
 function ChordCard({ chord, size, isPending = false, className = "" }) {
-  // Split chord name into root + suffix + inversion for styled rendering
-  const rootPart = chord.root;
+  const { t, noteName, rootName, chordTypeName } = useI18n();
+  // Split chord name into root + suffix + inversion for styled rendering.
+  // Fondamentale et basse nommées selon la langue (H/B en allemand).
+  const rootPart = chord.rootPc == null ? chord.root : rootName(chord.rootPc);
   const suffixPart = chord.suffix;
-  const inversionPart = chord.isInversion ? `/${chord.bassName}` : "";
+  const inversionPart = chord.isInversion ? `/${rootName(chord.bassPc)}` : "";
 
   return (
     <div
@@ -733,7 +801,7 @@ function ChordCard({ chord, size, isPending = false, className = "" }) {
         style={{ gridTemplateColumns: `repeat(${chord.noteIntervalPairs.length}, 1fr)` }}
       >
         {chord.noteIntervalPairs.map((pair, i) => (
-          <span key={`n${i}`} className="chord-table__note">{pair.note}</span>
+          <span key={`n${i}`} className="chord-table__note">{noteName(pair.pc)}</span>
         ))}
         {chord.noteIntervalPairs.map((pair, i) => (
           <span key={`i${i}`} className="chord-table__interval">{pair.interval}</span>
@@ -741,7 +809,7 @@ function ChordCard({ chord, size, isPending = false, className = "" }) {
       </div>
 
       {/* Human-readable label */}
-      <div className="chord-type">{chord.label}</div>
+      <div className="chord-type">{isPending ? t("chord.unknown") : chordTypeName(chord.suffix)}</div>
     </div>
   );
 }
