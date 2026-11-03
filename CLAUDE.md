@@ -20,7 +20,7 @@ There is no test suite. Web MIDI and Web Bluetooth only work in Chromium-based b
 
 ## Deployment
 
-Pushing to `main` triggers `.github/workflows/deploy.yml`, which builds with Node 20 and deploys `dist/` to GitHub Pages. The `base` path in `vite.config.js` switches on `NODE_ENV` (`/chord-finder-midi/` in production), and the PWA manifest `scope`/`start_url` reuse it, so renaming the repo means updating that value. The PWA manifest (name, icons, theme colors) is also defined in `vite.config.js`; icon files live in `public/`.
+Pushing to `main` triggers `.github/workflows/deploy.yml`, which builds with the Node version from `.nvmrc` (24) and deploys `dist/` to GitHub Pages. The `base` path in `vite.config.js` switches on `NODE_ENV` (`/chord-finder-midi/` in production), and the PWA manifest `scope`/`start_url` reuse it, so renaming the repo means updating that value. The PWA manifest (name, icons, theme colors) is also defined in `vite.config.js`; icon files live in `public/`.
 
 ## Architecture
 
@@ -30,7 +30,9 @@ Almost all logic is in `src/App.jsx`, with the BLE transport split out into `src
 - `useMIDI` (in `App.jsx`) uses `navigator.requestMIDIAccess`, attaches `onmidimessage` to every input, and re-attaches on `onstatechange`.
 - `useBluetoothMIDI` connects to the standard BLE MIDI service/characteristic UUIDs, subscribes to notifications, and decodes packets with `ble-midi-parser`. This direct decoding exists because some platforms (notably Windows Chrome) don't expose a BLE MIDI device as a Web MIDI port. The hook guards against stale async work with `connectionAttemptIdRef`, retries GATT connection up to 3 times on "disconnected" errors, and treats `NotFoundError` (picker cancelled) as a return to `idle`, not an error.
 
-Both decode MIDI the same way: `0x90` with velocity > 0 is note on; `0x80`, or `0x90` with velocity 0, is note off. When BLE is not `connected`, pressed notes are cleared to avoid stuck notes. The Bluetooth button only appears when BLE isn't connected *and* Web MIDI reports no inputs (`"disconnected"`).
+A third source, the on-screen `VirtualKeyboard` (mode "Clavier virtuel", toggled from the status bar), keeps its own `virtualNotes` set (click toggles a key). In that mode the chord is computed from `virtualNotes` only, so hardware note-offs can't release clicked keys; the Bluetooth button is hidden.
+
+Both hooks decode MIDI the same way: `0x90` with velocity > 0 is note on; `0x80`, or `0x90` with velocity 0, is note off. When BLE is not `connected`, pressed notes are cleared to avoid stuck notes. The Bluetooth button only appears when BLE isn't connected *and* Web MIDI reports no inputs (`"disconnected"`).
 
 **Chord detection (`identifyChords`).** This is a pure function over MIDI note numbers:
 - It reduces notes to pitch classes and tries each of the 12 roots against every entry in `CHORD_TEMPLATES`.

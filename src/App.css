@@ -773,3 +773,173 @@
     font-size: 0.6rem;
   }
 }
+
+/* ─────────────────────────────────────────────
+   MODE TOGGLE (barre d'état)
+   ───────────────────────────────────────────── */
+.mode-toggle {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--txt-secondary);
+  background: var(--bg-card);
+  border: 1px solid var(--border-mid);
+  border-radius: var(--radius-sm);
+  padding: 5px 10px;
+  cursor: pointer;
+  transition: color 0.2s, border-color 0.2s, background 0.2s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mode-toggle:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.mode-toggle--active {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-dim);
+}
+
+.midi-status--virtual .midi-dot {
+  background: var(--accent);
+  box-shadow: 0 0 6px var(--accent);
+}
+.midi-status--virtual .midi-label { color: var(--accent); }
+
+/* En mode virtuel, le clavier occupe le bas : la zone d'accords doit pouvoir défiler */
+.app--virtual .display-area {
+  min-height: 0;
+}
+
+.app--virtual .secondary-chords {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* ─────────────────────────────────────────────
+   VIRTUAL KEYBOARD
+   ───────────────────────────────────────────── */
+.virtual-kb {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px max(12px, env(safe-area-inset-right))
+    max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+  border-top: 1px solid var(--border-subtle);
+  background: var(--bg-surface);
+  animation: fade-in 0.3s ease;
+}
+
+.virtual-kb__toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.virtual-kb__hint {
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--txt-dim);
+}
+
+.virtual-kb__clear {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--amber);
+  background: transparent;
+  border: 1px solid var(--amber-dim);
+  border-radius: var(--radius-sm);
+  padding: 4px 10px;
+  cursor: pointer;
+}
+
+.virtual-kb__clear:disabled {
+  color: var(--txt-dim);
+  border-color: var(--border-subtle);
+  cursor: default;
+}
+
+.virtual-kb__keys {
+  position: relative;
+  display: flex;
+  height: clamp(110px, 22vh, 170px);
+  user-select: none;
+  touch-action: manipulation;
+}
+
+.vk-key {
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.08s, box-shadow 0.08s;
+}
+
+.vk-key--white {
+  height: 100%;
+  background: linear-gradient(to bottom, #d8dce4, #f2f4f8);
+  border: 1px solid #0e1014;
+  border-radius: 0 0 5px 5px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 6px;
+}
+
+.vk-key--white.vk-key--down {
+  background: linear-gradient(to bottom, #00b07a, var(--accent));
+  box-shadow: inset 0 3px 6px #00000055, 0 0 14px #00e5a055;
+}
+
+.vk-key--black {
+  position: absolute;
+  top: 0;
+  height: 60%;
+  transform: translateX(-50%);
+  z-index: 2;
+  background: linear-gradient(to bottom, #1a1d22, #2c3038);
+  border: 1px solid #000;
+  border-radius: 0 0 4px 4px;
+  box-shadow: 0 3px 4px #00000088;
+}
+
+.vk-key--black.vk-key--down {
+  background: linear-gradient(to bottom, #007a55, #00c888);
+  box-shadow: 0 0 12px #00e5a088;
+}
+
+.vk-key__label {
+  font-family: var(--font-mono);
+  font-size: 0.52rem;
+  font-weight: 600;
+  color: #4a5568;
+  pointer-events: none;
+}
+
+.vk-key--down .vk-key__label {
+  color: var(--bg-deep);
+}
+
+@media (orientation: landscape) and (max-height: 560px) {
+  .virtual-kb {
+    padding-top: 6px;
+    gap: 4px;
+  }
+
+  .virtual-kb__keys {
+    height: clamp(80px, 30vh, 130px);
+  }
+}

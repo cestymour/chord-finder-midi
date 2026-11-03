@@ -25,7 +25,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20 # Utilise la version de Node.js que tu utilises localement
+          node-version-file: .nvmrc # Même version de Node.js qu'en local (Node 24)
           cache: 'npm'     # Active la mise en cache des dépendances npm
       
       - name: Install dependencies

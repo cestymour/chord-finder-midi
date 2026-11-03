@@ -376,6 +376,86 @@ function BluetoothMIDIButton({ btStatus, btError, onConnect }) {
 }
 
 // ─────────────────────────────────────────────
+// VIRTUAL KEYBOARD COMPONENT (mode sans piano connecté)
+// ─────────────────────────────────────────────
+
+const VIRTUAL_KB_FIRST_NOTE = 48; // Do3
+const VIRTUAL_KB_OCTAVES = 2;
+const BLACK_KEY_PCS = new Set([1, 3, 6, 8, 10]);
+
+function VirtualKeyboard({ pressedNotes, onToggleNote, onClear }) {
+  const notes = Array.from(
+    { length: VIRTUAL_KB_OCTAVES * 12 },
+    (_, i) => VIRTUAL_KB_FIRST_NOTE + i
+  );
+  const whiteNotes = notes.filter((n) => !BLACK_KEY_PCS.has(n % 12));
+  const whiteWidth = 100 / whiteNotes.length;
+
+  // Une touche noire est centrée sur la frontière entre deux touches blanches
+  let whiteIndex = 0;
+  const blackKeys = [];
+  for (const n of notes) {
+    if (BLACK_KEY_PCS.has(n % 12)) {
+      blackKeys.push({ note: n, left: whiteIndex * whiteWidth });
+    } else {
+      whiteIndex++;
+    }
+  }
+
+  const octaveOf = (n) => Math.floor(n / 12) - 1;
+  const keyLabel = (n) => `${getNoteNameFR(n % 12)}${octaveOf(n)}`;
+
+  return (
+    <div className="virtual-kb">
+      <div className="virtual-kb__toolbar">
+        <span className="virtual-kb__hint">Touchez les notes de l'accord</span>
+        <button
+          className="virtual-kb__clear"
+          onClick={onClear}
+          disabled={pressedNotes.size === 0}
+        >
+          Effacer
+        </button>
+      </div>
+      <div className="virtual-kb__keys">
+        {whiteNotes.map((n) => {
+          const isDown = pressedNotes.has(n);
+          return (
+            <button
+              key={n}
+              className={`vk-key vk-key--white${isDown ? " vk-key--down" : ""}`}
+              style={{ width: `${whiteWidth}%` }}
+              onClick={() => onToggleNote(n)}
+              aria-pressed={isDown}
+              aria-label={keyLabel(n)}
+            >
+              {(n % 12 === 0 || isDown) && (
+                <span className="vk-key__label">
+                  {n % 12 === 0 ? keyLabel(n) : getNoteNameFR(n % 12)}
+                </span>
+              )}
+            </button>
+          );
+        })}
+        {blackKeys.map(({ note, left }) => {
+          const isDown = pressedNotes.has(note);
+          return (
+            <button
+              key={note}
+              className={`vk-key vk-key--black${isDown ? " vk-key--down" : ""}`}
+              style={{ left: `${left}%`, width: `${whiteWidth * 0.6}%` }}
+              onClick={() => onToggleNote(note)}
+              aria-pressed={isDown}
+              aria-label={keyLabel(note)}
+            />
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
 // MAIN COMPONENT
 // ─────────────────────────────────────────────
 
@@ -421,11 +501,30 @@ export default function ChordIdentifier() {
         ? "connected"
         : midiStatusRefreshed;
 
+  // Mode clavier virtuel : notes séparées de celles du piano physique,
+  // pour qu'un note-off MIDI ne relâche pas une touche cliquée à l'écran.
+  const [virtualMode, setVirtualMode] = useState(false);
+  const [virtualNotes, setVirtualNotes] = useState(new Set());
+
+  const toggleVirtualNote = useCallback((note) => {
+    setVirtualNotes(prev => {
+      const next = new Set(prev);
+      if (next.has(note)) next.delete(note);
+      else next.add(note);
+      return next;
+    });
+  }, []);
+
+  const toggleVirtualMode = () => {
+    setVirtualMode(v => !v);
+    setVirtualNotes(new Set());
+  };
+
   const showBluetoothButton =
-    btStatus !== "connected" && midiStatusRefreshed === "disconnected";
+    !virtualMode && btStatus !== "connected" && midiStatusRefreshed === "disconnected";
 
   // Compute chords whenever pressed notes change
-  const midiArray = [...pressedNotes];
+  const midiArray = [...(virtualMode ? virtualNotes : pressedNotes)];
   const chords = identifyChords(midiArray);
 
   const primaryChord = chords[0] ?? null;
@@ -445,17 +544,28 @@ export default function ChordIdentifier() {
 
   // ── Render ────────────────────────────────
   return (
-    <div className="app">
+    <div className={`app${virtualMode ? " app--virtual" : ""}`}>
 
       {/* ── MIDI Status indicator ── */}
-      <div className={`midi-status midi-status--${displayedMidiStatus}`}>
+      <div className={`midi-status midi-status--${virtualMode ? "virtual" : displayedMidiStatus}`}>
         <span className="midi-dot" />
         <span className="midi-label">
-          {displayedMidiStatus === "pending" && "Connexion MIDI…"}
-          {displayedMidiStatus === "connected" && "MIDI connecté"}
-          {displayedMidiStatus === "disconnected" && "Aucun instrument MIDI"}
-          {displayedMidiStatus === "denied" && "MIDI non disponible"}
+          {virtualMode ? "Clavier virtuel" : (
+            <>
+              {displayedMidiStatus === "pending" && "Connexion MIDI…"}
+              {displayedMidiStatus === "connected" && "MIDI connecté"}
+              {displayedMidiStatus === "disconnected" && "Aucun instrument MIDI"}
+              {displayedMidiStatus === "denied" && "MIDI non disponible"}
+            </>
+          )}
         </span>
+        <button
+          className={`mode-toggle${virtualMode ? " mode-toggle--active" : ""}`}
+          onClick={toggleVirtualMode}
+          aria-pressed={virtualMode}
+        >
+          {virtualMode ? "Quitter le clavier" : "🎹 Clavier virtuel"}
+        </button>
       </div>
 
       {/* ── Main display area ── */}
@@ -473,7 +583,9 @@ export default function ChordIdentifier() {
           !showBluetoothButton && (
             <div className="idle-state">
               <span className="idle-icon">🎹</span>
-              <span className="idle-text">Jouez un accord…</span>
+              <span className="idle-text">
+                {virtualMode ? "Touchez le clavier…" : "Jouez un accord…"}
+              </span>
             </div>
           )
         ) : (
@@ -498,6 +610,14 @@ export default function ChordIdentifier() {
           </>
         )}
       </div>
+
+      {virtualMode && (
+        <VirtualKeyboard
+          pressedNotes={virtualNotes}
+          onToggleNote={toggleVirtualNote}
+          onClear={() => setVirtualNotes(new Set())}
+        />
+      )}
 
     </div>
   );
