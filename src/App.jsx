@@ -20,6 +20,7 @@ import {
   describeVoicing,
   identifyChords,
   inversionCount,
+  spellRoot,
 } from "./chords";
 import {
   DEFAULT_LANGUAGE,
@@ -34,7 +35,10 @@ import {
 // MIDI CONNECTION HOOK
 // ─────────────────────────────────────────────
 
-function useMIDI(onNoteOn, onNoteOff, refreshKey) {
+// Pédale de sustain : contrôleur 64, enfoncée à partir de 64
+const SUSTAIN_CONTROLLER = 64;
+
+function useMIDI(onNoteOn, onNoteOff, onSustain, refreshKey) {
   const [midiStatus, setMidiStatus] = useState("pending"); // pending | connected | disconnected | denied
   const inputsRef = useRef([]);
 
@@ -46,8 +50,10 @@ function useMIDI(onNoteOn, onNoteOff, refreshKey) {
       onNoteOn(note);
     } else if (type === 0x80 || (type === 0x90 && velocity === 0)) {
       onNoteOff(note);
+    } else if (type === 0xb0 && note === SUSTAIN_CONTROLLER) {
+      onSustain(velocity >= 64);
     }
-  }, [onNoteOn, onNoteOff]);
+  }, [onNoteOn, onNoteOff, onSustain]);
 
   useEffect(() => {
     if (!navigator.requestMIDIAccess) {
@@ -212,9 +218,11 @@ function useScrollIntoView(scrollerRef, lowNote, highNote) {
  * - activeNotes : touches allumées (couleur pleine)
  * - onKeyClick  : absent → clavier en lecture seule
  * - scrollToNotes : notes à garder visibles (défilement automatique)
+ * - noteLabels : Map classe de hauteur → note orthographiée (noms des touches
+ *   enfoncées selon l'accord : Si♯ et non Do dans Mi augmenté)
  */
-function VirtualKeyboard({ activeNotes, onKeyClick, scrollToNotes, toolbar }) {
-  const { keyLabel, noteName } = useI18n();
+function VirtualKeyboard({ activeNotes, onKeyClick, scrollToNotes, noteLabels, toolbar }) {
+  const { keyLabel, noteName, pcName } = useI18n();
   const scrollerRef = useRef(null);
   const interactive = Boolean(onKeyClick);
   const KeyTag = interactive ? "button" : "div";
@@ -233,6 +241,14 @@ function VirtualKeyboard({ activeNotes, onKeyClick, scrollToNotes, toolbar }) {
     scrollToNotes?.length ? Math.min(...scrollToNotes) : null,
     scrollToNotes?.length ? Math.max(...scrollToNotes) : null
   );
+
+  // Touche blanche : les Do portent leur octave (« Do3 »), les touches enfoncées
+  // leur nom dans l'accord (un Do enfoncé peut s'appeler Si♯).
+  const whiteKeyLabel = (n, isDown) => {
+    const spelled = isDown ? noteLabels?.get(n % 12) : undefined;
+    if (spelled && (spelled.letter !== 0 || spelled.alter !== 0)) return noteName(spelled);
+    return n % 12 === 0 ? keyLabel(n) : pcName(n);
+  };
 
   const keyProps = (n, color) => {
     const isDown = activeNotes.has(n);
@@ -259,7 +275,7 @@ function VirtualKeyboard({ activeNotes, onKeyClick, scrollToNotes, toolbar }) {
               <KeyTag key={n} {...props} style={{ width: `${VK_WHITE_WIDTH}%` }}>
                 {(n % 12 === 0 || isDown) && (
                   <span className="vk-key__label">
-                    {n % 12 === 0 ? keyLabel(n) : noteName(n)}
+                    {whiteKeyLabel(n, isDown)}
                   </span>
                 )}
               </KeyTag>
@@ -287,8 +303,9 @@ function VirtualKeyboard({ activeNotes, onKeyClick, scrollToNotes, toolbar }) {
 
 const ROOT_PCS = Array.from({ length: 12 }, (_, pc) => pc);
 
-function ChordExplorer({ rootPc, suffix, onRootChange, onSuffixChange }) {
-  const { t, rootName, groupName, chordTypeName } = useI18n();
+function ChordExplorer({ rootPc, template, onRootChange, onSuffixChange }) {
+  const { t, rootName, groupName, chordTypeName, accidentals } = useI18n();
+  const suffix = template.suffix;
   return (
     <div className="explorer">
       <div className="explorer__section">
@@ -301,7 +318,8 @@ function ChordExplorer({ rootPc, suffix, onRootChange, onSuffixChange }) {
               onClick={() => onRootChange(pc)}
               aria-pressed={pc === rootPc}
             >
-              {rootName(pc)}
+              {/* Nom selon le type choisi : D♭ en majeur, C♯ en mineur */}
+              {rootName(spellRoot(pc, template, accidentals))}
             </button>
           ))}
         </div>
@@ -318,7 +336,7 @@ function ChordExplorer({ rootPc, suffix, onRootChange, onSuffixChange }) {
                 aria-pressed={tpl.suffix === suffix}
                 title={chordTypeName(tpl.suffix)}
               >
-                {rootName(rootPc)}{tpl.suffix}
+                {rootName(spellRoot(rootPc, tpl, accidentals))}{tpl.suffix}
               </button>
             ))}
           </div>
@@ -393,6 +411,7 @@ const APP_VERSION = import.meta.env.VITE_APP_VERSION;
 const ACCIDENTALS_STORAGE_KEY = "instantchordbt.accidentals";
 const LANGUAGE_STORAGE_KEY = "instantchordbt.language";
 const SOUND_STORAGE_KEY = "instantchordbt.sound";
+const INCOMPLETE_STORAGE_KEY = "instantchordbt.incomplete";
 
 const ACCIDENTAL_OPTIONS = [
   { value: "sharp", symbol: "♯", labelKey: "settings.sharps" },
@@ -402,6 +421,12 @@ const ACCIDENTAL_OPTIONS = [
 const SOUND_OPTIONS = [
   { value: "on",  symbol: "🔊", labelKey: "settings.soundOn" },
   { value: "off", symbol: "🔇", labelKey: "settings.soundOff" },
+];
+
+// Accords incomplets : reconnaître un accord sans ses notes facultatives (quinte…)
+const INCOMPLETE_OPTIONS = [
+  { value: "on",  labelKey: "settings.yes" },
+  { value: "off", labelKey: "settings.no" },
 ];
 
 /** Réglage mémorisé dans le navigateur (valeur par défaut si absent ou invalide). */
@@ -464,7 +489,9 @@ const FLAGS = {
   ),
 };
 
-function SettingsDialog({ open, onClose, onLanguageChange, onAccidentalsChange, sound, onSoundChange }) {
+function SettingsDialog({
+  open, onClose, onLanguageChange, onAccidentalsChange, sound, onSoundChange, incomplete, onIncompleteChange,
+}) {
   const { t, language, accidentals } = useI18n();
   const dialogRef = useRef(null);
 
@@ -545,6 +572,23 @@ function SettingsDialog({ open, onClose, onLanguageChange, onAccidentalsChange, 
           </div>
         </div>
 
+        <div className="settings__row">
+          <span className="settings__label" id="settings-incomplete">{t("settings.incomplete")}</span>
+          <p className="settings__hint">{t("settings.incompleteHint")}</p>
+          <div className="settings__choices" role="group" aria-labelledby="settings-incomplete">
+            {INCOMPLETE_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                className={`settings__choice${incomplete === opt.value ? " settings__choice--active" : ""}`}
+                onClick={() => onIncompleteChange(opt.value)}
+                aria-pressed={incomplete === opt.value}
+              >
+                <span className="settings__text">{t(opt.labelKey)}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
         <div className="settings__footer">InstantChordBT · {t("settings.version")} {APP_VERSION}</div>
       </div>
     </dialog>
@@ -555,40 +599,60 @@ function SettingsDialog({ open, onClose, onLanguageChange, onAccidentalsChange, 
 // MAIN COMPONENT
 // ─────────────────────────────────────────────
 
+const EMPTY_PIANO_NOTES = { held: new Set(), sustained: new Set(), pedal: false };
+
 export default function ChordIdentifier() {
-  // Set of currently pressed MIDI note numbers
-  const [pressedNotes, setPressedNotes] = useState(new Set());
+  // Notes du piano physique :
+  // - held : touches enfoncées
+  // - sustained : touches relâchées pendant que la pédale de sustain est enfoncée
+  //   (elles sonnent encore, donc elles comptent pour l'accord)
+  const [pianoNotes, setPianoNotes] = useState(EMPTY_PIANO_NOTES);
 
   const handleNoteOn = useCallback((note) => {
-    setPressedNotes(prev => {
-      const next = new Set(prev);
-      next.add(note);
-      return next;
+    setPianoNotes(prev => {
+      const held = new Set(prev.held).add(note);
+      const sustained = new Set(prev.sustained);
+      sustained.delete(note);
+      return { ...prev, held, sustained };
     });
   }, []);
 
   const handleNoteOff = useCallback((note) => {
-    setPressedNotes(prev => {
-      const next = new Set(prev);
-      next.delete(note);
-      return next;
+    setPianoNotes(prev => {
+      const held = new Set(prev.held);
+      held.delete(note);
+      const sustained = prev.pedal ? new Set(prev.sustained).add(note) : prev.sustained;
+      return { ...prev, held, sustained };
     });
   }, []);
+
+  const handleSustain = useCallback((down) => {
+    setPianoNotes(prev => {
+      if (down === prev.pedal) return prev;
+      // Pédale relâchée : les notes qu'elle tenait s'arrêtent
+      return down ? { ...prev, pedal: true } : { ...prev, pedal: false, sustained: new Set() };
+    });
+  }, []);
+
+  const pressedNotes = useMemo(
+    () => new Set([...pianoNotes.held, ...pianoNotes.sustained]),
+    [pianoNotes]
+  );
 
   const {
     btStatus,
     btError,
     requestBluetoothMIDI,
-  } = useBluetoothMIDI({ onNoteOn: handleNoteOn, onNoteOff: handleNoteOff });
+  } = useBluetoothMIDI({ onNoteOn: handleNoteOn, onNoteOff: handleNoteOff, onSustain: handleSustain });
 
   useEffect(() => {
     // Lors d'une déconnexion Bluetooth, évite de garder des notes "bloquées".
     if (btStatus === "connected") return;
-    const timer = setTimeout(() => setPressedNotes(new Set()), 0);
+    const timer = setTimeout(() => setPianoNotes(EMPTY_PIANO_NOTES), 0);
     return () => clearTimeout(timer);
   }, [btStatus]);
 
-  const midiStatusRefreshed = useMIDI(handleNoteOn, handleNoteOff);
+  const midiStatusRefreshed = useMIDI(handleNoteOn, handleNoteOff, handleSustain);
 
   const displayedMidiStatus =
     btStatus === "scanning" || btStatus === "connecting"
@@ -635,6 +699,7 @@ export default function ChordIdentifier() {
   const [language, setLanguage] = usePersistentSetting(LANGUAGE_STORAGE_KEY, LANGUAGE_CODES, DEFAULT_LANGUAGE);
   const [accidentals, setAccidentals] = usePersistentSetting(ACCIDENTALS_STORAGE_KEY, ACCIDENTALS, DEFAULT_ACCIDENTALS);
   const [sound, setSound] = usePersistentSetting(SOUND_STORAGE_KEY, ["on", "off"], "on");
+  const [incomplete, setIncomplete] = usePersistentSetting(INCOMPLETE_STORAGE_KEY, ["on", "off"], "on");
 
   useEffect(() => {
     setPianoSoundEnabled(sound === "on");
@@ -692,21 +757,26 @@ export default function ChordIdentifier() {
 
   // Compute chords whenever pressed notes change
   const midiArray = [...(virtualMode ? virtualNotes : pressedNotes)];
-  const chords = identifyChords(midiArray, accidentals);
+  const chords = identifyChords(midiArray, accidentals, { allowIncomplete: incomplete === "on" });
 
   const primaryChord = chords[0] ?? null;
   const secondaryChords = chords.slice(1);
 
+  // Pas d'accord reconnu : un point par touche enfoncée à la place du nom
   const pendingChordPlaceHolder =
     midiArray.length > 0 && !primaryChord
       ? {
-          root: "?",
+          placeholder: ".".repeat(midiArray.length),
           suffix: "",
           isInversion: false,
-          bassName: null,
-          noteIntervalPairs: buildPendingNotePairs(midiArray),
+          noteIntervalPairs: buildPendingNotePairs(midiArray, accidentals),
         }
       : null;
+
+  // Noms des touches enfoncées du clavier virtuel, orthographiés selon l'accord affiché
+  const virtualNoteLabels = new Map(
+    (primaryChord ?? pendingChordPlaceHolder)?.noteIntervalPairs.map((p) => [p.pc, p.note]) ?? []
+  );
 
   // ── Render ────────────────────────────────
   return (
@@ -749,7 +819,7 @@ export default function ChordIdentifier() {
               <ChordCard chord={exploreChord} size="secondary" className="chord-card--explore" />
               <ChordExplorer
                 rootPc={exploreRoot}
-                suffix={exploreSuffix}
+                template={exploreTemplate}
                 onRootChange={changeExploreRoot}
                 onSuffixChange={changeExploreSuffix}
               />
@@ -790,6 +860,7 @@ export default function ChordIdentifier() {
           <VirtualKeyboard
             activeNotes={virtualNotes}
             onKeyClick={toggleVirtualNote}
+            noteLabels={virtualNoteLabels}
             toolbar={
               <>
                 <span className="virtual-kb__hint">{t("keyboard.hint")}</span>
@@ -809,6 +880,7 @@ export default function ChordIdentifier() {
           <VirtualKeyboard
             activeNotes={exploreActive}
             scrollToNotes={exploreNotes}
+            noteLabels={new Map(exploreChord.noteIntervalPairs.map((p) => [p.pc, p.note]))}
             toolbar={
               <>
                 <span className="virtual-kb__hint">{inversionLabel(exploreInversion)}</span>
@@ -827,6 +899,8 @@ export default function ChordIdentifier() {
           onAccidentalsChange={setAccidentals}
           sound={sound}
           onSoundChange={setSound}
+          incomplete={incomplete}
+          onIncompleteChange={setIncomplete}
         />
 
       </div>
@@ -842,9 +916,9 @@ function ChordCard({ chord, size, isPending = false, className = "" }) {
   const { t, noteName, rootName, chordTypeName } = useI18n();
   // Split chord name into root + suffix + inversion for styled rendering.
   // Fondamentale et basse nommées selon la langue (H/B en allemand).
-  const rootPart = chord.rootPc == null ? chord.root : rootName(chord.rootPc);
+  const rootPart = isPending ? chord.placeholder : rootName(chord.root);
   const suffixPart = chord.suffix;
-  const inversionPart = chord.isInversion ? `/${rootName(chord.bassPc)}` : "";
+  const inversionPart = chord.isInversion ? `/${rootName(chord.bass)}` : "";
 
   return (
     <div
@@ -863,11 +937,36 @@ function ChordCard({ chord, size, isPending = false, className = "" }) {
         className="chord-table"
         style={{ gridTemplateColumns: `repeat(${chord.noteIntervalPairs.length}, 1fr)` }}
       >
+        {/* Placement explicite (colonne i, ligne 1 ou 2) : les parenthèses d'une
+            note non jouée se superposent à sa colonne sur les deux lignes. */}
         {chord.noteIntervalPairs.map((pair, i) => (
-          <span key={`n${i}`} className="chord-table__note">{noteName(pair.pc)}</span>
+          <span
+            key={`n${i}`}
+            className={`chord-table__note${pair.missing ? " chord-table__note--missing" : ""}`}
+            style={{ gridColumn: i + 1, gridRow: 1 }}
+          >
+            {noteName(pair.note)}
+          </span>
         ))}
         {chord.noteIntervalPairs.map((pair, i) => (
-          <span key={`i${i}`} className="chord-table__interval">{pair.interval}</span>
+          <span
+            key={`i${i}`}
+            className={`chord-table__interval${pair.missing ? " chord-table__interval--missing" : ""}`}
+            style={{ gridColumn: i + 1, gridRow: 2 }}
+          >
+            {pair.interval}
+          </span>
+        ))}
+        {/* Note facultative non jouée : entre deux grandes parenthèses */}
+        {chord.noteIntervalPairs.map((pair, i) => pair.missing && (
+          <span
+            key={`p${i}`}
+            className="chord-table__brackets"
+            style={{ gridColumn: i + 1, gridRow: "1 / 3" }}
+            aria-hidden="true"
+          >
+            <span>(</span><span>)</span>
+          </span>
         ))}
       </div>
 

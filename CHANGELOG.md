@@ -6,6 +6,26 @@ Le format s’inspire de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/
 
 ## [Non publié]
 
+## [0.4.0] — 2026-11-03
+
+### Ajouté
+
+- **Quinte facultative** : les accords de 7e et au-delà sont reconnus sans leur quinte juste, comme on les joue souvent (Do Mi Si♭ donne `C7`). Les accords de 13e se reconnaissent aussi sans leur 9e (et sans leur 11e pour `m13`), par exemple Do Mi Si♭ La.
+- Les notes facultatives non jouées restent affichées sous le nom de l’accord, atténuées et entre parenthèses : un G7 joué sans ré montre quand même « (Ré 5) ».
+- **Réglage « Accords incomplets »** dans les paramètres (Oui par défaut). Sur « Non », un accord n’est reconnu que si toutes ses notes sont jouées, comme avant. Le choix est mémorisé pour les ouvertures suivantes.
+- **Nouveaux types d’accords** : `7♭9`, `7♯9`, `7♯11`, `9sus4`, `add11` et `mM9`, reconnus au piano et proposés dans le dictionnaire.
+- **Pédale de sustain** : les notes tenues par la pédale comptent pour l’accord jusqu’à ce qu’on la relève (câble et Bluetooth).
+
+### Modifié
+
+- **Orthographe exacte des notes** : chaque note d’un accord est écrite par rapport à sa fondamentale. Fa mineur s’écrit Fa La♭ Do même en mode dièses, Mi augmenté Mi Sol♯ Si♯, Do diminué 7 Do Mi♭ Sol♭ Si𝄫.
+- **Nom de la fondamentale selon l’usage** : sur une touche noire, l’accord prend le nom de la tonalité qui a le moins d’altérations (`B♭`, `E♭`, `A♭`, `D♭` en majeur ; `C♯m`, `F♯m`, `G♯m`, `B♭m` en mineur). Le réglage dièses/bémols décide des cas d’égalité (`F♯`/`G♭`, `D♯m`/`E♭m`) et du nom des notes hors accord.
+- Dans le dictionnaire, les boutons de fondamentale suivent le type d’accord choisi (`D♭` en majeur, `C♯` en mineur).
+- Les touches enfoncées du clavier portent leur nom dans l’accord (Si♯ et non Do dans Mi augmenté).
+- **Intervalles** : le tableau des notes affiche les extensions comme dans le nom de l’accord (`9`, `11`, `13`, `♯9`…, et non `2`, `4`, `6`) et la septième diminuée `𝄫7`, aussi bien au piano que dans le dictionnaire.
+- **Accord non reconnu** : un point par touche enfoncée remplace le « ? » (`.`, `..`, `...`, jusqu’à ce qu’un accord soit reconnu).
+- Les accords `13` et `maj13` ne contiennent plus de 11e juste, qui frotte contre la tierce et que l’on ne joue pas.
+
 ## [0.3.0] — 2026-11-03
 
 ### Ajouté
@@ -75,7 +95,8 @@ Première version numérotée. Elle regroupe tout ce qui a été développé dep
 - Application installable (PWA).
 - Déploiement automatique sur GitHub Pages à chaque mise à jour de la branche `main`.
 
-[Non publié]: https://github.com/cestymour/chord-finder-midi/compare/v0.3.0...HEAD
+[Non publié]: https://github.com/cestymour/chord-finder-midi/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/cestymour/chord-finder-midi/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/cestymour/chord-finder-midi/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/cestymour/chord-finder-midi/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/cestymour/chord-finder-midi/releases/tag/v0.1.0

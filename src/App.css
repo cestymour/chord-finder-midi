@@ -281,6 +281,16 @@
      text-shadow: none;
    }
 
+   /* Un point par touche enfoncée : espacés, et à la ligne s'il y en a beaucoup */
+   .chord-card--primary.chord-card--pending .chord-name {
+     min-width: 0;
+   }
+
+   .chord-card--primary.chord-card--pending .chord-root {
+     letter-spacing: 0.08em;
+     overflow-wrap: anywhere;
+   }
+
    .chord-card--primary.chord-card--pending .chord-table__interval {
      color: var(--txt-dim);
      opacity: 0.9;
@@ -374,6 +384,30 @@
    
    .chord-card--secondary .chord-table__interval {
      font-size: 0.62rem;
+   }
+
+   /* Note facultative non jouée (ex. la quinte d'un G7 joué sans ré) :
+      atténuée, entre deux grandes parenthèses qui couvrent note et intervalle */
+   .chord-table__note--missing,
+   .chord-table__interval--missing {
+     opacity: 0.4;
+   }
+
+   .chord-table__brackets {
+     display: flex;
+     justify-content: space-between;
+     align-items: center;
+     pointer-events: none;
+     font-family: var(--font-display);
+     font-size: 2.3rem;
+     font-weight: 200;
+     line-height: 1;
+     color: var(--txt-dim);
+     opacity: 0.7;
+   }
+
+   .chord-card--secondary .chord-table__brackets {
+     font-size: 1.8rem;
    }
    
    /* ─────────────────────────────────────────────
@@ -1067,6 +1101,20 @@
 
 .settings__choice:not(.settings__choice--active) .settings__emoji {
   opacity: 0.55;
+}
+
+/* Accords incomplets : boutons Oui / Non en texte, avec une explication au-dessus */
+.settings__text {
+  display: block;
+  font-size: 1rem;
+  line-height: 1.4;
+}
+
+.settings__hint {
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: var(--txt-secondary);
 }
 
 .settings__choice--active {

@@ -18,7 +18,7 @@ const MIDI_CHARACTERISTIC_UUID = "7772e5db-3868-4112-a1a9-f2669d106bf3";
  * - requestBluetoothMIDI : fonction à appeler pour lancer le scan/connexion
  * - disconnectBluetooth  : fonction pour déconnecter manuellement
  */
-export default function useBluetoothMIDI({ onNoteOn, onNoteOff } = {}) {
+export default function useBluetoothMIDI({ onNoteOn, onNoteOff, onSustain } = {}) {
   const [btStatus, setBtStatus] = useState(() =>
     navigator.bluetooth ? "idle" : "unsupported"
   );
@@ -197,6 +197,10 @@ export default function useBluetoothMIDI({ onNoteOn, onNoteOff } = {}) {
               else if (msgType === 0x80 || (msgType === 0x90 && two === 0)) {
                 onNoteOff?.(one);
               }
+              // Pédale de sustain (contrôleur 64), enfoncée à partir de 64
+              else if (msgType === 0xb0 && one === 64) {
+                onSustain?.(two >= 64);
+              }
             }
           };
 
@@ -248,7 +252,7 @@ export default function useBluetoothMIDI({ onNoteOn, onNoteOff } = {}) {
         setBtError(err.message || null);
       }
     }
-  }, [onNoteOn, onNoteOff]);
+  }, [onNoteOn, onNoteOff, onSustain]);
 
   const disconnectBluetooth = useCallback(() => {
     if (deviceRef.current && disconnectHandlerRef.current) {

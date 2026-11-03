@@ -4,7 +4,7 @@
 // allemand où la fondamentale et la basse suivent la convention H / B (voir rootName).
 
 import { createContext, useContext } from "react";
-import { DEFAULT_ACCIDENTALS, getRootNameEN } from "./chords.js"; // extension explicite : module importable tel quel depuis Node
+import { ACCIDENTAL_SYMBOLS, DEFAULT_ACCIDENTALS, spellPc } from "./chords.js"; // extension explicite : module importable tel quel depuis Node
 
 /** Langues proposées, chacune nommée dans sa propre langue. */
 export const LANGUAGES = [
@@ -18,28 +18,25 @@ export const DEFAULT_LANGUAGE = "fr";
 
 // ─────────────────────────────────────────────
 // NOMS DE NOTES (tableau des notes, étiquettes du clavier)
-// Index = demi-ton 0–11.
+// Une note est un objet { letter, alter } (voir src/chords.js) :
+// lettre (0–6 = Do Ré Mi Fa Sol La Si) + altération (𝄫 ♭ ♯ 𝄪).
 // ─────────────────────────────────────────────
 
-const NOTE_NAMES = {
-  fr: {
-    sharp: ["Do", "Do♯", "Ré", "Ré♯", "Mi", "Fa", "Fa♯", "Sol", "Sol♯", "La", "La♯", "Si"],
-    flat:  ["Do", "Ré♭", "Ré", "Mi♭", "Mi", "Fa", "Sol♭", "Sol", "La♭", "La", "Si♭", "Si"],
-  },
-  en: {
-    sharp: ["C", "C♯", "D", "D♯", "E", "F", "F♯", "G", "G♯", "A", "A♯", "B"],
-    flat:  ["C", "D♭", "D", "E♭", "E", "F", "G♭", "G", "A♭", "A", "B♭", "B"],
-  },
-  // Convention allemande : H = si naturel, B = si bémol
-  de: {
-    sharp: ["C", "C♯", "D", "D♯", "E", "F", "F♯", "G", "G♯", "A", "A♯", "H"],
-    flat:  ["C", "D♭", "D", "E♭", "E", "F", "G♭", "G", "A♭", "A", "B", "H"],
-  },
-  es: {
-    sharp: ["Do", "Do♯", "Re", "Re♯", "Mi", "Fa", "Fa♯", "Sol", "Sol♯", "La", "La♯", "Si"],
-    flat:  ["Do", "Re♭", "Re", "Mi♭", "Mi", "Fa", "Sol♭", "Sol", "La♭", "La", "Si♭", "Si"],
-  },
+const LETTER_NAMES = {
+  fr: ["Do", "Ré", "Mi", "Fa", "Sol", "La", "Si"],
+  en: ["C", "D", "E", "F", "G", "A", "B"],
+  // Convention allemande : H = si naturel, B = si bémol (voir formatNote)
+  de: ["C", "D", "E", "F", "G", "A", "H"],
+  es: ["Do", "Re", "Mi", "Fa", "Sol", "La", "Si"],
 };
+
+const LETTER_B = 6;
+
+/** Nom d'une note orthographiée dans une langue (« Mi♭ », « E♭ », « B » allemand…). */
+function formatNote(note, letters) {
+  if (letters === LETTER_NAMES.de && note.letter === LETTER_B && note.alter === -1) return "B";
+  return letters[note.letter] + ACCIDENTAL_SYMBOLS[note.alter + 2];
+}
 
 // Numéro d'octave : le Do central (MIDI 60) est Do3 en français et en espagnol,
 // C4 en anglais et en allemand.
@@ -94,6 +91,10 @@ const MESSAGES = {
     "settings.sound": "Son",
     "settings.soundOn": "Son activé",
     "settings.soundOff": "Son coupé",
+    "settings.incomplete": "Accords incomplets",
+    "settings.incompleteHint": "Reconnaître un accord joué sans ses notes facultatives, comme la quinte : Do Mi Si♭ donne C7.",
+    "settings.yes": "Oui",
+    "settings.no": "Non",
     "settings.version": "version",
   },
 
@@ -141,6 +142,10 @@ const MESSAGES = {
     "settings.sound": "Sound",
     "settings.soundOn": "Sound on",
     "settings.soundOff": "Sound off",
+    "settings.incomplete": "Incomplete chords",
+    "settings.incompleteHint": "Recognize a chord played without its optional notes, such as the fifth: C E B♭ gives C7.",
+    "settings.yes": "Yes",
+    "settings.no": "No",
     "settings.version": "version",
   },
 
@@ -188,6 +193,10 @@ const MESSAGES = {
     "settings.sound": "Ton",
     "settings.soundOn": "Ton an",
     "settings.soundOff": "Ton aus",
+    "settings.incomplete": "Unvollständige Akkorde",
+    "settings.incompleteHint": "Einen Akkord auch ohne seine optionalen Töne erkennen, etwa ohne Quinte: C E B ergibt C7.",
+    "settings.yes": "Ja",
+    "settings.no": "Nein",
     "settings.version": "Version",
   },
 
@@ -235,6 +244,10 @@ const MESSAGES = {
     "settings.sound": "Sonido",
     "settings.soundOn": "Sonido activado",
     "settings.soundOff": "Sonido desactivado",
+    "settings.incomplete": "Acordes incompletos",
+    "settings.incompleteHint": "Reconocer un acorde tocado sin sus notas opcionales, como la quinta: Do Mi Si♭ da C7.",
+    "settings.yes": "Sí",
+    "settings.no": "No",
     "settings.version": "versión",
   },
 };
@@ -259,7 +272,10 @@ const CHORD_TYPE_NAMES = {
     "7♯5": "Sept. quinte augmentée",
     "maj9": "Neuvième majeure", "9": "Neuvième dominante", "m9": "Neuvième mineure",
     "add9": "Neuvième ajoutée", "madd9": "Neuvième mineure ajoutée",
+    "mM9": "Neuvième mineure majeure", "9sus4": "Neuvième sus4",
+    "7♭9": "Sept. neuvième bémol", "7♯9": "Sept. neuvième augmentée",
     "11": "Onzième", "m11": "Onzième mineure", "maj11": "Onzième majeure",
+    "add11": "Onzième ajoutée", "7♯11": "Sept. onzième augmentée",
     "13": "Treizième", "m13": "Treizième mineure", "maj13": "Treizième majeure",
   },
   en: {
@@ -272,7 +288,10 @@ const CHORD_TYPE_NAMES = {
     "7♯5": "7th sharp 5",
     "maj9": "Major 9th", "9": "Dominant 9th", "m9": "Minor 9th",
     "add9": "Added 9th", "madd9": "Minor added 9th",
+    "mM9": "Minor-major 9th", "9sus4": "9th sus4",
+    "7♭9": "7th flat 9", "7♯9": "7th sharp 9",
     "11": "Dominant 11th", "m11": "Minor 11th", "maj11": "Major 11th",
+    "add11": "Added 11th", "7♯11": "7th sharp 11",
     "13": "Dominant 13th", "m13": "Minor 13th", "maj13": "Major 13th",
   },
   de: {
@@ -285,7 +304,10 @@ const CHORD_TYPE_NAMES = {
     "7♯5": "Septakkord, übermäßige Quinte",
     "maj9": "Großer Nonakkord", "9": "Dominantnonakkord", "m9": "Moll-Nonakkord",
     "add9": "Dur mit None", "madd9": "Moll mit None",
+    "mM9": "Moll-Nonakkord mit großer Septime", "9sus4": "Nonakkord mit Quartvorhalt",
+    "7♭9": "Septakkord, kleine None", "7♯9": "Septakkord, übermäßige None",
     "11": "Undezimakkord", "m11": "Moll-Undezimakkord", "maj11": "Großer Undezimakkord",
+    "add11": "Dur mit Undezime", "7♯11": "Septakkord, übermäßige Undezime",
     "13": "Tredezimakkord", "m13": "Moll-Tredezimakkord", "maj13": "Großer Tredezimakkord",
   },
   es: {
@@ -298,7 +320,10 @@ const CHORD_TYPE_NAMES = {
     "7♯5": "Séptima, quinta aumentada",
     "maj9": "Novena mayor", "9": "Novena dominante", "m9": "Novena menor",
     "add9": "Novena añadida", "madd9": "Menor con novena añadida",
+    "mM9": "Novena menor con séptima mayor", "9sus4": "Novena sus4",
+    "7♭9": "Séptima, novena menor", "7♯9": "Séptima, novena aumentada",
     "11": "Oncena", "m11": "Oncena menor", "maj11": "Oncena mayor",
+    "add11": "Oncena añadida", "7♯11": "Séptima, oncena aumentada",
     "13": "Trecena", "m13": "Trecena menor", "maj13": "Trecena mayor",
   },
 };
@@ -323,7 +348,10 @@ const INVERSION_LABELS = {
 export function createI18n(language, accidentals) {
   const lang = MESSAGES[language] ? language : DEFAULT_LANGUAGE;
   const acc = accidentals === "flat" || accidentals === "sharp" ? accidentals : DEFAULT_ACCIDENTALS;
-  const noteName = (pc) => NOTE_NAMES[lang][acc][pc % 12];
+  /** Nom d'une note orthographiée ({ letter, alter }) dans la langue choisie. */
+  const noteName = (note) => formatNote(note, LETTER_NAMES[lang]);
+  /** Nom d'une touche hors accord : dièse ou bémol selon le réglage. */
+  const pcName = (pc) => noteName(spellPc(pc, acc));
 
   return {
     language: lang,
@@ -333,11 +361,12 @@ export function createI18n(language, accidentals) {
     groupName: (id) => GROUP_NAMES[lang][id] ?? id,
     inversionLabel: (i) => INVERSION_LABELS[lang](i),
     noteName,
+    pcName,
     /** Nom de touche avec octave (ex. « Do3 », « C4 ») */
-    keyLabel: (midi) => `${noteName(midi)}${Math.floor(midi / 12) + OCTAVE_OFFSET[lang]}`,
-    /** Fondamentale / basse d'un symbole d'accord : notation anglaise, sauf en
+    keyLabel: (midi) => `${pcName(midi)}${Math.floor(midi / 12) + OCTAVE_OFFSET[lang]}`,
+    /** Fondamentale / basse d'un symbole d'accord : lettres anglaises, sauf en
      *  allemand (H = si, B = si bémol), pour rester cohérent avec le tableau des notes. */
-    rootName: (pc) => (lang === "de" ? noteName(pc) : getRootNameEN(pc, acc)),
+    rootName: (note) => formatNote(note, lang === "de" ? LETTER_NAMES.de : LETTER_NAMES.en),
   };
 }
 
