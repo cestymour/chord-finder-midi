@@ -1153,7 +1153,6 @@ export default function ChordIdentifier() {
   );
 
   const primaryChord = chords[0] ?? null;
-  const secondaryChords = chords.slice(1);
 
   // Pas d'accord reconnu : un point par touche enfoncée à la place du nom
   const pendingChordPlaceHolder = useMemo(
@@ -1168,6 +1167,25 @@ export default function ChordIdentifier() {
         : null,
     [midiArray, primaryChord, accidentals]
   );
+
+  // Affichage : un accord reconnu s'affiche tout de suite ; sinon (notes sans
+  // accord, ou plus aucune touche) l'affichage précédent reste un instant, le
+  // temps que les doigts se posent ou se lèvent tous.
+  const live = useMemo(
+    () => ({ notes: midiArray, chords, placeholder: pendingChordPlaceHolder }),
+    [midiArray, chords, pendingChordPlaceHolder]
+  );
+  const liveHasChord = chords.length > 0;
+  const [held, setHeld] = useState(live);
+  if (liveHasChord && held !== live) setHeld(live);
+  useEffect(() => {
+    if (liveHasChord) return;
+    const id = setTimeout(() => setHeld(live), DISPLAY_HOLD_MS);
+    return () => clearTimeout(id);
+  }, [live, liveHasChord]);
+  const shown = liveHasChord ? live : held;
+  const shownChord = shown.chords[0] ?? null;
+  const shownAlternatives = shown.chords.slice(1);
 
   // Noms des touches enfoncées du clavier virtuel, orthographiés selon l'accord affiché
   const virtualNoteLabels = useMemo(
@@ -1242,7 +1260,7 @@ export default function ChordIdentifier() {
                 onSuffixChange={changeExploreSuffix}
               />
             </>
-          ) : midiArray.length === 0 ? (
+          ) : shown.notes.length === 0 ? (
             !showBluetoothButton && (
               <div className="idle-state">
                 <span className="idle-icon">🎹</span>
@@ -1253,18 +1271,18 @@ export default function ChordIdentifier() {
             )
           ) : (
             <>
-              {primaryChord ? (
-                <ChordCard chord={primaryChord} size="primary" />
+              {shownChord ? (
+                <ChordCard chord={shownChord} size="primary" />
               ) : (
-                pendingChordPlaceHolder && (
-                  <ChordCard chord={pendingChordPlaceHolder} size="primary" isPending />
+                shown.placeholder && (
+                  <ChordCard chord={shown.placeholder} size="primary" isPending />
                 )
               )}
-              {primaryChord && secondaryChords.length > 0 && (
+              {shownChord && shownAlternatives.length > 0 && (
                 <div className="secondary-chords">
                   <div className="secondary-label">{t("chord.alternatives")}</div>
                   <div className="secondary-list">
-                    {secondaryChords.map((c, i) => (
+                    {shownAlternatives.map((c, i) => (
                       <ChordCard key={i} chord={c} size="secondary" />
                     ))}
                   </div>
@@ -1330,6 +1348,10 @@ export default function ChordIdentifier() {
 // ─────────────────────────────────────────────
 // ANNONCE POUR LES LECTEURS D'ÉCRAN
 // ─────────────────────────────────────────────
+
+// Durée pendant laquelle l'affichage précédent reste quand les touches ne forment
+// plus d'accord (voir `shown` dans ChordIdentifier).
+const DISPLAY_HOLD_MS = 250;
 
 // Délai avant d'annoncer : quand on pose les doigts un à un, seul l'accord final est lu.
 const ANNOUNCE_DELAY_MS = 400;

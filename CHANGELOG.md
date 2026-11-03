@@ -6,6 +6,12 @@ Le format s’inspire de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/
 
 ## [Non publié]
 
+## [0.7.1] — 2026-11-04
+
+### Modifié
+
+- **Affichage plus stable entre deux accords** : un accord reconnu s'affiche toujours tout de suite. Quand les touches enfoncées ne forment plus d'accord (doigts qui se posent ou se lèvent un à un), l'affichage précédent reste un quart de seconde avant de changer.
+
 ## [0.7.0] — 2026-11-03
 
 ### Ajouté
@@ -158,7 +164,8 @@ Première version numérotée. Elle regroupe tout ce qui a été développé dep
 - Application installable (PWA).
 - Déploiement automatique sur GitHub Pages à chaque mise à jour de la branche `main`.
 
-[Non publié]: https://github.com/cestymour/chord-finder-midi/compare/v0.7.0...HEAD
+[Non publié]: https://github.com/cestymour/chord-finder-midi/compare/v0.7.1...HEAD
+[0.7.1]: https://github.com/cestymour/chord-finder-midi/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/cestymour/chord-finder-midi/compare/v0.6.1...v0.7.0
 [0.6.1]: https://github.com/cestymour/chord-finder-midi/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/cestymour/chord-finder-midi/compare/v0.5.0...v0.6.0
