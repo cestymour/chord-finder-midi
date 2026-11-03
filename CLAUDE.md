@@ -28,7 +28,7 @@ Pushing to `main` triggers `.github/workflows/deploy.yml`, which builds with the
 
 ## Architecture
 
-UI, hooks and components are in `src/App.jsx`. The chord engine (templates, detection, explorer voicings) is a pure, React-free module in `src/chords.js`, so it can be imported from plain Node for quick checks. All translations live in `src/i18n.js` (it imports `./chords.js` with the extension so it can be loaded from Node too). The BLE transport is in `src/useBluetoothMIDI.js`.
+UI, hooks and components are in `src/App.jsx`. The chord engine (templates, detection, explorer voicings) is a pure, React-free module in `src/chords.js`, so it can be imported from plain Node for quick checks. All translations live in `src/i18n.js` (it imports `./chords.js` with the extension so it can be loaded from Node too). The BLE transport is in `src/useBluetoothMIDI.js`. The piano sound is synthesized with the Web Audio API in `src/pianoSound.js` (no audio files): the virtual keyboard plays a note when a key goes down and damps it when it goes up, the dictionary plays each chosen chord as an arpeggio, and the Piano screen stays silent (the real piano is heard).
 
 **Note input: two parallel sources feeding the same state.** `ChordIdentifier` (the main component) owns a `Set` of pressed MIDI note numbers and exposes `handleNoteOn`/`handleNoteOff`. Both input hooks call them:
 - `useMIDI` (in `App.jsx`) uses `navigator.requestMIDIAccess`, attaches `onmidimessage` to every input, and re-attaches on `onstatechange`.
@@ -61,7 +61,7 @@ French stays the default (`DEFAULT_LANGUAGE`, no browser-language detection). Th
 
 **Accidentals.** They are always the real symbols ♯ and ♭ (never ASCII `#` or `b`), in note names and in chord suffixes (`7♯5`, `m7♭5`). Black keys are named with sharps or flats everywhere according to one `accidentals` value (`"sharp"` | `"flat"`). Its default is `DEFAULT_ACCIDENTALS` in `chords.js` (currently sharps). Interval labels come from `INTERVAL_LABEL`.
 
-**Settings.** The gear button opens `SettingsDialog`, a native `<dialog>` (Escape or a backdrop click closes it). It holds the language and sharps/flats choices and shows the app version, which `vite.config.js` injects from `package.json` as `import.meta.env.VITE_APP_VERSION`. Both choices are saved in `localStorage` (`instantchordbt.language`, `instantchordbt.accidentals`) by `usePersistentSetting`, so they are restored on the next launch.
+**Settings.** The gear button opens `SettingsDialog`, a native `<dialog>` (Escape or a backdrop click closes it). It holds the language, sharps/flats and sound on/off choices and shows the app version, which `vite.config.js` injects from `package.json` as `import.meta.env.VITE_APP_VERSION`. All three are saved in `localStorage` (`instantchordbt.language`, `instantchordbt.accidentals`, `instantchordbt.sound`) by `usePersistentSetting`, so they are restored on the next launch.
 
 **Explorer voicings.** A template's optional `voicing` lays out extensions above the octave (9 → 14, 11 → 17, 13 → 21); its pitch classes must equal `intervals`. `buildChordVoicing` puts the bass in [48, 59]; the bass-to-top span never exceeds 21 semitones, so every voicing and inversion fits in 48–83 and within 2 visible octaves. Round trip `identifyChords(voicing)` always lists the chosen chord, and in root position it comes first (except `aug7`, which ties with `7♯5`). Inversions may come out under another name when chords share notes: aug, dim7, sus2/sus4, 6/m7, m6/m7♭5, 13ths.
 

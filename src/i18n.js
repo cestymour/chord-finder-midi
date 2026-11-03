@@ -91,6 +91,9 @@ const MESSAGES = {
     "settings.accidentals": "Affichage des altérations",
     "settings.sharps": "Dièses",
     "settings.flats": "Bémols",
+    "settings.sound": "Son",
+    "settings.soundOn": "Son activé",
+    "settings.soundOff": "Son coupé",
     "settings.version": "version",
   },
 
@@ -135,6 +138,9 @@ const MESSAGES = {
     "settings.accidentals": "Accidentals display",
     "settings.sharps": "Sharps",
     "settings.flats": "Flats",
+    "settings.sound": "Sound",
+    "settings.soundOn": "Sound on",
+    "settings.soundOff": "Sound off",
     "settings.version": "version",
   },
 
@@ -179,6 +185,9 @@ const MESSAGES = {
     "settings.accidentals": "Anzeige der Vorzeichen",
     "settings.sharps": "Kreuze",
     "settings.flats": "Bes",
+    "settings.sound": "Ton",
+    "settings.soundOn": "Ton an",
+    "settings.soundOff": "Ton aus",
     "settings.version": "Version",
   },
 
@@ -223,6 +232,9 @@ const MESSAGES = {
     "settings.accidentals": "Visualización de alteraciones",
     "settings.sharps": "Sostenidos",
     "settings.flats": "Bemoles",
+    "settings.sound": "Sonido",
+    "settings.soundOn": "Sonido activado",
+    "settings.soundOff": "Sonido desactivado",
     "settings.version": "versión",
   },
 };

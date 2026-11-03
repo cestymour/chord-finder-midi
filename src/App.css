@@ -1058,6 +1058,17 @@
   transform: translateY(-0.12em);
 }
 
+/* Son : emoji 🔊 / 🔇, atténué quand il n'est pas choisi (comme les drapeaux) */
+.settings__emoji {
+  display: block;
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.settings__choice:not(.settings__choice--active) .settings__emoji {
+  opacity: 0.55;
+}
+
 .settings__choice--active {
   color: var(--accent);
   border-color: var(--accent);

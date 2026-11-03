@@ -6,6 +6,15 @@ Le format s’inspire de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/
 
 ## [Non publié]
 
+## [0.3.0] — 2026-11-03
+
+### Ajouté
+
+- **Son de piano sur le clavier virtuel** : enfoncer une touche joue la note, la relâcher l’étouffe, et « Effacer » coupe toutes les notes. Le son est synthétisé par le navigateur (Web Audio), sans aucun fichier audio à télécharger.
+- **Son dans le dictionnaire d’accords** : choisir une fondamentale, un type d’accord ou un renversement fait entendre l’accord en arpège, du grave à l’aigu.
+- Chaque touche brille brièvement au moment où sa note sonne (clavier virtuel et dictionnaire).
+- **Réglage « Son »** dans les paramètres (🔊 / 🔇) pour couper le son de l’application. Le choix est mémorisé pour les ouvertures suivantes.
+
 ## [0.2.0] — 2026-11-03
 
 ### Ajouté
@@ -66,6 +75,7 @@ Première version numérotée. Elle regroupe tout ce qui a été développé dep
 - Application installable (PWA).
 - Déploiement automatique sur GitHub Pages à chaque mise à jour de la branche `main`.
 
-[Non publié]: https://github.com/cestymour/chord-finder-midi/compare/v0.2.0...HEAD
+[Non publié]: https://github.com/cestymour/chord-finder-midi/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/cestymour/chord-finder-midi/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/cestymour/chord-finder-midi/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/cestymour/chord-finder-midi/releases/tag/v0.1.0

@@ -2,6 +2,14 @@ import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import './App.css';
 import useBluetoothMIDI from "./useBluetoothMIDI";
 import {
+  playPianoNote,
+  playPianoArpeggio,
+  stopPianoNote,
+  stopAllPianoNotes,
+  setPianoSoundEnabled,
+  subscribePianoNotes,
+} from "./pianoSound";
+import {
   ACCIDENTALS,
   BLACK_KEY_PCS,
   CHORD_TEMPLATE_GROUPS,
@@ -211,6 +219,15 @@ function VirtualKeyboard({ activeNotes, onKeyClick, scrollToNotes, toolbar }) {
   const interactive = Boolean(onKeyClick);
   const KeyTag = interactive ? "button" : "div";
 
+  // Bref éclat de la touche quand sa note sonne (synchronisé avec l'arpège).
+  useEffect(() => subscribePianoNotes((midi, delay) => {
+    const key = scrollerRef.current?.querySelector(`[data-midi="${midi}"]`);
+    key?.animate(
+      [{ filter: "brightness(1.7)", boxShadow: "0 0 22px #7fffd4" }, {}],
+      { duration: 450, delay: delay * 1000, easing: "ease-out" }
+    );
+  }), []);
+
   useScrollIntoView(
     scrollerRef,
     scrollToNotes?.length ? Math.min(...scrollToNotes) : null,
@@ -222,6 +239,7 @@ function VirtualKeyboard({ activeNotes, onKeyClick, scrollToNotes, toolbar }) {
     return {
       isDown,
       props: {
+        "data-midi": n,
         className: `vk-key vk-key--${color}${isDown ? " vk-key--down" : ""}${interactive ? "" : " vk-key--static"}`,
         ...(interactive
           ? { onClick: () => onKeyClick(n), "aria-pressed": isDown, "aria-label": keyLabel(n) }
@@ -374,10 +392,16 @@ function NoPianoFallback({ onModeChange }) {
 const APP_VERSION = import.meta.env.VITE_APP_VERSION;
 const ACCIDENTALS_STORAGE_KEY = "instantchordbt.accidentals";
 const LANGUAGE_STORAGE_KEY = "instantchordbt.language";
+const SOUND_STORAGE_KEY = "instantchordbt.sound";
 
 const ACCIDENTAL_OPTIONS = [
   { value: "sharp", symbol: "♯", labelKey: "settings.sharps" },
   { value: "flat",  symbol: "♭", labelKey: "settings.flats" },
+];
+
+const SOUND_OPTIONS = [
+  { value: "on",  symbol: "🔊", labelKey: "settings.soundOn" },
+  { value: "off", symbol: "🔇", labelKey: "settings.soundOff" },
 ];
 
 /** Réglage mémorisé dans le navigateur (valeur par défaut si absent ou invalide). */
@@ -440,7 +464,7 @@ const FLAGS = {
   ),
 };
 
-function SettingsDialog({ open, onClose, onLanguageChange, onAccidentalsChange }) {
+function SettingsDialog({ open, onClose, onLanguageChange, onAccidentalsChange, sound, onSoundChange }) {
   const { t, language, accidentals } = useI18n();
   const dialogRef = useRef(null);
 
@@ -498,6 +522,24 @@ function SettingsDialog({ open, onClose, onLanguageChange, onAccidentalsChange }
                 title={t(opt.labelKey)}
               >
                 <span className="settings__symbol" aria-hidden="true">{opt.symbol}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="settings__row">
+          <span className="settings__label" id="settings-sound">{t("settings.sound")}</span>
+          <div className="settings__choices" role="group" aria-labelledby="settings-sound">
+            {SOUND_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                className={`settings__choice${sound === opt.value ? " settings__choice--active" : ""}`}
+                onClick={() => onSoundChange(opt.value)}
+                aria-pressed={sound === opt.value}
+                aria-label={t(opt.labelKey)}
+                title={t(opt.labelKey)}
+              >
+                <span className="settings__emoji" aria-hidden="true">{opt.symbol}</span>
               </button>
             ))}
           </div>
@@ -565,16 +607,21 @@ export default function ChordIdentifier() {
   // pour qu'un note-off MIDI ne relâche pas une touche cliquée à l'écran.
   const [virtualNotes, setVirtualNotes] = useState(new Set());
 
+  // Une touche enfoncée joue sa note ; relâchée, elle est étouffée.
+  // (Le son est déclenché hors du updater de setState, que StrictMode exécute deux fois.)
   const toggleVirtualNote = useCallback((note) => {
+    if (virtualNotes.has(note)) stopPianoNote(note);
+    else playPianoNote(note);
     setVirtualNotes(prev => {
       const next = new Set(prev);
       if (next.has(note)) next.delete(note);
       else next.add(note);
       return next;
     });
-  }, []);
+  }, [virtualNotes]);
 
   const clearVirtualNotes = useCallback(() => {
+    stopAllPianoNotes();
     setVirtualNotes(new Set());
   }, []);
 
@@ -587,6 +634,11 @@ export default function ChordIdentifier() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [language, setLanguage] = usePersistentSetting(LANGUAGE_STORAGE_KEY, LANGUAGE_CODES, DEFAULT_LANGUAGE);
   const [accidentals, setAccidentals] = usePersistentSetting(ACCIDENTALS_STORAGE_KEY, ACCIDENTALS, DEFAULT_ACCIDENTALS);
+  const [sound, setSound] = usePersistentSetting(SOUND_STORAGE_KEY, ["on", "off"], "on");
+
+  useEffect(() => {
+    setPianoSoundEnabled(sound === "on");
+  }, [sound]);
 
   const i18n = useMemo(() => createI18n(language, accidentals), [language, accidentals]);
   const { t, inversionLabel } = i18n;
@@ -607,18 +659,27 @@ export default function ChordIdentifier() {
   const exploreNotes = exploreVoicing.map(n => n.midi);
   const exploreActive = new Set(exploreNotes);
 
+  // Chaque choix dans le dictionnaire fait entendre l'accord en arpège.
+  const playExploreChord = (rootPc, template, inversion) => {
+    playPianoArpeggio(buildChordVoicing(rootPc, template, inversion).map(n => n.midi));
+  };
+
   const changeExploreRoot = (pc) => {
     setExploreRoot(pc);
     setExploreInversion(0);
+    playExploreChord(pc, exploreTemplate, 0);
   };
 
   const changeExploreSuffix = (suffix) => {
     setExploreSuffix(suffix);
     setExploreInversion(0);
+    playExploreChord(exploreRoot, CHORD_TEMPLATES.find(t => t.suffix === suffix), 0);
   };
 
   const nextInversion = () => {
-    setExploreInversion(i => (i + 1) % inversionCount(exploreTemplate));
+    const inversion = (exploreInversion + 1) % inversionCount(exploreTemplate);
+    setExploreInversion(inversion);
+    playExploreChord(exploreRoot, exploreTemplate, inversion);
   };
 
   // Écran de démarrage sans piano : toujours proposer la connexion (valeur ajoutée de l'appli),
@@ -764,6 +825,8 @@ export default function ChordIdentifier() {
           onClose={() => setSettingsOpen(false)}
           onLanguageChange={setLanguage}
           onAccidentalsChange={setAccidentals}
+          sound={sound}
+          onSoundChange={setSound}
         />
 
       </div>
