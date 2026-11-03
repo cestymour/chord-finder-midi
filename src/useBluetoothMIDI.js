@@ -15,6 +15,8 @@ const OPEN_RETRIES = 3;
 // Reconnexion automatique après une coupure : durée totale, puis pause entre deux essais.
 const RECONNECT_WINDOW_MS = 20000;
 const RECONNECT_DELAY_MS = 2000;
+// Piano retrouvé au lancement (getDevices) : attente maximale de son annonce Bluetooth.
+const ADVERTISEMENT_TIMEOUT_MS = 10000;
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -72,6 +74,8 @@ function createBluetoothController({ setStatus, setError, setKnownDevice }) {
     target: null,
     stopWatching: null,
     reconnecting: null, // numéro de l'action dont la boucle de reconnexion tourne
+    // Piano retrouvé par getDevices et pas encore connecté depuis le lancement
+    restored: null,
     callbacks: {},
   };
 
@@ -173,12 +177,60 @@ function createBluetoothController({ setStatus, setError, setKnownDevice }) {
     ctx.stopWatching = () => device.removeEventListener("gattserverdisconnected", onDisconnected);
   };
 
+  /**
+   * Attend une annonce Bluetooth du piano (watchAdvertisements). Un appareil retrouvé
+   * par getDevices refuse souvent gatt.connect() tant que le navigateur ne l'a pas
+   * vu émettre depuis le lancement. Renvoie true si une annonce est reçue à temps.
+   */
+  const waitForAdvertisement = (device, attempt) =>
+    new Promise((resolve) => {
+      if (typeof device.watchAdvertisements !== "function") {
+        resolve(false);
+        return;
+      }
+      const abort = new AbortController();
+      let done = false;
+      const finish = (received) => {
+        if (done) return;
+        done = true;
+        clearTimeout(timer);
+        clearInterval(check);
+        device.removeEventListener("advertisementreceived", onAdvertisement);
+        abort.abort(); // arrête l'écoute des annonces
+        resolve(received);
+      };
+      const onAdvertisement = () => finish(true);
+      const timer = setTimeout(() => finish(false), ADVERTISEMENT_TIMEOUT_MS);
+      // Une action plus récente (déconnexion, autre piano) arrête l'attente.
+      const check = setInterval(() => {
+        if (attempt !== ctx.attempt) finish(false);
+      }, 250);
+      device.addEventListener("advertisementreceived", onAdvertisement);
+      try {
+        device.watchAdvertisements({ signal: abort.signal }).catch(() => finish(false));
+      } catch {
+        finish(false);
+      }
+    });
+
   const connect = async (device, attempt) => {
     ctx.target = device;
     setStatus("connecting");
     setError(null);
     try {
-      if (!(await openLink(device, attempt))) return;
+      let opened;
+      try {
+        opened = await openLink(device, attempt);
+      } catch (err) {
+        // Rattrapage réservé au piano retrouvé au lancement : le chemin normal ne change pas.
+        // On attend qu'il se signale, puis on réessaie une fois.
+        if (device !== ctx.restored || attempt !== ctx.attempt) throw err;
+        if (!(await waitForAdvertisement(device, attempt))) throw err;
+        if (attempt !== ctx.attempt) return;
+        opened = await openLink(device, attempt);
+      }
+      if (!opened) return;
+      if (ctx.restored === device) ctx.restored = null;
       watchDisconnect(device, attempt);
       setStatus("connected");
     } catch (err) {
@@ -257,7 +309,10 @@ function createBluetoothController({ setStatus, setError, setKnownDevice }) {
       if (!id) return;
       try {
         const device = (await navigator.bluetooth.getDevices()).find((d) => d.id === id);
-        if (device && !ctx.device) remember(device);
+        if (device && !ctx.device) {
+          ctx.restored = device;
+          remember(device);
+        }
       } catch {
         // fonction présente mais non autorisée
       }

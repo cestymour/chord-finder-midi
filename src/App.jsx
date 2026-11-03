@@ -44,8 +44,14 @@ const VIRTUAL_MIDI_PORT = /\bthrough\b/i;
  * Chaque callback reçoit d'abord la source (`midi:<id du port>`), pour que les notes
  * et la pédale de chaque instrument restent séparées. onRelease(source) signale un port
  * disparu : ses touches tenues ne recevront plus de note off.
- * Retourne { status, devices } :
- * - status : "pending" | "connected" | "disconnected" | "denied" (accès refusé) | "unsupported"
+ *
+ * L'accès n'est demandé tout seul que s'il est déjà accordé (permissions.query) :
+ * sinon, la demande du navigateur arriverait à l'ouverture, sans explication.
+ * requestAccess() la déclenche sur un geste de l'utilisateur (bouton « Autoriser »).
+ *
+ * Retourne { status, devices, requestAccess } :
+ * - status : "pending" | "prompt" (accès à demander) | "connected" | "disconnected"
+ *   | "denied" (accès refusé) | "unsupported"
  * - devices : noms des instruments écoutés
  */
 function useMIDI(callbacks) {
@@ -60,11 +66,17 @@ function useMIDI(callbacks) {
     callbacksRef.current = callbacks;
   }, [callbacks]);
 
+  // Demande d'accès, fournie par l'effet ci-dessous (appelée sur un geste de l'utilisateur)
+  const requestRef = useRef(() => {});
+  const requestAccess = useCallback(() => requestRef.current(), []);
+
   useEffect(() => {
     if (!navigator.requestMIDIAccess) return; // état initial "unsupported"
 
     let cancelled = false;
     let access = null;
+    let requested = false; // demande en cours ou accordée
+    let permission = null; // PermissionStatus "midi", si le navigateur le fournit
     let inputs = new Map(); // source → port écouté
 
     const handleMidiMessage = (event) => {
@@ -104,19 +116,53 @@ function useMIDI(callbacks) {
       );
     };
 
-    navigator.requestMIDIAccess()
-      .then(midiAccess => {
-        if (cancelled) return;
-        access = midiAccess;
-        attachListeners();
-        access.onstatechange = attachListeners;
-      })
-      .catch(() => {
-        if (!cancelled) setMidiState({ status: "denied", devices: [] });
-      });
+    const request = () => {
+      if (requested || cancelled) return;
+      requested = true;
+      setMidiState({ status: "pending", devices: [] });
+      navigator.requestMIDIAccess()
+        .then(midiAccess => {
+          if (cancelled) return;
+          access = midiAccess;
+          attachListeners();
+          access.onstatechange = attachListeners;
+        })
+        .catch(() => {
+          if (cancelled) return;
+          requested = false;
+          // Demande fermée sans répondre : on la propose de nouveau. Sinon, accès refusé.
+          const state = permission?.state === "prompt" ? "prompt" : "denied";
+          setMidiState({ status: state, devices: [] });
+        });
+    };
+    requestRef.current = request;
+
+    // Autorisation déjà accordée : écoute immédiate. À demander : bouton « Autoriser ».
+    // Un changement dans les paramètres du site est suivi (onchange).
+    const applyPermission = (state) => {
+      if (cancelled || requested) return;
+      if (state === "granted") request();
+      else setMidiState({ status: state === "denied" ? "denied" : "prompt", devices: [] });
+    };
+
+    (async () => {
+      try {
+        permission = await navigator.permissions.query({ name: "midi" });
+      } catch {
+        permission = null; // autorisation "midi" inconnue de ce navigateur
+      }
+      if (cancelled) return;
+      if (!permission) {
+        applyPermission("prompt");
+        return;
+      }
+      permission.onchange = () => applyPermission(permission.state);
+      applyPermission(permission.state);
+    })();
 
     return () => {
       cancelled = true;
+      if (permission) permission.onchange = null;
       if (access) access.onstatechange = null;
       inputs.forEach((input, source) => {
         input.onmidimessage = null;
@@ -126,7 +172,7 @@ function useMIDI(callbacks) {
     };
   }, []);
 
-  return midiState;
+  return { ...midiState, requestAccess };
 }
 
 // ─────────────────────────────────────────────
@@ -168,14 +214,23 @@ function BluetoothMIDIButton({ btStatus, btError, knownDevice, onConnect, onReco
   const { t } = useI18n();
   const loadingLabel = BT_LOADING_LABELS[btStatus];
   const isLoading = Boolean(loadingLabel);
-  const offerReconnect = knownDevice && !isLoading && btStatus !== "unsupported";
+  const offerReconnect = knownDevice && !isLoading;
 
   // Sélecteur fermé sans choix : simple conseil, pas une erreur
   let notice = null;
   if (btStatus === "lost") notice = { key: "bt.lost", tone: "error" };
-  else if (btStatus === "unsupported") notice = { key: "bt.unsupported", tone: "error" };
   else if (btStatus === "error" && btError) {
     notice = { key: `bt.error.${btError}`, tone: btError === "cancelled" ? "hint" : "error" };
+  }
+
+  // Navigateur sans Web Bluetooth (iPhone, Firefox…) : pas de gros bouton inutile,
+  // seulement le message ; les solutions de secours passent au premier plan.
+  if (btStatus === "unsupported") {
+    return (
+      <div className="bt-connect-container">
+        <InfoTip tone="warn" label={t("bt.unsupported")}>{t("bt.unsupported.help")}</InfoTip>
+      </div>
+    );
   }
 
   return (
@@ -288,19 +343,27 @@ function Switch({ checked, onChange, labelledBy }) {
   );
 }
 
-/** Branchement par câble : détecté tout seul par Web MIDI, on explique seulement comment faire. */
-function UsbHint({ midiStatus }) {
+const USB_TEXT_KEYS = { denied: "usb.denied", unsupported: "usb.unsupported", prompt: "usb.prompt" };
+
+/**
+ * Branchement par câble : détecté tout seul par Web MIDI une fois l'accès accordé.
+ * Accès pas encore demandé : bouton « Autoriser » (onAllow), qui ouvre la demande du navigateur.
+ */
+function UsbHint({ midiStatus, onAllow }) {
   const { t } = useI18n();
-  const textKey =
-    midiStatus === "denied" ? "usb.denied" : midiStatus === "unsupported" ? "usb.unsupported" : "usb.hint";
+  const textKey = USB_TEXT_KEYS[midiStatus] ?? "usb.hint";
+  const warn = midiStatus === "denied" || midiStatus === "unsupported";
   return (
-    <InfoTip
-      className="usb-hint"
-      tone={textKey === "usb.hint" ? undefined : "warn"}
-      label={<>🔌 {t("usb.title")}</>}
-    >
-      {t(textKey)}
-    </InfoTip>
+    <>
+      <InfoTip className="usb-hint" tone={warn ? "warn" : undefined} label={<>🔌 {t("usb.title")}</>}>
+        {t(textKey)}
+      </InfoTip>
+      {midiStatus === "prompt" && (
+        <button className="usb-allow" onClick={onAllow}>
+          {t("usb.allow")}
+        </button>
+      )}
+    </>
   );
 }
 
@@ -330,6 +393,13 @@ function ConnectionStatus({ btStatus, btKnownDevice, midi, onDisconnect, onConne
     // Web MIDI ne dit pas si l'instrument est en USB ou jumelé en Bluetooth : icône neutre
     status = "connected";
     label = `🎹 ${midi.devices.join(", ")}`;
+  } else if (onConnect) {
+    // Clavier virtuel choisi sans piano : état neutre (l'absence de MIDI n'est pas une erreur ici)
+    status = "virtual";
+    label = t("status.virtual");
+  } else if (midi.status === "prompt") {
+    status = "disconnected";
+    label = t("midi.disconnected");
   } else {
     status = midi.status === "unsupported" ? "denied" : midi.status;
     label = t(`midi.${midi.status}`);
@@ -526,40 +596,40 @@ function ChordExplorer({ rootPc, template, onRootChange, onSuffixChange }) {
   const suffix = template.suffix;
   return (
     <div className="explorer">
-      <div className="explorer__section">
-        <div className="explorer__label">{t("explorer.root")}</div>
-        <div className="explorer__roots">
-          {ROOT_PCS.map((pc) => (
-            <button
-              key={pc}
-              className={`explorer-chip${pc === rootPc ? " explorer-chip--active" : ""}`}
-              onClick={() => onRootChange(pc)}
-              aria-pressed={pc === rootPc}
-            >
-              {/* Nom selon le type choisi : D♭ en majeur, C♯ en mineur */}
-              {rootName(spellRoot(pc, template, accidentals))}
-            </button>
-          ))}
-        </div>
+      {/* Fondamentales hors de la zone qui défile : toujours visibles, sans titre */}
+      <div className="explorer__roots" role="group" aria-label={t("explorer.root")}>
+        {ROOT_PCS.map((pc) => (
+          <button
+            key={pc}
+            className={`explorer-chip${pc === rootPc ? " explorer-chip--active" : ""}`}
+            onClick={() => onRootChange(pc)}
+            aria-pressed={pc === rootPc}
+          >
+            {/* Nom selon le type choisi : D♭ en majeur, C♯ en mineur */}
+            {rootName(spellRoot(pc, template, accidentals))}
+          </button>
+        ))}
       </div>
-      {CHORD_TEMPLATE_GROUPS.map((group) => (
-        <div className="explorer__section" key={group.id}>
-          <div className="explorer__label">{groupName(group.id)}</div>
-          <div className="explorer__types">
-            {group.templates.map((tpl) => (
-              <button
-                key={tpl.suffix}
-                className={`explorer-chip${tpl.suffix === suffix ? " explorer-chip--active" : ""}`}
-                onClick={() => onSuffixChange(tpl.suffix)}
-                aria-pressed={tpl.suffix === suffix}
-                title={chordTypeName(tpl.suffix)}
-              >
-                {rootName(spellRoot(rootPc, tpl, accidentals))}{tpl.suffix}
-              </button>
-            ))}
+      <div className="explorer__scroll">
+        {CHORD_TEMPLATE_GROUPS.map((group) => (
+          <div className="explorer__section" key={group.id}>
+            <div className="explorer__label">{groupName(group.id)}</div>
+            <div className="explorer__types">
+              {group.templates.map((tpl) => (
+                <button
+                  key={tpl.suffix}
+                  className={`explorer-chip${tpl.suffix === suffix ? " explorer-chip--active" : ""}`}
+                  onClick={() => onSuffixChange(tpl.suffix)}
+                  aria-pressed={tpl.suffix === suffix}
+                  title={chordTypeName(tpl.suffix)}
+                >
+                  {rootName(spellRoot(rootPc, tpl, accidentals))}{tpl.suffix}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
-      ))}
+        ))}
+      </div>
     </div>
   );
 }
@@ -602,18 +672,19 @@ function TopBar({ mode, onModeChange, onOpenSettings }) {
   );
 }
 
-/** Solutions de secours proposées sous le bouton Bluetooth quand aucun piano n'est connecté. */
-function NoPianoFallback({ onUseKeyboard, onModeChange }) {
+/**
+ * Solution de secours proposée sous le bouton Bluetooth quand aucun piano n'est connecté
+ * (le dictionnaire reste accessible par l'onglet Accords).
+ * prominent : mise en avant (navigateur sans Bluetooth, où elle devient l'essentiel).
+ */
+function NoPianoFallback({ onUseKeyboard, prominent }) {
   const { t } = useI18n();
   return (
-    <div className="no-piano">
+    <div className={`no-piano${prominent ? " no-piano--prominent" : ""}`}>
       <span className="no-piano__label">{t("fallback.title")}</span>
       <div className="no-piano__actions">
         <button className="no-piano__btn" onClick={onUseKeyboard}>
-          👆 {t("fallback.keyboard")}
-        </button>
-        <button className="no-piano__btn" onClick={() => onModeChange("explore")}>
-          📖 {t("fallback.dictionary")}
+          🎹 {t("fallback.keyboard")}
         </button>
       </div>
     </div>
@@ -714,6 +785,8 @@ function SettingsDialog({
   const dialogRef = useRef(null);
   const [incompleteInfo, setIncompleteInfo] = useState(false);
   const incompleteInfoId = useId();
+  const [accidentalsInfo, setAccidentalsInfo] = useState(false);
+  const accidentalsInfoId = useId();
 
   // <dialog> natif : fond assombri, Échap pour fermer, focus gardé dans la fenêtre
   useEffect(() => {
@@ -756,22 +829,33 @@ function SettingsDialog({
           </div>
         </div>
 
-        <div className="settings__row settings__row--inline">
-          <span className="settings__label" id="settings-accidentals">{t("settings.accidentals")}</span>
-          <div className="settings__segmented" role="group" aria-labelledby="settings-accidentals">
-            {ACCIDENTAL_OPTIONS.map((opt) => (
-              <button
-                key={opt.value}
-                className={`settings__choice${accidentals === opt.value ? " settings__choice--active" : ""}`}
-                onClick={() => onAccidentalsChange(opt.value)}
-                aria-pressed={accidentals === opt.value}
-                aria-label={t(opt.labelKey)}
-                title={t(opt.labelKey)}
-              >
-                <span className="settings__symbol" aria-hidden="true">{opt.symbol}</span>
-              </button>
-            ))}
+        <div className="settings__row">
+          <div className="settings__row--inline">
+            <span className="settings__label-group">
+              <span className="settings__label" id="settings-accidentals">{t("settings.accidentals")}</span>
+              {/* Pourquoi des bémols restent affichés avec les dièses (et inversement) */}
+              <InfoButton
+                open={accidentalsInfo}
+                onToggle={() => setAccidentalsInfo((o) => !o)}
+                bubbleId={accidentalsInfoId}
+              />
+            </span>
+            <div className="settings__segmented" role="group" aria-labelledby="settings-accidentals">
+              {ACCIDENTAL_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  className={`settings__choice${accidentals === opt.value ? " settings__choice--active" : ""}`}
+                  onClick={() => onAccidentalsChange(opt.value)}
+                  aria-pressed={accidentals === opt.value}
+                  aria-label={t(opt.labelKey)}
+                  title={t(opt.labelKey)}
+                >
+                  <span className="settings__symbol" aria-hidden="true">{opt.symbol}</span>
+                </button>
+              ))}
+            </div>
           </div>
+          {accidentalsInfo && <InfoBubble id={accidentalsInfoId}>{t("settings.accidentalsHint")}</InfoBubble>}
         </div>
 
         <div className="settings__row settings__row--inline">
@@ -865,11 +949,10 @@ export default function ChordIdentifier() {
 
   // Touches cliquées sur le clavier virtuel : ensemble séparé des notes du piano,
   // pour qu'un note-off MIDI ne relâche pas une touche cliquée à l'écran.
-  const [virtualNotes, setVirtualNotes] = useState(new Set());
+  // La ref est la valeur à jour (modifiée en même temps que l'état, à chaque changement) :
+  // deux touchers rapides, avant le rendu, partent bien chacun du résultat du précédent.
+  const [virtualNotes, setVirtualNotes] = useState(() => new Set());
   const virtualNotesRef = useRef(virtualNotes);
-  useEffect(() => {
-    virtualNotesRef.current = virtualNotes;
-  }, [virtualNotes]);
 
   const clearVirtualNotes = useCallback(() => {
     stopAllPianoNotes();
@@ -941,6 +1024,9 @@ export default function ChordIdentifier() {
   const midi = useMIDI(midiCallbacks);
 
   const pianoConnected = btStatus === "connected" || midi.status === "connected";
+  // Coupure Bluetooth en cours de reconnexion automatique : l'écran Piano reste affiché
+  // (seule la ligne d'état change), au lieu de basculer sur l'écran de connexion.
+  const pianoLinked = pianoConnected || btStatus === "reconnecting";
 
   // Écran affiché : "midi" (onglet Piano : vrai piano et/ou clavier virtuel)
   // ou "explore" (dictionnaire : choisir un accord pour voir ses touches)
@@ -950,7 +1036,7 @@ export default function ChordIdentifier() {
   // Sans piano, le clavier virtuel n'apparaît que si l'utilisateur le demande
   // (la connexion du piano reste la proposition principale).
   const [keyboardChosen, setKeyboardChosen] = useState(false);
-  const showKeyboard = mode === "midi" && (pianoConnected || keyboardChosen);
+  const showKeyboard = mode === "midi" && (pianoLinked || keyboardChosen);
 
   // Clavier masqué (piano déconnecté sans clavier choisi) : ses touches cliquées
   // ne doivent ni rester sonores ni compter pour l'accord.
@@ -961,15 +1047,17 @@ export default function ChordIdentifier() {
   // Une touche enfoncée joue sa note ; relâchée, elle est étouffée.
   // (Le son est déclenché hors du updater de setState, que StrictMode exécute deux fois.)
   const toggleVirtualNote = useCallback((note) => {
-    if (virtualNotes.has(note)) stopPianoNote(note);
-    else playPianoNote(note);
-    setVirtualNotes(prev => {
-      const next = new Set(prev);
-      if (next.has(note)) next.delete(note);
-      else next.add(note);
-      return next;
-    });
-  }, [virtualNotes]);
+    const next = new Set(virtualNotesRef.current);
+    if (next.has(note)) {
+      next.delete(note);
+      stopPianoNote(note);
+    } else {
+      next.add(note);
+      playPianoNote(note);
+    }
+    virtualNotesRef.current = next;
+    setVirtualNotes(next);
+  }, []);
 
   const changeMode = (target) => {
     if (target === mode) return; // onglet déjà actif : garder les touches cliquées
@@ -1112,9 +1200,15 @@ export default function ChordIdentifier() {
             btKnownDevice={btKnownDevice}
             midi={midi}
             onDisconnect={disconnectBluetooth}
-            onConnect={showKeyboard && !pianoConnected ? showConnectScreen : undefined}
+            onConnect={showKeyboard && !pianoLinked ? showConnectScreen : undefined}
           />
         )}
+
+        {/* Lecteurs d'écran : annonce de l'accord joué (zone toujours présente) */}
+        <ChordAnnouncer
+          chord={exploreMode ? null : primaryChord}
+          unknown={!exploreMode && midiArray.length > 0}
+        />
 
         {/* ── Main display area ── */}
         <div className="display-area">
@@ -1129,8 +1223,11 @@ export default function ChordIdentifier() {
                 onConnect={requestBluetoothMIDI}
                 onReconnect={reconnectBluetooth}
               />
-              <UsbHint midiStatus={midi.status} />
-              <NoPianoFallback onUseKeyboard={() => setKeyboardChosen(true)} onModeChange={changeMode} />
+              <UsbHint midiStatus={midi.status} onAllow={midi.requestAccess} />
+              <NoPianoFallback
+                onUseKeyboard={() => setKeyboardChosen(true)}
+                prominent={btStatus === "unsupported"}
+              />
             </div>
           )}
 
@@ -1150,7 +1247,7 @@ export default function ChordIdentifier() {
               <div className="idle-state">
                 <span className="idle-icon">🎹</span>
                 <span className="idle-text">
-                  {pianoConnected ? t("idle.play") : t("idle.touch")}
+                  {pianoLinked ? t("idle.play") : t("idle.touch")}
                 </span>
               </div>
             )
@@ -1227,6 +1324,37 @@ export default function ChordIdentifier() {
 
       </div>
     </I18nContext.Provider>
+  );
+}
+
+// ─────────────────────────────────────────────
+// ANNONCE POUR LES LECTEURS D'ÉCRAN
+// ─────────────────────────────────────────────
+
+// Délai avant d'annoncer : quand on pose les doigts un à un, seul l'accord final est lu.
+const ANNOUNCE_DELAY_MS = 400;
+
+/**
+ * Zone `role="status"` invisible qui annonce l'accord principal (ou « accord non
+ * reconnu ») quand il change. Elle reste dans la page, vide au repos : un lecteur
+ * d'écran ne lit une zone live que si elle existait avant le changement.
+ */
+function ChordAnnouncer({ chord, unknown }) {
+  const { t, rootName, chordTypeName } = useI18n();
+  const text = chord
+    ? `${rootName(chord.root)}${chord.suffix}${chord.isInversion ? `/${rootName(chord.bass)}` : ""}, ${chordTypeName(chord.suffix)}`
+    : unknown
+      ? t("chord.unknown")
+      : "";
+  const [spoken, setSpoken] = useState("");
+  useEffect(() => {
+    const id = setTimeout(() => setSpoken(text), ANNOUNCE_DELAY_MS);
+    return () => clearTimeout(id);
+  }, [text]);
+  return (
+    <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+      {spoken}
+    </div>
   );
 }
 

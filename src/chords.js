@@ -53,6 +53,22 @@ export function spellRoot(pc, template, accidentals = DEFAULT_ACCIDENTALS) {
   return spellPc(p, choice === undefined || choice === "tie" ? accidentals : choice);
 }
 
+/**
+ * Fondamentale d'un accord reconnu, de basse `bassPc` (null à l'état fondamental).
+ * Fondamentale à égalité (F♯/G♭ majeur, D♯m/E♭m) d'un accord renversé : on garde
+ * l'écriture dont la basse est la moins altérée (E♭m6/C plutôt que D♯m6/B♯) ;
+ * à altération égale, le réglage décide comme d'habitude.
+ */
+function spellChordRoot(rootPc, template, accidentals, bassPc) {
+  const root = spellRoot(rootPc, template, accidentals);
+  const p = ((rootPc % 12) + 12) % 12;
+  if (bassPc == null || BLACK_ROOT_SPELLING[template.minor ? "minor" : "major"][p] !== "tie") return root;
+  const other = spellPc(p, accidentals === "flat" ? "sharp" : "flat");
+  const bassDegree = template.degreeByInterval.get((bassPc - p + 12) % 12);
+  const bassAlter = (r) => Math.abs(spellDegree(r, bassDegree).alter);
+  return bassAlter(other) < bassAlter(root) ? other : root;
+}
+
 /** Note située à un degré donné au-dessus d'une fondamentale orthographiée. */
 export function spellDegree(root, degree) {
   const letter = (root.letter + degree.step) % 7;
@@ -95,9 +111,12 @@ function parseDegree(label) {
 // src/i18n.js, indexés par `suffix` et par `id` de groupe.
 // `degrees` : notes de l'accord, dans l'ordre où le dictionnaire les empile
 //   du grave à l'aigu (9, 11 et 13 au-dessus de l'octave).
-// `optional` : degrés qu'on peut ne pas jouer (la quinte juste des accords de
-//   7e et plus et du 6/9, la 9e et la 11e des 13e). Tous les autres sont obligatoires,
-//   et aucune note en dehors de `degrees` n'est acceptée.
+// `optional` : degrés qu'on peut ne pas jouer : la quinte juste des accords à note
+//   ajoutée (6/9, add9) et de 7e et plus (sus compris), la 9e des 11e, la 9e et la
+//   11e des 13e. Tous les autres sont obligatoires, et aucune note en dehors de
+//   `degrees` n'est acceptée. Une quinte altérée (♭5, ♯5) n'est jamais facultative :
+//   c'est elle qui définit l'accord. Exception : la quinte de 7♭13, sans laquelle
+//   l'accord se confond avec 7♯5 (même touches).
 // ─────────────────────────────────────────────
 
 const RAW_TEMPLATE_GROUPS = [
@@ -119,6 +138,7 @@ const RAW_TEMPLATE_GROUPS = [
       { suffix: "6",     degrees: ["1", "3", "5", "6"] },
       { suffix: "m6",    degrees: ["1", "♭3", "5", "6"] },
       { suffix: "6/9",   degrees: ["1", "3", "5", "6", "9"], optional: ["5"] },
+      { suffix: "m6/9",  degrees: ["1", "♭3", "5", "6", "9"], optional: ["5"] },
     ],
   },
   {
@@ -131,9 +151,11 @@ const RAW_TEMPLATE_GROUPS = [
       { suffix: "dim7",  degrees: ["1", "♭3", "♭5", "𝄫7"] },
       { suffix: "m7♭5",  degrees: ["1", "♭3", "♭5", "♭7"] },
       { suffix: "aug7",  degrees: ["1", "3", "♯5", "♭7"] },
-      { suffix: "7sus4", degrees: ["1", "4", "5", "♭7"] },
+      { suffix: "7sus4", degrees: ["1", "4", "5", "♭7"], optional: ["5"] },
       { suffix: "7♭5",   degrees: ["1", "3", "♭5", "♭7"] },
       { suffix: "7♯5",   degrees: ["1", "3", "♯5", "♭7"] },
+      { suffix: "maj7♯5", degrees: ["1", "3", "♯5", "7"] },
+      { suffix: "dimM7", degrees: ["1", "♭3", "♭5", "7"] },
     ],
   },
   {
@@ -143,21 +165,25 @@ const RAW_TEMPLATE_GROUPS = [
       { suffix: "9",     degrees: ["1", "3", "5", "♭7", "9"], optional: ["5"] },
       { suffix: "m9",    degrees: ["1", "♭3", "5", "♭7", "9"], optional: ["5"] },
       { suffix: "mM9",   degrees: ["1", "♭3", "5", "7", "9"], optional: ["5"] },
-      { suffix: "add9",  degrees: ["1", "3", "5", "9"] },
-      { suffix: "madd9", degrees: ["1", "♭3", "5", "9"] },
-      { suffix: "9sus4", degrees: ["1", "4", "5", "♭7", "9"] },
+      { suffix: "add9",  degrees: ["1", "3", "5", "9"], optional: ["5"] },
+      { suffix: "madd9", degrees: ["1", "♭3", "5", "9"], optional: ["5"] },
+      { suffix: "9sus4", degrees: ["1", "4", "5", "♭7", "9"], optional: ["5"] },
       { suffix: "7♭9",   degrees: ["1", "3", "5", "♭7", "♭9"], optional: ["5"] },
       { suffix: "7♯9",   degrees: ["1", "3", "5", "♭7", "♯9"], optional: ["5"] },
+      // Dominantes altérées (« 7alt ») : quinte augmentée et neuvième altérée
+      { suffix: "7♯5♭9", degrees: ["1", "3", "♯5", "♭7", "♭9"] },
+      { suffix: "7♯5♯9", degrees: ["1", "3", "♯5", "♭7", "♯9"] },
     ],
   },
   {
     id: "elevenths",
     templates: [
       { suffix: "11",    degrees: ["1", "3", "5", "♭7", "9", "11"], optional: ["5"] },
-      { suffix: "m11",   degrees: ["1", "♭3", "5", "♭7", "9", "11"], optional: ["5"] },
+      { suffix: "m11",   degrees: ["1", "♭3", "5", "♭7", "9", "11"], optional: ["5", "9"] },
       { suffix: "maj11", degrees: ["1", "3", "5", "7", "9", "11"], optional: ["5"] },
       { suffix: "add11", degrees: ["1", "3", "5", "11"] },
       { suffix: "7♯11",  degrees: ["1", "3", "5", "♭7", "♯11"], optional: ["5"] },
+      { suffix: "maj7♯11", degrees: ["1", "3", "5", "7", "♯11"], optional: ["5"] },
     ],
   },
   {
@@ -167,6 +193,10 @@ const RAW_TEMPLATE_GROUPS = [
       { suffix: "13",    degrees: ["1", "3", "5", "♭7", "9", "13"], optional: ["5", "9"] },
       { suffix: "m13",   degrees: ["1", "♭3", "5", "♭7", "9", "11", "13"], optional: ["5", "9", "11"] },
       { suffix: "maj13", degrees: ["1", "3", "5", "7", "9", "13"], optional: ["5", "9"] },
+      { suffix: "13♯11", degrees: ["1", "3", "5", "♭7", "9", "♯11", "13"], optional: ["5", "9"] },
+      { suffix: "13♭9",  degrees: ["1", "3", "5", "♭7", "♭9", "13"], optional: ["5"] },
+      // Quinte obligatoire : sans elle, mêmes touches que 7♯5
+      { suffix: "7♭13",  degrees: ["1", "3", "5", "♭7", "♭13"] },
     ],
   },
 ];
@@ -239,12 +269,21 @@ const SUFFIX_RANK = {
   "11":     4,
   "m11":    4,
   "7♯11":   4,
+  "m6/9":   4,
+  "maj7♯11": 4,
+  "7♭13":   4,
+  "7♯5♭9":  4,
+  "7♯5♯9":  4,
   "maj9":   5,
   "maj11":  5,
   "maj13":  5,
   "13":     5,
   "m13":    5,
   "mM9":    5,
+  "13♯11":  5,
+  "13♭9":   5,
+  "maj7♯5": 5,
+  "dimM7":  5,
 };
 
 // 1.5 > écart de rang entre "6" et "m7" : C E G A avec Do à la basse donne C6, pas Am7/C
@@ -287,8 +326,8 @@ export function identifyChords(
       if ([...intervalSet].some((i) => !template.degreeByInterval.has(i))) continue;
 
       const missing = template.intervals.length - intervalSet.size;
-      const root = spellRoot(rootPc, template, accidentals);
       const isInversion = bassPc !== rootPc;
+      const root = spellChordRoot(rootPc, template, accidentals, isInversion ? bassPc : null);
 
       const playedPairs = pitchClasses.map((pc) => {
         const degree = template.degreeByInterval.get((pc - rootPc + 12) % 12);

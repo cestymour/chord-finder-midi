@@ -6,6 +6,31 @@ Le format s’inspire de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/
 
 ## [Non publié]
 
+## [0.7.0] — 2026-11-03
+
+### Ajouté
+
+- **Nouveaux accords** reconnus et proposés dans le dictionnaire : m6/9, maj7♯5, dimM7 (diminué septième majeure), 7♯5♭9 et 7♯5♯9 (dominantes altérées), maj7♯11, 13♯11, 13♭9 et 7♭13.
+- **Quinte facultative** aussi dans add9, madd9, 7sus4 et 9sus4 (Do Mi Ré donne Cadd9, Do Ré Fa Si♭ donne C9sus4), et **neuvième facultative** dans m11 (Do Mi♭ Fa Si♭ propose Cm11).
+- **Câble USB autorisé à la demande** : la demande d'accès aux appareils MIDI ne s'ouvre plus au lancement. Un bouton « Autoriser le câble USB » la déclenche, et une fois l'accès accordé, le piano en USB est détecté tout seul aux lancements suivants.
+- **Lecteurs d'écran** : l'accord joué est annoncé (par exemple « Cm, Mineur ») quand il change, une fois les doigts posés.
+
+### Modifié
+
+- **Coupure Bluetooth** : pendant la reconnexion automatique, l'écran Piano reste affiché (seule la ligne d'état indique la reconnexion) au lieu de revenir à l'écran de connexion.
+- **Clavier virtuel sans piano** : la ligne d'état affiche simplement « Clavier virtuel », au lieu de « Connexion… » ou d'un message MIDI en rouge.
+- **Navigateur sans Bluetooth** (iPhone, Firefox) : le gros bouton Bluetooth, inutilisable, est remplacé par le message « Bluetooth non disponible », et le clavier virtuel et le dictionnaire passent au premier plan.
+- **Accords renversés mieux écrits** : quand la fondamentale peut s'écrire avec un dièse ou un bémol (F♯/G♭ majeur, D♯m/E♭m), l'écriture qui donne la basse la plus simple est gardée (E♭m6/C plutôt que D♯m6/B♯).
+- **Écran de connexion** : le bouton « Dictionnaire d'accords » est retiré (le dictionnaire reste dans l'onglet Accords), et le bouton « Clavier virtuel » porte l'icône 🎹.
+- **Dictionnaire** : la carte de l'accord choisi et les fondamentales restent affichées en haut ; seuls les types d'accord défilent dessous. Le titre « Fondamentale » est retiré.
+- **Paramètres** : un bouton ⓘ après « Affichage des altérations » explique pourquoi des bémols restent affichés avec les dièses (et inversement) : dans un accord, chaque note garde son nom exact.
+- **Nom de m6 corrigé** : « Mineur sixte » en français et « Menor con sexta » en espagnol (« sixte mineure » désigne un autre intervalle).
+
+### Corrigé
+
+- **Clavier virtuel** : plusieurs touchers très rapides ne désynchronisent plus le son et les touches allumées.
+- **Reconnexion Bluetooth au lancement** : si le piano retrouvé par le navigateur refuse la première connexion, l'appli attend qu'il se signale (jusqu'à 10 s) puis réessaie, au lieu d'afficher tout de suite « Connexion impossible ».
+
 ## [0.6.1] — 2026-11-03
 
 ### Corrigé
@@ -133,7 +158,8 @@ Première version numérotée. Elle regroupe tout ce qui a été développé dep
 - Application installable (PWA).
 - Déploiement automatique sur GitHub Pages à chaque mise à jour de la branche `main`.
 
-[Non publié]: https://github.com/cestymour/chord-finder-midi/compare/v0.6.1...HEAD
+[Non publié]: https://github.com/cestymour/chord-finder-midi/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/cestymour/chord-finder-midi/compare/v0.6.1...v0.7.0
 [0.6.1]: https://github.com/cestymour/chord-finder-midi/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/cestymour/chord-finder-midi/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/cestymour/chord-finder-midi/compare/v0.4.0...v0.5.0
