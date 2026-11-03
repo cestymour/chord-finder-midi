@@ -1,261 +1,20 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import './App.css';
 import useBluetoothMIDI from "./useBluetoothMIDI";
-
-// ─────────────────────────────────────────────
-// CONSTANTS
-// ─────────────────────────────────────────────
-
-const NOTE_NAMES_FR = ["Do", "Do♯", "Ré", "Ré♯", "Mi", "Fa", "Fa♯", "Sol", "Sol♯", "La", "La♯", "Si"];
-
-// Enharmonic alternatives (index = semitone 0–11)
-const NOTE_NAMES_FR_FLAT = ["Do", "Ré♭", "Ré", "Mi♭", "Mi", "Fa", "Sol♭", "Sol", "La♭", "La", "Si♭", "Si"];
-
-// English note names (for chord root labels)
-const NOTE_NAMES_EN = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
-const NOTE_NAMES_EN_FLAT = ["C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"];
-
-// Black-key pitch classes: C#/Db, D#/Eb, F#/Gb, G#/Ab, A#/Bb.
-// Used both to prefer flats in names (common musical convention) and to lay out the virtual keyboard.
-const BLACK_KEY_PCS = new Set([1, 3, 6, 8, 10]);
-
-function getRootNameEN(semitone) {
-  return BLACK_KEY_PCS.has(semitone % 12)
-    ? NOTE_NAMES_EN_FLAT[semitone % 12]
-    : NOTE_NAMES_EN[semitone % 12];
-}
-
-function getNoteNameFR(semitone) {
-  return BLACK_KEY_PCS.has(semitone % 12)
-    ? NOTE_NAMES_FR_FLAT[semitone % 12]
-    : NOTE_NAMES_FR[semitone % 12];
-}
-
-// ─────────────────────────────────────────────
-// CHORD DEFINITIONS
-// Intervals are semitones from root, sorted ascending.
-// ALL intervals must be present for a match (strict mode).
-// ─────────────────────────────────────────────
-
-const CHORD_TEMPLATES = [
-  // ── Triads ──────────────────────────────────────────────
-  { suffix: "",        intervals: [0, 4, 7],                label: "Majeur" },
-  { suffix: "m",       intervals: [0, 3, 7],                label: "Mineur" },
-  { suffix: "dim",     intervals: [0, 3, 6],                label: "Diminué" },
-  { suffix: "aug",     intervals: [0, 4, 8],                label: "Augmenté" },
-  { suffix: "sus2",    intervals: [0, 2, 7],                label: "Suspendu 2" },
-  { suffix: "sus4",    intervals: [0, 5, 7],                label: "Suspendu 4" },
-  { suffix: "5",       intervals: [0, 7],                   label: "Quinte (power)" },
-
-  // ── 6th chords ──────────────────────────────────────────
-  { suffix: "6",       intervals: [0, 4, 7, 9],             label: "Sixte majeure" },
-  { suffix: "m6",      intervals: [0, 3, 7, 9],             label: "Sixte mineure" },
-  { suffix: "6/9",     intervals: [0, 2, 4, 7, 9],          label: "Sixte/Neuvième" },
-
-  // ── 7th chords ──────────────────────────────────────────
-  { suffix: "maj7",    intervals: [0, 4, 7, 11],            label: "Septième majeure" },
-  { suffix: "7",       intervals: [0, 4, 7, 10],            label: "Septième dominante" },
-  { suffix: "m7",      intervals: [0, 3, 7, 10],            label: "Septième mineure" },
-  { suffix: "mM7",     intervals: [0, 3, 7, 11],            label: "Septième mineure majeure" },
-  { suffix: "dim7",    intervals: [0, 3, 6, 9],             label: "Septième diminuée" },
-  { suffix: "m7b5",    intervals: [0, 3, 6, 10],            label: "Demi-diminué" },
-  { suffix: "aug7",    intervals: [0, 4, 8, 10],            label: "Septième augmentée" },
-  { suffix: "7sus4",   intervals: [0, 5, 7, 10],            label: "Sept. sus4" },
-  { suffix: "7b5",     intervals: [0, 4, 6, 10],            label: "Sept. quinte bémol" },
-  { suffix: "7#5",     intervals: [0, 4, 8, 10],            label: "Sept. quinte augmentée" },
-
-  // ── 9th chords ──────────────────────────────────────────
-  { suffix: "maj9",    intervals: [0, 2, 4, 7, 11],         label: "Neuvième majeure" },
-  { suffix: "9",       intervals: [0, 2, 4, 7, 10],         label: "Neuvième dominante" },
-  { suffix: "m9",      intervals: [0, 2, 3, 7, 10],         label: "Neuvième mineure" },
-  { suffix: "add9",    intervals: [0, 2, 4, 7],             label: "Neuvième ajouté" },
-  { suffix: "madd9",   intervals: [0, 2, 3, 7],             label: "Neuvième mineure ajoutée" },
-
-  // ── 11th chords ─────────────────────────────────────────
-  { suffix: "11",      intervals: [0, 2, 4, 5, 7, 10],      label: "Onzième" },
-  { suffix: "m11",     intervals: [0, 2, 3, 5, 7, 10],      label: "Onzième mineure" },
-  { suffix: "maj11",   intervals: [0, 2, 4, 5, 7, 11],      label: "Onzième majeure" },
-
-  // ── 13th chords ─────────────────────────────────────────
-  { suffix: "13",      intervals: [0, 2, 4, 5, 7, 9, 10],   label: "Treizième" },
-  { suffix: "m13",     intervals: [0, 2, 3, 5, 7, 9, 10],   label: "Treizième mineure" },
-  { suffix: "maj13",   intervals: [0, 2, 4, 5, 7, 9, 11],   label: "Treizième majeure" },
-];
-
-// ─────────────────────────────────────────────
-// CHORD DETECTION ENGINE
-// ─────────────────────────────────────────────
-
-/**
- * Given a set of MIDI note numbers, returns an array of matching chords
- * sorted by likelihood (most complete match first).
- */
-function identifyChords(midiNotes) {
-  if (midiNotes.length < 2) return [];
-
-  const sorted = [...midiNotes].sort((a, b) => a - b);
-  const bassNote = sorted[0]; // lowest note played
-  const pitchClasses = [...new Set(sorted.map(n => n % 12))];
-
-  const results = [];
-
-  // Try every pitch class as a potential root
-  for (let rootPc = 0; rootPc < 12; rootPc++) {
-    for (const template of CHORD_TEMPLATES) {
-      // Compute the intervals present if rootPc is the root
-      const intervalsFromRoot = pitchClasses.map(pc => (pc - rootPc + 12) % 12);
-      const intervalSet = new Set(intervalsFromRoot);
-
-      // Strict mode: ALL intervals of the template must be present
-      const allRequiredPresent = template.intervals.every(i => intervalSet.has(i));
-      if (!allRequiredPresent) continue;
-
-      // Count how many of the template's full intervals are present (coverage)
-      const templateSet = new Set(template.intervals);
-      const matchedOptional = template.intervals.filter(i => intervalSet.has(i)).length;
-      const extraNotes = [...intervalSet].filter(i => !templateSet.has(i)).length;
-      if (extraNotes > 0) continue;
-
-      // Score: prefer more matched intervals and fewer extra notes
-      const score = matchedOptional * 10 - extraNotes * 3;
-
-      // Determine bass note for inversion notation
-      const bassPc = bassNote % 12;
-      const isInversion = bassPc !== rootPc;
-      const bassName = isInversion ? getRootNameEN(bassPc) : null;
-
-      // Build note+interval pairs aligned together, ordered bass→treble
-      // Deduplicate by pitch class while preserving lowest-octave occurrence
-      const seenPc = new Set();
-      const noteIntervalPairs = sorted
-        .filter(n => {
-          const pc = n % 12;
-          if (seenPc.has(pc)) return false;
-          seenPc.add(pc);
-          return true;
-        })
-        .map(n => {
-          const pc = n % 12;
-          const interval = (pc - rootPc + 12) % 12;
-          return {
-            note: getNoteNameFR(pc),
-            interval: INTERVAL_LABEL[interval] ?? `+${interval}`,
-          };
-        });
-
-      results.push({
-        root: getRootNameEN(rootPc),
-        suffix: template.suffix,
-        label: template.label,
-        chordName: getRootNameEN(rootPc) + template.suffix + (isInversion ? "/" + bassName : ""),
-        isInversion,
-        bassName,
-        score,
-        matchedOptional,
-        extraNotes,
-        noteIntervalPairs,
-      });
-    }
-  }
-
-  if (results.length === 0) return [];
-
-  // Frequency rank per suffix (lower = more common)
-  const SUFFIX_RANK = {
-    "":       1,
-    "m":      1,
-    "7":      1,
-    "m7":     1,
-    "5":      1,
-    "sus2":   1,
-    "sus4":   1,
-    "maj7":   2,
-    "6":      2,
-    "m6":     2,
-    "add9":   2,
-    "madd9":  2,
-    "9":      2,
-    "m9":     2,
-    "7sus4":  2,
-    "6/9":    3,
-    "7#5":    3,
-    "7b5":    3,
-    "m7b5":   3,
-    "dim7":   3,
-    "mMaj7":  4,
-    "dim":    4,
-    "aug":    4,
-    "aug7":   4,
-    "11":     4,
-    "m11":    4,
-    "maj9":   5,
-    "maj11":  5,
-    "maj13":  5,
-    "13":     5,
-    "m13":    5,
-  };
-
-  const getPriority = (r) => {
-    const rank = SUFFIX_RANK[r.suffix] ?? 6;
-    return rank + (r.isInversion ? 0.5 : 0);
-  };
-
-  // Sort: higher score first, then priority (frequency + inversion penalty), then alphabetical
-  results.sort((a, b) => {
-    if (b.score !== a.score) return b.score - a.score;
-    const pa = getPriority(a);
-    const pb = getPriority(b);
-    if (pa !== pb) return pa - pb;
-    return a.chordName.localeCompare(b.chordName);
-  });
-
-  // Deduplicate: keep only the best result per chordName
-  const seen = new Set();
-  const deduped = [];
-  for (const r of results) {
-    if (!seen.has(r.chordName)) {
-      seen.add(r.chordName);
-      deduped.push(r);
-    }
-  }
-
-  // Return top 4 at most, only if they have a decent score
-  const best = deduped[0].score;
-  return deduped.filter(r => r.score >= best - 5).slice(0, 4);
-}
-
-/** Notes pressées → paires pour le tableau (même dédup par classe de hauteur que l'accord). */
-function buildPendingNotePairs(midiNotes) {
-  const sorted = [...midiNotes].sort((a, b) => a - b);
-  const seenPc = new Set();
-  return sorted
-    .filter((n) => {
-      const pc = n % 12;
-      if (seenPc.has(pc)) return false;
-      seenPc.add(pc);
-      return true;
-    })
-    .map((n) => ({
-      note: getNoteNameFR(n % 12),
-      interval: "—",
-    }));
-}
-
-// Interval → readable label
-const INTERVAL_LABEL = {
-  0: "1",
-  1: "♭2",
-  2: "2",
-  3: "♭3",
-  4: "3",
-  5: "4",
-  6: "♭5",
-  7: "5",
-  8: "♯5",
-  9: "6",
-  10: "♭7",
-  11: "7",
-};
+import {
+  ACCIDENTALS,
+  BLACK_KEY_PCS,
+  CHORD_TEMPLATE_GROUPS,
+  CHORD_TEMPLATES,
+  DEFAULT_ACCIDENTALS,
+  buildChordVoicing,
+  buildPendingNotePairs,
+  describeVoicing,
+  getNoteNameFR,
+  getRootNameEN,
+  identifyChords,
+  inversionCount,
+} from "./chords";
 
 // ─────────────────────────────────────────────
 // MIDI CONNECTION HOOK
@@ -377,11 +136,11 @@ function BluetoothMIDIButton({ btStatus, btError, onConnect }) {
 }
 
 // ─────────────────────────────────────────────
-// VIRTUAL KEYBOARD COMPONENT (mode sans piano connecté)
+// VIRTUAL KEYBOARD COMPONENT (mode clavier virtuel et explorateur d'accords)
 // ─────────────────────────────────────────────
 
 const VIRTUAL_KB_FIRST_NOTE = 48; // Do2 en convention française (C3 en convention anglaise)
-const VIRTUAL_KB_OCTAVES = 2;
+const VIRTUAL_KB_OCTAVES = 3; // dont 2 visibles sur écran étroit, le reste par défilement horizontal
 
 // Disposition statique du clavier, calculée une seule fois
 const VK_NOTES = Array.from(
@@ -390,75 +149,292 @@ const VK_NOTES = Array.from(
 );
 const VK_WHITE_NOTES = VK_NOTES.filter((n) => !BLACK_KEY_PCS.has(n % 12));
 const VK_WHITE_WIDTH = 100 / VK_WHITE_NOTES.length;
+const VK_BLACK_WIDTH = VK_WHITE_WIDTH * 0.6;
 
-// Une touche noire est centrée sur la frontière entre deux touches blanches
-const VK_BLACK_KEYS = (() => {
+// Position horizontale de chaque touche, en % de la largeur totale du clavier.
+// Une touche noire est centrée sur la frontière entre deux touches blanches.
+const VK_KEY_SPANS = (() => {
+  const spans = new Map();
   let whiteIndex = 0;
-  const keys = [];
   for (const n of VK_NOTES) {
     if (BLACK_KEY_PCS.has(n % 12)) {
-      keys.push({ note: n, left: whiteIndex * VK_WHITE_WIDTH });
+      const center = whiteIndex * VK_WHITE_WIDTH;
+      spans.set(n, { left: center - VK_BLACK_WIDTH / 2, right: center + VK_BLACK_WIDTH / 2 });
     } else {
+      spans.set(n, { left: whiteIndex * VK_WHITE_WIDTH, right: (whiteIndex + 1) * VK_WHITE_WIDTH });
       whiteIndex++;
     }
   }
-  return keys;
+  return spans;
 })();
+const VK_BLACK_NOTES = VK_NOTES.filter((n) => BLACK_KEY_PCS.has(n % 12));
 
 // Convention française : le Do central (MIDI 60) est Do3
 const octaveOfFR = (n) => Math.floor(n / 12) - 2;
-const keyLabel = (n) => `${getNoteNameFR(n % 12)}${octaveOfFR(n)}`;
+const keyLabel = (n, accidentals) => `${getNoteNameFR(n % 12, accidentals)}${octaveOfFR(n)}`;
 
-function VirtualKeyboard({ pressedNotes, onToggleNote, onClear }) {
-  const whiteWidth = VK_WHITE_WIDTH;
+/**
+ * Fait défiler le clavier pour que [lowNote, highNote] soit visible :
+ * si une des deux extrémités est masquée, la note grave est amenée à gauche.
+ * Sinon, le clavier ne bouge pas.
+ */
+function useScrollIntoView(scrollerRef, lowNote, highNote) {
+  useEffect(() => {
+    const el = scrollerRef.current;
+    if (!el || lowNote == null || highNote == null) return;
+
+    const total = el.scrollWidth;
+    const view = el.clientWidth;
+    if (total <= view) return; // tout le clavier est visible
+
+    const left = (VK_KEY_SPANS.get(lowNote).left / 100) * total;
+    const right = (VK_KEY_SPANS.get(highNote).right / 100) * total;
+    if (left >= el.scrollLeft && right <= el.scrollLeft + view) return;
+
+    const margin = (VK_WHITE_WIDTH / 100) * total * 0.5;
+    const target = Math.max(0, Math.min(left - margin, total - view));
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    el.scrollTo({ left: target, behavior: reduceMotion ? "auto" : "smooth" });
+  }, [scrollerRef, lowNote, highNote]);
+}
+
+/**
+ * Clavier de 3 octaves défilant horizontalement.
+ * - activeNotes : touches allumées (couleur pleine)
+ * - onKeyClick  : absent → clavier en lecture seule
+ * - scrollToNotes : notes à garder visibles (défilement automatique)
+ */
+function VirtualKeyboard({ activeNotes, onKeyClick, scrollToNotes, toolbar, accidentals }) {
+  const scrollerRef = useRef(null);
+  const interactive = Boolean(onKeyClick);
+  const KeyTag = interactive ? "button" : "div";
+
+  useScrollIntoView(
+    scrollerRef,
+    scrollToNotes?.length ? Math.min(...scrollToNotes) : null,
+    scrollToNotes?.length ? Math.max(...scrollToNotes) : null
+  );
+
+  const keyProps = (n, color) => {
+    const isDown = activeNotes.has(n);
+    return {
+      isDown,
+      props: {
+        className: `vk-key vk-key--${color}${isDown ? " vk-key--down" : ""}${interactive ? "" : " vk-key--static"}`,
+        ...(interactive
+          ? { onClick: () => onKeyClick(n), "aria-pressed": isDown, "aria-label": keyLabel(n, accidentals) }
+          : {}),
+      },
+    };
+  };
 
   return (
     <div className="virtual-kb">
-      <div className="virtual-kb__toolbar">
-        <span className="virtual-kb__hint">Touchez les notes de l'accord</span>
-        <button
-          className="virtual-kb__clear"
-          onClick={onClear}
-          disabled={pressedNotes.size === 0}
-        >
-          Effacer
-        </button>
-      </div>
-      <div className="virtual-kb__keys">
-        {VK_WHITE_NOTES.map((n) => {
-          const isDown = pressedNotes.has(n);
-          return (
-            <button
-              key={n}
-              className={`vk-key vk-key--white${isDown ? " vk-key--down" : ""}`}
-              style={{ width: `${whiteWidth}%` }}
-              onClick={() => onToggleNote(n)}
-              aria-pressed={isDown}
-              aria-label={keyLabel(n)}
-            >
-              {(n % 12 === 0 || isDown) && (
-                <span className="vk-key__label">
-                  {n % 12 === 0 ? keyLabel(n) : getNoteNameFR(n % 12)}
-                </span>
-              )}
-            </button>
-          );
-        })}
-        {VK_BLACK_KEYS.map(({ note, left }) => {
-          const isDown = pressedNotes.has(note);
-          return (
-            <button
-              key={note}
-              className={`vk-key vk-key--black${isDown ? " vk-key--down" : ""}`}
-              style={{ left: `${left}%`, width: `${whiteWidth * 0.6}%` }}
-              onClick={() => onToggleNote(note)}
-              aria-pressed={isDown}
-              aria-label={keyLabel(note)}
-            />
-          );
-        })}
+      <div className="virtual-kb__toolbar">{toolbar}</div>
+      <div className="virtual-kb__scroller" ref={scrollerRef}>
+        <div className="virtual-kb__keys" aria-hidden={interactive ? undefined : true}>
+          {VK_WHITE_NOTES.map((n) => {
+            const { isDown, props } = keyProps(n, "white");
+            return (
+              <KeyTag key={n} {...props} style={{ width: `${VK_WHITE_WIDTH}%` }}>
+                {(n % 12 === 0 || isDown) && (
+                  <span className="vk-key__label">
+                    {n % 12 === 0 ? keyLabel(n, accidentals) : getNoteNameFR(n % 12, accidentals)}
+                  </span>
+                )}
+              </KeyTag>
+            );
+          })}
+          {VK_BLACK_NOTES.map((n) => {
+            const { props } = keyProps(n, "black");
+            return (
+              <KeyTag
+                key={n}
+                {...props}
+                style={{ left: `${VK_KEY_SPANS.get(n).left}%`, width: `${VK_BLACK_WIDTH}%` }}
+              />
+            );
+          })}
+        </div>
       </div>
     </div>
+  );
+}
+
+// ─────────────────────────────────────────────
+// CHORD EXPLORER (sens inverse : choisir un accord → voir ses touches)
+// ─────────────────────────────────────────────
+
+const ROOT_PCS = Array.from({ length: 12 }, (_, pc) => pc);
+
+function ChordExplorer({ rootPc, suffix, onRootChange, onSuffixChange, accidentals }) {
+  return (
+    <div className="explorer">
+      <div className="explorer__section">
+        <div className="explorer__label">Fondamentale</div>
+        <div className="explorer__roots">
+          {ROOT_PCS.map((pc) => (
+            <button
+              key={pc}
+              className={`explorer-chip${pc === rootPc ? " explorer-chip--active" : ""}`}
+              onClick={() => onRootChange(pc)}
+              aria-pressed={pc === rootPc}
+            >
+              {getRootNameEN(pc, accidentals)}
+            </button>
+          ))}
+        </div>
+      </div>
+      {CHORD_TEMPLATE_GROUPS.map((group) => (
+        <div className="explorer__section" key={group.label}>
+          <div className="explorer__label">{group.label}</div>
+          <div className="explorer__types">
+            {group.templates.map((t) => (
+              <button
+                key={t.suffix}
+                className={`explorer-chip${t.suffix === suffix ? " explorer-chip--active" : ""}`}
+                onClick={() => onSuffixChange(t.suffix)}
+                aria-pressed={t.suffix === suffix}
+                title={t.label}
+              >
+                {getRootNameEN(rootPc, accidentals)}{t.suffix}
+              </button>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+const inversionLabel = (i) =>
+  i === 0 ? "État fondamental" : i === 1 ? "1er renversement" : `${i}e renversement`;
+
+// ─────────────────────────────────────────────
+// TOP BAR : onglets d'écran + paramètres
+// ─────────────────────────────────────────────
+
+const MODE_TABS = [
+  { mode: "midi",    label: "Piano" },
+  { mode: "virtual", label: "Clavier", icon: "👆" },
+  { mode: "explore", label: "Accords", icon: "📖" },
+];
+
+function TopBar({ mode, onModeChange, midiStatus, onOpenSettings }) {
+  return (
+    <header className="top-bar">
+      <nav className="mode-tabs" role="tablist" aria-label="Écran affiché">
+        {MODE_TABS.map((tab) => (
+          <button
+            key={tab.mode}
+            role="tab"
+            aria-selected={mode === tab.mode}
+            className={`mode-tab${mode === tab.mode ? " mode-tab--active" : ""}`}
+            onClick={() => onModeChange(tab.mode)}
+          >
+            {/* L'onglet Piano porte le voyant MIDI, visible depuis tous les écrans */}
+            {tab.mode === "midi"
+              ? <span className={`midi-dot midi-dot--${midiStatus}`} aria-hidden="true" />
+              : <span aria-hidden="true">{tab.icon}</span>}
+            {tab.label}
+          </button>
+        ))}
+      </nav>
+      <button className="settings-btn" onClick={onOpenSettings} aria-label="Paramètres">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+          strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="3" />
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+        </svg>
+      </button>
+    </header>
+  );
+}
+
+/** Solutions de secours proposées sous le bouton Bluetooth quand aucun piano n'est connecté. */
+function NoPianoFallback({ onModeChange }) {
+  return (
+    <div className="no-piano">
+      <span className="no-piano__label">Pas de piano sous la main ?</span>
+      <div className="no-piano__actions">
+        <button className="no-piano__btn" onClick={() => onModeChange("virtual")}>
+          👆 Clavier virtuel
+        </button>
+        <button className="no-piano__btn" onClick={() => onModeChange("explore")}>
+          📖 Dictionnaire d'accords
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
+// SETTINGS DIALOG
+// ─────────────────────────────────────────────
+
+const APP_VERSION = import.meta.env.VITE_APP_VERSION;
+const ACCIDENTALS_STORAGE_KEY = "instantchordbt.accidentals";
+
+const ACCIDENTAL_OPTIONS = [
+  { value: "sharp", symbol: "♯", label: "Dièses" },
+  { value: "flat",  symbol: "♭", label: "Bémols" },
+];
+
+function loadAccidentals() {
+  try {
+    const stored = localStorage.getItem(ACCIDENTALS_STORAGE_KEY);
+    return ACCIDENTALS.includes(stored) ? stored : DEFAULT_ACCIDENTALS;
+  } catch {
+    return DEFAULT_ACCIDENTALS;
+  }
+}
+
+function SettingsDialog({ open, onClose, accidentals, onAccidentalsChange }) {
+  const dialogRef = useRef(null);
+
+  // <dialog> natif : fond assombri, Échap pour fermer, focus gardé dans la fenêtre
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    if (open && !dialog.open) dialog.showModal();
+    if (!open && dialog.open) dialog.close();
+  }, [open]);
+
+  return (
+    <dialog
+      ref={dialogRef}
+      className="settings"
+      onClose={onClose}
+      // Un clic sur le fond (hors du contenu) ferme la fenêtre
+      onClick={(e) => { if (e.target === dialogRef.current) onClose(); }}
+    >
+      <div className="settings__content">
+        <div className="settings__header">
+          <h2 className="settings__title">Paramètres</h2>
+          <button className="settings__close" onClick={onClose} aria-label="Fermer">✕</button>
+        </div>
+
+        <div className="settings__row">
+          <span className="settings__label" id="settings-accidentals">Affichage des altérations</span>
+          <div className="settings__choices" role="group" aria-labelledby="settings-accidentals">
+            {ACCIDENTAL_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                className={`settings__choice${accidentals === opt.value ? " settings__choice--active" : ""}`}
+                onClick={() => onAccidentalsChange(opt.value)}
+                aria-pressed={accidentals === opt.value}
+                aria-label={opt.label}
+                title={opt.label}
+              >
+                {opt.symbol}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="settings__footer">InstantChordBT · version {APP_VERSION}</div>
+      </div>
+    </dialog>
   );
 }
 
@@ -508,9 +484,14 @@ export default function ChordIdentifier() {
         ? "connected"
         : midiStatusRefreshed;
 
+  // Mode d'affichage : "midi" (piano connecté), "virtual" (clavier virtuel)
+  // ou "explore" (dictionnaire : choisir un accord pour voir ses touches)
+  const [mode, setMode] = useState("midi");
+  const virtualMode = mode === "virtual";
+  const exploreMode = mode === "explore";
+
   // Mode clavier virtuel : notes séparées de celles du piano physique,
   // pour qu'un note-off MIDI ne relâche pas une touche cliquée à l'écran.
-  const [virtualMode, setVirtualMode] = useState(false);
   const [virtualNotes, setVirtualNotes] = useState(new Set());
 
   const toggleVirtualNote = useCallback((note) => {
@@ -526,17 +507,59 @@ export default function ChordIdentifier() {
     setVirtualNotes(new Set());
   }, []);
 
-  const toggleVirtualMode = () => {
-    setVirtualMode(v => !v);
+  const changeMode = (target) => {
+    setMode(target);
     clearVirtualNotes();
   };
 
+  // Paramètres
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [accidentals, setAccidentals] = useState(loadAccidentals);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(ACCIDENTALS_STORAGE_KEY, accidentals);
+    } catch {
+      // stockage indisponible (navigation privée…) : le choix vaut pour la session
+    }
+  }, [accidentals]);
+
+  // Explorateur d'accords
+  const [exploreRoot, setExploreRoot] = useState(0); // Do
+  const [exploreSuffix, setExploreSuffix] = useState(""); // majeur
+  const [exploreInversion, setExploreInversion] = useState(0);
+
+  const exploreTemplate = CHORD_TEMPLATES.find(t => t.suffix === exploreSuffix);
+  const exploreVoicing = buildChordVoicing(exploreRoot, exploreTemplate, exploreInversion);
+  const exploreChord = describeVoicing(exploreRoot, exploreTemplate, exploreVoicing, accidentals);
+  const exploreNotes = exploreVoicing.map(n => n.midi);
+  const exploreActive = new Set(exploreNotes);
+
+  const changeExploreRoot = (pc) => {
+    setExploreRoot(pc);
+    setExploreInversion(0);
+  };
+
+  const changeExploreSuffix = (suffix) => {
+    setExploreSuffix(suffix);
+    setExploreInversion(0);
+  };
+
+  const nextInversion = () => {
+    setExploreInversion(i => (i + 1) % inversionCount(exploreTemplate));
+  };
+
+  // Écran de démarrage sans piano : toujours proposer la connexion (valeur ajoutée de l'appli),
+  // y compris quand Web MIDI est indisponible ; le clavier virtuel et le dictionnaire
+  // ne sont que des solutions de secours.
   const showBluetoothButton =
-    !virtualMode && btStatus !== "connected" && midiStatusRefreshed === "disconnected";
+    mode === "midi" &&
+    btStatus !== "connected" &&
+    (midiStatusRefreshed === "disconnected" || midiStatusRefreshed === "denied");
 
   // Compute chords whenever pressed notes change
   const midiArray = [...(virtualMode ? virtualNotes : pressedNotes)];
-  const chords = identifyChords(midiArray);
+  const chords = identifyChords(midiArray, accidentals);
 
   const primaryChord = chords[0] ?? null;
   const secondaryChords = chords.slice(1);
@@ -549,48 +572,61 @@ export default function ChordIdentifier() {
           label: "Accord non reconnu",
           isInversion: false,
           bassName: null,
-          noteIntervalPairs: buildPendingNotePairs(midiArray),
+          noteIntervalPairs: buildPendingNotePairs(midiArray, accidentals),
         }
       : null;
 
   // ── Render ────────────────────────────────
   return (
-    <div className={`app${virtualMode ? " app--virtual" : ""}`}>
+    <div className={`app${mode !== "midi" ? " app--keyboard" : ""}`}>
 
-      {/* ── MIDI Status indicator ── */}
-      <div className={`midi-status midi-status--${virtualMode ? "virtual" : displayedMidiStatus}`}>
-        <span className="midi-dot" />
-        <span className="midi-label">
-          {virtualMode ? "Clavier virtuel" : (
-            <>
-              {displayedMidiStatus === "pending" && "Connexion MIDI…"}
-              {displayedMidiStatus === "connected" && "MIDI connecté"}
-              {displayedMidiStatus === "disconnected" && "Aucun instrument MIDI"}
-              {displayedMidiStatus === "denied" && "MIDI non disponible"}
-            </>
-          )}
-        </span>
-        <button
-          className={`mode-toggle${virtualMode ? " mode-toggle--active" : ""}`}
-          onClick={toggleVirtualMode}
-          aria-pressed={virtualMode}
-        >
-          {virtualMode ? "Quitter le clavier" : "🎹 Clavier virtuel"}
-        </button>
-      </div>
+      <TopBar
+        mode={mode}
+        onModeChange={changeMode}
+        midiStatus={displayedMidiStatus}
+        onOpenSettings={() => setSettingsOpen(true)}
+      />
+
+      {/* ── MIDI Status (écran Piano uniquement) ── */}
+      {mode === "midi" && (
+        <div className={`midi-status midi-status--${displayedMidiStatus}`}>
+          <span className="midi-dot" />
+          <span className="midi-label">
+            {displayedMidiStatus === "pending" && "Connexion MIDI…"}
+            {displayedMidiStatus === "connected" && "MIDI connecté"}
+            {displayedMidiStatus === "disconnected" && "Aucun instrument MIDI"}
+            {displayedMidiStatus === "denied" && "MIDI non disponible"}
+          </span>
+        </div>
+      )}
 
       {/* ── Main display area ── */}
       <div className="display-area">
 
         {showBluetoothButton && (
-          <BluetoothMIDIButton
-            btStatus={btStatus}
-            btError={btError}
-            onConnect={requestBluetoothMIDI}
-          />
+          <div className="connect-screen">
+            <BluetoothMIDIButton
+              btStatus={btStatus}
+              btError={btError}
+              onConnect={requestBluetoothMIDI}
+            />
+            <NoPianoFallback onModeChange={changeMode} />
+          </div>
         )}
 
-        {midiArray.length === 0 ? (
+        {exploreMode ? (
+          <>
+            {/* Carte compacte : les sélecteurs doivent tenir sous elle sur mobile */}
+            <ChordCard chord={exploreChord} size="secondary" className="chord-card--explore" />
+            <ChordExplorer
+              rootPc={exploreRoot}
+              suffix={exploreSuffix}
+              onRootChange={changeExploreRoot}
+              onSuffixChange={changeExploreSuffix}
+              accidentals={accidentals}
+            />
+          </>
+        ) : midiArray.length === 0 ? (
           !showBluetoothButton && (
             <div className="idle-state">
               <span className="idle-icon">🎹</span>
@@ -624,11 +660,46 @@ export default function ChordIdentifier() {
 
       {virtualMode && (
         <VirtualKeyboard
-          pressedNotes={virtualNotes}
-          onToggleNote={toggleVirtualNote}
-          onClear={clearVirtualNotes}
+          activeNotes={virtualNotes}
+          onKeyClick={toggleVirtualNote}
+          accidentals={accidentals}
+          toolbar={
+            <>
+              <span className="virtual-kb__hint">Touchez les notes de l'accord</span>
+              <button
+                className="virtual-kb__clear"
+                onClick={clearVirtualNotes}
+                disabled={virtualNotes.size === 0}
+              >
+                Effacer
+              </button>
+            </>
+          }
         />
       )}
+
+      {exploreMode && (
+        <VirtualKeyboard
+          activeNotes={exploreActive}
+          scrollToNotes={exploreNotes}
+          accidentals={accidentals}
+          toolbar={
+            <>
+              <span className="virtual-kb__hint">{inversionLabel(exploreInversion)}</span>
+              <button className="virtual-kb__action" onClick={nextInversion}>
+                Renverser ↻
+              </button>
+            </>
+          }
+        />
+      )}
+
+      <SettingsDialog
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        accidentals={accidentals}
+        onAccidentalsChange={setAccidentals}
+      />
 
     </div>
   );
@@ -638,7 +709,7 @@ export default function ChordIdentifier() {
 // CHORD CARD SUB-COMPONENT
 // ─────────────────────────────────────────────
 
-function ChordCard({ chord, size, isPending = false }) {
+function ChordCard({ chord, size, isPending = false, className = "" }) {
   // Split chord name into root + suffix + inversion for styled rendering
   const rootPart = chord.root;
   const suffixPart = chord.suffix;
@@ -646,7 +717,7 @@ function ChordCard({ chord, size, isPending = false }) {
 
   return (
     <div
-      className={`chord-card chord-card--${size}${isPending ? " chord-card--pending" : ""}`}
+      className={`chord-card chord-card--${size}${isPending ? " chord-card--pending" : ""}${className ? ` ${className}` : ""}`}
     >
 
       {/* Chord name — very large */}

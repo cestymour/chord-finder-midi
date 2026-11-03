@@ -107,11 +107,12 @@
    /* ─────────────────────────────────────────────
       MIDI STATUS BAR
       ───────────────────────────────────────────── */
+   /* Ligne d'état MIDI, sous les onglets (écran Piano uniquement) */
    .midi-status {
      display: flex;
      align-items: center;
      gap: 8px;
-     padding: 10px 20px;
+     padding: 6px 20px;
      border-bottom: 1px solid var(--border-subtle);
      background: var(--bg-surface);
      flex-shrink: 0;
@@ -630,12 +631,6 @@
      }
    }
    
-   /* ─────────────────────────────────────────────
-      SAFE AREA (notch, home bar)
-      ───────────────────────────────────────────── */
-   .midi-status {
-     padding-top: max(10px, env(safe-area-inset-top));
-   }
    
 /* ─────────────────────────────────────────────
    BLUETOOTH MIDI CONNECT BUTTON
@@ -780,60 +775,398 @@
 }
 
 /* ─────────────────────────────────────────────
-   MODE TOGGLE (barre d'état)
+   TOP BAR : onglets d'écran + roue crantée
    ───────────────────────────────────────────── */
-.mode-toggle {
-  margin-left: auto;
+.top-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: max(8px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right))
+    8px max(12px, env(safe-area-inset-left));
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg-surface);
   flex-shrink: 0;
+  position: relative;
+  z-index: 5;
+}
+
+/* Contrôle segmenté : un onglet toujours actif, jamais de « désélection » */
+.mode-tabs {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  padding: 3px;
+  gap: 3px;
+  background: var(--bg-deep);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+}
+
+.mode-tab {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   white-space: nowrap;
   font-family: var(--font-mono);
-  font-size: 0.6rem;
+  font-size: 0.62rem;
   font-weight: 600;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--txt-secondary);
-  background: var(--bg-card);
-  border: 1px solid var(--border-mid);
-  border-radius: var(--radius-sm);
-  padding: 5px 10px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: calc(var(--radius-md) - 4px);
+  padding: 7px 4px;
   cursor: pointer;
   transition: color 0.2s, border-color 0.2s, background 0.2s;
   -webkit-tap-highlight-color: transparent;
 }
 
-.mode-toggle:hover {
-  color: var(--accent);
-  border-color: var(--accent);
+/* Survol uniquement avec une souris : sur écran tactile, :hover reste collé après un appui */
+@media (hover: hover) {
+  .mode-tab:hover {
+    color: var(--txt-primary);
+  }
 }
 
-.mode-toggle--active {
+.mode-tab--active,
+.mode-tab--active:hover {
   color: var(--accent);
   border-color: var(--accent);
   background: var(--accent-dim);
 }
 
-.midi-status--virtual .midi-dot {
-  background: var(--accent);
-  box-shadow: 0 0 6px var(--accent);
-}
-.midi-status--virtual .midi-label { color: var(--accent); }
+/* Voyant MIDI dans l'onglet Piano */
+.midi-dot--pending      { background: var(--pending); }
+.midi-dot--connected    { background: var(--ok); box-shadow: 0 0 6px var(--ok); }
+.midi-dot--disconnected { background: var(--warn); }
+.midi-dot--denied       { background: var(--err); }
 
-/* En mode virtuel (portrait), le clavier occupe le bas.
+.settings-btn {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  color: var(--txt-secondary);
+  background: transparent;
+  border: 1px solid var(--border-mid);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.settings-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
+@media (hover: hover) {
+  .settings-btn:hover {
+    color: var(--accent);
+    border-color: var(--accent);
+  }
+}
+
+/* ─────────────────────────────────────────────
+   ÉCRAN DE CONNEXION (piano non connecté)
+   ───────────────────────────────────────────── */
+.connect-screen {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding-bottom: max(16px, env(safe-area-inset-bottom));
+}
+
+.no-piano {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  animation: fade-in 0.6s ease;
+}
+
+.no-piano__label {
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--txt-dim);
+}
+
+.no-piano__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+
+.no-piano__btn {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  color: var(--txt-secondary);
+  background: var(--bg-card);
+  border: 1px solid var(--border-mid);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+@media (hover: hover) {
+  .no-piano__btn:hover {
+    color: var(--accent);
+    border-color: var(--accent);
+  }
+}
+
+@media (orientation: landscape) and (max-height: 560px) {
+  .connect-screen {
+    gap: 8px;
+    padding-bottom: 0;
+  }
+}
+
+/* ─────────────────────────────────────────────
+   SETTINGS DIALOG
+   ───────────────────────────────────────────── */
+.settings {
+  width: min(360px, calc(100vw - 32px));
+  margin: auto; /* centrage natif de <dialog>, annulé par la remise à zéro globale */
+  padding: 0;
+  color: var(--txt-primary);
+  background: var(--bg-card);
+  border: 1px solid var(--border-accent);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 16px 48px #000000aa;
+}
+
+.settings::backdrop {
+  background: #000000aa;
+}
+
+.settings[open] {
+  animation: fade-in 0.2s ease;
+}
+
+.settings__content {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 20px;
+}
+
+.settings__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.settings__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+}
+
+.settings__close {
+  width: 32px;
+  height: 32px;
+  color: var(--txt-secondary);
+  background: transparent;
+  border: 1px solid var(--border-mid);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.settings__row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.settings__label {
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--txt-dim);
+}
+
+.settings__choices {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.settings__choice {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-size: 2rem;
+  font-weight: 500;
+  line-height: 1;
+  color: var(--txt-secondary);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-mid);
+  border-radius: var(--radius-sm);
+  padding: 10px 8px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.settings__choice--active {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-dim);
+}
+
+
+.settings__footer {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.08em;
+  color: var(--txt-dim);
+  text-align: center;
+}
+
+/* En mode clavier virtuel ou dictionnaire (portrait), le clavier occupe le bas.
    La liste secondaire défile seule tant que la place suffit ; sur un écran court,
    toute la zone d'accords défile pour que rien ne soit coupé.
    Exclu en paysage bas, qui a sa propre mise en page en colonnes. */
 @media not all and (orientation: landscape) and (max-height: 560px) {
-  .app--virtual .display-area {
+  .app--keyboard .display-area {
     min-height: 0;
     overflow-y: auto;
     padding-bottom: 12px;
   }
 
-  .app--virtual .secondary-chords {
+  .app--keyboard .secondary-chords {
     flex: 1 1 auto;
     min-height: 120px;
     overflow-y: auto;
     padding-bottom: 0;
+  }
+
+}
+
+/* ─────────────────────────────────────────────
+   CHORD EXPLORER (dictionnaire d'accords)
+   ───────────────────────────────────────────── */
+/* Carte de l'accord choisi : format compact, couleurs de l'accord principal */
+.chord-card--explore {
+  flex-shrink: 0;
+  border-color: var(--border-accent);
+}
+
+.chord-card--explore::before {
+  background: linear-gradient(to bottom, transparent, var(--accent), transparent);
+  opacity: 1;
+}
+
+.chord-card--explore .chord-root {
+  color: var(--txt-primary);
+}
+
+.chord-card--explore .chord-suffix,
+.chord-card--explore .chord-inversion {
+  color: var(--accent);
+}
+
+.explorer {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  animation: fade-in 0.3s ease;
+}
+
+.explorer__section {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.explorer__label {
+  font-family: var(--font-mono);
+  font-size: 0.55rem;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--txt-dim);
+  padding: 0 2px;
+}
+
+.explorer__roots {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 5px;
+}
+
+.explorer__types {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.explorer-chip {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--txt-secondary);
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 5px 8px;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+@media (hover: hover) {
+  .explorer-chip:hover {
+    border-color: var(--border-accent);
+    color: var(--txt-primary);
+  }
+}
+
+.explorer-chip--active,
+.explorer-chip--active:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-dim);
+}
+
+/* Paysage bas : sélecteurs dans la colonne de droite, défilant seuls */
+@media (orientation: landscape) and (max-height: 560px) {
+  .chord-card--explore {
+    flex: 0 0 calc((100% - 12px) / 2);
+    max-width: calc((100% - 12px) / 2);
+    min-width: 0;
+    align-self: flex-start;
+  }
+
+  .explorer {
+    flex: 0 0 calc((100% - 12px) / 2);
+    max-width: calc((100% - 12px) / 2);
+    min-width: 0;
+    min-height: 0;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-mid) transparent;
   }
 }
 
@@ -887,9 +1220,48 @@
   cursor: default;
 }
 
+.virtual-kb__action {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+  background: transparent;
+  border: 1px solid var(--accent-dim);
+  border-radius: var(--radius-sm);
+  padding: 4px 10px;
+  cursor: pointer;
+}
+
+.virtual-kb__action:hover {
+  border-color: var(--accent);
+}
+
+/* Fenêtre de défilement horizontal sur le clavier de 3 octaves */
+.virtual-kb__scroller {
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-mid) transparent;
+}
+
+.virtual-kb__scroller::-webkit-scrollbar {
+  height: 4px;
+}
+
+.virtual-kb__scroller::-webkit-scrollbar-thumb {
+  background: var(--border-mid);
+  border-radius: 4px;
+}
+
+/* Largeur du clavier : en portrait, 150 % de la fenêtre (= 2 octaves visibles
+   sur 3, le reste par défilement) ; en paysage (téléphone couché, ordinateur),
+   les 3 octaves tiennent sans défilement (voir plus bas). */
 .virtual-kb__keys {
   position: relative;
   display: flex;
+  width: 150%;
   height: clamp(110px, 22vh, 170px);
   user-select: none;
   touch-action: manipulation;
@@ -923,7 +1295,6 @@
   position: absolute;
   top: 0;
   height: 60%;
-  transform: translateX(-50%);
   z-index: 2;
   background: linear-gradient(to bottom, #1a1d22, #2c3038);
   border: 1px solid #000;
@@ -934,6 +1305,11 @@
 .vk-key--black.vk-key--down {
   background: linear-gradient(to bottom, #007a55, #00c888);
   box-shadow: 0 0 12px #00e5a088;
+}
+
+/* Clavier en lecture seule (dictionnaire) */
+.vk-key--static {
+  cursor: default;
 }
 
 .vk-key__label {
@@ -956,5 +1332,11 @@
 
   .virtual-kb__keys {
     height: clamp(80px, 30vh, 130px);
+  }
+}
+
+@media (orientation: landscape) {
+  .virtual-kb__keys {
+    width: 100%;
   }
 }

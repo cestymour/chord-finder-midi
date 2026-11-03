@@ -2,11 +2,18 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
+import { readFileSync } from 'node:fs'
+
+// Version affichée dans les paramètres de l'appli (champ "version" de package.json)
+const { version } = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf-8'))
 
 const base = process.env.NODE_ENV === 'production' ? '/chord-finder-midi/' : '/'
 
 export default defineConfig({
   base,
+  define: {
+    'import.meta.env.VITE_APP_VERSION': JSON.stringify(version),
+  },
   plugins: [
     react(),
     VitePWA({
