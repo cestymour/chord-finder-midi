@@ -6,6 +6,24 @@ Le format s’inspire de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/
 
 ## [Non publié]
 
+## [0.5.0] — 2026-11-03
+
+### Ajouté
+
+- **Nom du piano connecté** dans la ligne d’état de l’écran Piano, avec l’icône Bluetooth quand il est connecté directement (à la place de « MIDI connecté »).
+- **Bouton « Déconnecter »** pour le piano Bluetooth, dans la ligne d’état.
+- **Reconnexion automatique** : si la liaison Bluetooth se coupe (piano éteint, trop loin), l’application réessaie seule pendant une vingtaine de secondes. Ensuite, le bouton propose « Reconnecter » avec le nom du piano, sans repasser par la liste des appareils, et un lien « Connecter un autre piano ».
+- À la réouverture de l’application, le dernier piano Bluetooth est proposé directement, si le navigateur le permet.
+- **Connexion par câble USB expliquée** sur l’écran de connexion : le piano branché en USB est détecté tout seul (sur téléphone, avec un adaptateur USB OTG).
+
+### Modifié
+
+- L’écran sans piano s’intitule « Connectez votre piano » et présente les deux moyens : Bluetooth et câble USB.
+- **Messages d’erreur utiles** à la place de « Erreur de connexion Bluetooth. » : piano absent de la liste, Bluetooth désactivé, accès refusé, piano déjà connecté ailleurs. Même chose pour l’accès MIDI refusé ou un navigateur qui ne gère pas le MIDI par câble (iPhone, iPad).
+- Les ports MIDI virtuels du système (« Midi Through » sous Linux) ne comptent plus comme un piano connecté.
+- Débrancher le câble USB relâche les notes en cours, comme une coupure Bluetooth.
+- Le bouton Bluetooth s’affiche même si la demande d’autorisation MIDI du navigateur reste sans réponse.
+
 ## [0.4.0] — 2026-11-03
 
 ### Ajouté
@@ -95,7 +113,8 @@ Première version numérotée. Elle regroupe tout ce qui a été développé dep
 - Application installable (PWA).
 - Déploiement automatique sur GitHub Pages à chaque mise à jour de la branche `main`.
 
-[Non publié]: https://github.com/cestymour/chord-finder-midi/compare/v0.4.0...HEAD
+[Non publié]: https://github.com/cestymour/chord-finder-midi/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/cestymour/chord-finder-midi/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/cestymour/chord-finder-midi/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/cestymour/chord-finder-midi/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/cestymour/chord-finder-midi/compare/v0.1.0...v0.2.0

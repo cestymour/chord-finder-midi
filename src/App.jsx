@@ -38,8 +38,20 @@ import {
 // Pédale de sustain : contrôleur 64, enfoncée à partir de 64
 const SUSTAIN_CONTROLLER = 64;
 
-function useMIDI(onNoteOn, onNoteOff, onSustain, refreshKey) {
-  const [midiStatus, setMidiStatus] = useState("pending"); // pending | connected | disconnected | denied
+// Ports MIDI virtuels du système (« Midi Through » sous Linux) : ce ne sont pas des instruments.
+const VIRTUAL_MIDI_PORT = /\bthrough\b/i;
+
+/**
+ * Entrées Web MIDI : câble USB, ou piano Bluetooth jumelé au niveau du système.
+ * Retourne { status, devices } :
+ * - status : "pending" | "connected" | "disconnected" | "denied" (accès refusé) | "unsupported"
+ * - devices : noms des instruments écoutés
+ */
+function useMIDI(onNoteOn, onNoteOff, onSustain) {
+  const [midiState, setMidiState] = useState(() => ({
+    status: navigator.requestMIDIAccess ? "pending" : "unsupported",
+    devices: [],
+  }));
   const inputsRef = useRef([]);
 
   const handleMidiMessage = useCallback((event) => {
@@ -56,12 +68,7 @@ function useMIDI(onNoteOn, onNoteOff, onSustain, refreshKey) {
   }, [onNoteOn, onNoteOff, onSustain]);
 
   useEffect(() => {
-    if (!navigator.requestMIDIAccess) {
-      setMidiStatus("denied");
-      return;
-    }
-
-    setMidiStatus("pending");
+    if (!navigator.requestMIDIAccess) return; // état initial "unsupported"
 
     const attachListeners = (midiAccess) => {
       // Detach old listeners
@@ -70,14 +77,20 @@ function useMIDI(onNoteOn, onNoteOff, onSustain, refreshKey) {
       });
       inputsRef.current = [];
 
-      let count = 0;
+      const names = new Set();
       midiAccess.inputs.forEach(input => {
+        if (input.state === "disconnected" || VIRTUAL_MIDI_PORT.test(input.name ?? "")) return;
         input.onmidimessage = handleMidiMessage;
         inputsRef.current.push(input);
-        count++;
+        names.add(input.name || "MIDI");
       });
 
-      setMidiStatus(count > 0 ? "connected" : "disconnected");
+      const devices = [...names];
+      setMidiState(prev =>
+        prev.devices.join("\n") === devices.join("\n") && prev.status !== "pending"
+          ? prev
+          : { status: devices.length > 0 ? "connected" : "disconnected", devices }
+      );
     };
 
     navigator.requestMIDIAccess()
@@ -89,7 +102,7 @@ function useMIDI(onNoteOn, onNoteOff, onSustain, refreshKey) {
         };
       })
       .catch(() => {
-        setMidiStatus("denied");
+        setMidiState({ status: "denied", devices: [] });
       });
 
     return () => {
@@ -99,56 +112,148 @@ function useMIDI(onNoteOn, onNoteOff, onSustain, refreshKey) {
         });
       }
     };
-  }, [handleMidiMessage, refreshKey]);
+  }, [handleMidiMessage]);
 
-  return midiStatus;
+  return midiState;
 }
 
 // ─────────────────────────────────────────────
 // BLUETOOTH MIDI BUTTON COMPONENT
 // ─────────────────────────────────────────────
 
-function BluetoothMIDIButton({ btStatus, btError, onConnect }) {
+function BluetoothIcon({ className }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <polyline points="6.5 6.5 17.5 17.5" />
+      <polyline points="6.5 17.5 17.5 6.5" />
+      <polyline points="12 2 17.5 6.5 12 11 17.5 17.5 12 22" />
+      <line x1="12" y1="2" x2="12" y2="22" />
+    </svg>
+  );
+}
+
+const BT_LOADING_LABELS = {
+  scanning: "bt.scanning",
+  connecting: "bt.connecting",
+  reconnecting: "bt.reconnecting",
+};
+
+/**
+ * Gros bouton rond de connexion Bluetooth. Quand un piano est déjà connu (choisi avant
+ * une coupure, une déconnexion, ou retrouvé à l'ouverture), il propose de s'y reconnecter
+ * sans sélecteur, avec un lien pour choisir un autre piano.
+ */
+function BluetoothMIDIButton({ btStatus, btError, knownDevice, onConnect, onReconnect }) {
   const { t } = useI18n();
-  const isLoading = btStatus === "scanning" || btStatus === "connecting";
+  const loadingLabel = BT_LOADING_LABELS[btStatus];
+  const isLoading = Boolean(loadingLabel);
+  const offerReconnect = knownDevice && !isLoading && btStatus !== "unsupported";
 
   return (
     <div className="bt-connect-container">
       <button
         className={`bt-connect-btn ${isLoading ? "bt-connect-btn--loading" : ""}`}
-        onClick={onConnect}
+        onClick={offerReconnect ? onReconnect : onConnect}
         disabled={isLoading}
-        aria-label={t("bt.connectAria")}
+        aria-label={offerReconnect ? undefined : t("bt.connectAria")}
       >
-        <svg
-          className="bt-connect-icon"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <polyline points="6.5 6.5 17.5 17.5" />
-          <polyline points="6.5 17.5 17.5 6.5" />
-          <polyline points="12 2 17.5 6.5 12 11 17.5 17.5 12 22" />
-          <line x1="12" y1="2" x2="12" y2="22" />
-        </svg>
+        <BluetoothIcon className="bt-connect-icon" />
 
         <span className="bt-connect-label">
-          {btStatus === "scanning" && t("bt.scanning")}
-          {btStatus === "connecting" && t("bt.connecting")}
-          {btStatus !== "scanning" && btStatus !== "connecting" && t("bt.connect")}
+          {isLoading ? (
+            t(loadingLabel)
+          ) : offerReconnect ? (
+            <>
+              {t("bt.reconnect")}
+              {knownDevice.name && <span className="bt-connect-device">{knownDevice.name}</span>}
+            </>
+          ) : (
+            t("bt.connect")
+          )}
         </span>
       </button>
 
-      {/* Message du navigateur s'il en donne un (déjà dans sa langue), sinon message générique */}
-      {btStatus === "error" && (
-        <p className="bt-connect-error">{btError || t("bt.error")}</p>
+      {btStatus === "lost" && <p className="bt-connect-error">{t("bt.lost")}</p>}
+
+      {/* Sélecteur fermé : simple conseil, pas une erreur */}
+      {btStatus === "error" && btError === "cancelled" && (
+        <p className="bt-connect-hint">{t("bt.error.cancelled")}</p>
+      )}
+      {btStatus === "error" && btError && btError !== "cancelled" && (
+        <p className="bt-connect-error">{t(`bt.error.${btError}`)}</p>
       )}
 
       {btStatus === "unsupported" && (
         <p className="bt-connect-error">{t("bt.unsupported")}</p>
+      )}
+
+      {offerReconnect && (
+        <button className="bt-connect-other" onClick={onConnect}>
+          {t("bt.other")}
+        </button>
+      )}
+    </div>
+  );
+}
+
+/** Branchement par câble : détecté tout seul par Web MIDI, on explique seulement comment faire. */
+function UsbHint({ midiStatus }) {
+  const { t } = useI18n();
+  const textKey =
+    midiStatus === "denied" ? "usb.denied" : midiStatus === "unsupported" ? "usb.unsupported" : "usb.hint";
+  return (
+    <div className="usb-hint">
+      <span className="usb-hint__title">🔌 {t("usb.title")}</span>
+      <p className={`usb-hint__text${textKey === "usb.hint" ? "" : " usb-hint__text--warn"}`}>{t(textKey)}</p>
+    </div>
+  );
+}
+
+/** Ligne d'état sous les onglets (écran Piano) : nom du piano connecté et moyen de connexion. */
+function ConnectionStatus({ btStatus, btKnownDevice, midi, onDisconnect }) {
+  const { t } = useI18n();
+  let status;
+  let label;
+  let bluetooth = false;
+
+  if (btStatus === "connected") {
+    status = "connected";
+    bluetooth = true;
+    label = btKnownDevice?.name || t("bt.piano");
+  } else if (btStatus === "reconnecting") {
+    status = "pending";
+    bluetooth = true;
+    label = t("bt.statusReconnecting");
+  } else if (btStatus === "scanning" || btStatus === "connecting") {
+    status = "pending";
+    label = t("midi.pending");
+  } else if (midi.status === "connected") {
+    // Web MIDI ne dit pas si l'instrument est en USB ou jumelé en Bluetooth : icône neutre
+    status = "connected";
+    label = `🎹 ${midi.devices.join(", ")}`;
+  } else {
+    status = midi.status === "unsupported" ? "denied" : midi.status;
+    label = t(`midi.${midi.status}`);
+  }
+
+  return (
+    <div className={`midi-status midi-status--${status}`}>
+      <span className="midi-dot" />
+      {bluetooth && <BluetoothIcon className="midi-status__icon" />}
+      <span className="midi-label">{label}</span>
+      {bluetooth && (
+        <button className="midi-status__action" onClick={onDisconnect}>
+          {t("bt.disconnect")}
+        </button>
       )}
     </div>
   );
@@ -642,24 +747,21 @@ export default function ChordIdentifier() {
   const {
     btStatus,
     btError,
+    btKnownDevice,
     requestBluetoothMIDI,
+    reconnectBluetooth,
+    disconnectBluetooth,
   } = useBluetoothMIDI({ onNoteOn: handleNoteOn, onNoteOff: handleNoteOff, onSustain: handleSustain });
 
+  const midi = useMIDI(handleNoteOn, handleNoteOff, handleSustain);
+  const midiDevicesKey = midi.devices.join("\n");
+
   useEffect(() => {
-    // Lors d'une déconnexion Bluetooth, évite de garder des notes "bloquées".
-    if (btStatus === "connected") return;
+    // À chaque changement de connexion (Bluetooth coupé, câble débranché…),
+    // évite de garder des notes "bloquées".
     const timer = setTimeout(() => setPianoNotes(EMPTY_PIANO_NOTES), 0);
     return () => clearTimeout(timer);
-  }, [btStatus]);
-
-  const midiStatusRefreshed = useMIDI(handleNoteOn, handleNoteOff, handleSustain);
-
-  const displayedMidiStatus =
-    btStatus === "scanning" || btStatus === "connecting"
-      ? "pending"
-      : btStatus === "connected"
-        ? "connected"
-        : midiStatusRefreshed;
+  }, [btStatus, midiDevicesKey]);
 
   // Mode d'affichage : "midi" (piano connecté), "virtual" (clavier virtuel)
   // ou "explore" (dictionnaire : choisir un accord pour voir ses touches)
@@ -750,10 +852,12 @@ export default function ChordIdentifier() {
   // Écran de démarrage sans piano : toujours proposer la connexion (valeur ajoutée de l'appli),
   // y compris quand Web MIDI est indisponible ; le clavier virtuel et le dictionnaire
   // ne sont que des solutions de secours.
+  // (Aussi pendant que Web MIDI attend : la demande d'autorisation du navigateur
+  // peut rester sans réponse, et le Bluetooth ne doit pas en dépendre.)
   const showBluetoothButton =
     mode === "midi" &&
     btStatus !== "connected" &&
-    (midiStatusRefreshed === "disconnected" || midiStatusRefreshed === "denied");
+    midi.status !== "connected";
 
   // Compute chords whenever pressed notes change
   const midiArray = [...(virtualMode ? virtualNotes : pressedNotes)];
@@ -791,12 +895,12 @@ export default function ChordIdentifier() {
 
         {/* ── MIDI Status (écran Piano uniquement) ── */}
         {mode === "midi" && (
-          <div className={`midi-status midi-status--${displayedMidiStatus}`}>
-            <span className="midi-dot" />
-            <span className="midi-label">
-              {t(`midi.${displayedMidiStatus}`)}
-            </span>
-          </div>
+          <ConnectionStatus
+            btStatus={btStatus}
+            btKnownDevice={btKnownDevice}
+            midi={midi}
+            onDisconnect={disconnectBluetooth}
+          />
         )}
 
         {/* ── Main display area ── */}
@@ -804,11 +908,15 @@ export default function ChordIdentifier() {
 
           {showBluetoothButton && (
             <div className="connect-screen">
+              <h2 className="connect-screen__title">{t("connect.title")}</h2>
               <BluetoothMIDIButton
                 btStatus={btStatus}
                 btError={btError}
+                knownDevice={btKnownDevice}
                 onConnect={requestBluetoothMIDI}
+                onReconnect={reconnectBluetooth}
               />
+              <UsbHint midiStatus={midi.status} />
               <NoPianoFallback onModeChange={changeMode} />
             </div>
           )}

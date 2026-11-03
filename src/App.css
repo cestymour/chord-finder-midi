@@ -158,6 +158,40 @@
    
    .midi-status--denied .midi-dot  { background: var(--err); }
    .midi-status--denied .midi-label { color: var(--err); }
+
+   /* Icône Bluetooth (connexion directe) devant le nom du piano */
+   .midi-status__icon {
+     width: 12px;
+     height: 12px;
+     flex-shrink: 0;
+   }
+   .midi-status--connected .midi-status__icon { color: var(--ok); }
+   .midi-status--pending   .midi-status__icon { color: var(--pending); }
+
+   /* Bouton « Déconnecter », à droite de la ligne */
+   .midi-status__action {
+     margin-left: auto;
+     flex-shrink: 0;
+     font-family: var(--font-mono);
+     font-size: 0.6rem;
+     font-weight: 600;
+     letter-spacing: 0.06em;
+     text-transform: uppercase;
+     color: var(--txt-secondary);
+     background: transparent;
+     border: 1px solid var(--border-mid);
+     border-radius: var(--radius-sm);
+     padding: 3px 8px;
+     cursor: pointer;
+     -webkit-tap-highlight-color: transparent;
+   }
+
+   @media (hover: hover) {
+     .midi-status__action:hover {
+       color: var(--err);
+       border-color: var(--err);
+     }
+   }
    
    @keyframes pulse-dot {
      0%, 100% { opacity: 1; }
@@ -773,16 +807,52 @@
   to   { transform: rotate(360deg); }
 }
 
+/* Nom du piano sous « Reconnecter » */
+.bt-connect-device {
+  display: block;
+  margin-top: 4px;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0.02em;
+  overflow-wrap: anywhere;
+}
+
 /* Message d'erreur sous le bouton */
-.bt-connect-error {
+.bt-connect-error,
+.bt-connect-hint {
   font-family: var(--font-mono);
   font-size: 0.62rem;
   font-weight: 400;
   color: var(--err);
   text-align: center;
-  max-width: 280px;
+  max-width: 320px;
   line-height: 1.5;
   letter-spacing: 0.02em;
+}
+
+/* Conseil (sélecteur fermé sans choix) : pas une erreur */
+.bt-connect-hint {
+  color: var(--txt-secondary);
+}
+
+/* Lien « Connecter un autre piano » */
+.bt-connect-other {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  color: var(--txt-secondary);
+  background: none;
+  border: none;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  padding: 4px 8px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+@media (hover: hover) {
+  .bt-connect-other:hover {
+    color: var(--accent);
+  }
 }
 
 /* ─────────────────────────────────────────────
@@ -912,6 +982,54 @@
   align-items: center;
   gap: 16px;
   padding-bottom: max(16px, env(safe-area-inset-bottom));
+  /* Petit écran avec un message d'erreur : on fait défiler plutôt que de couper */
+  overflow-y: auto;
+}
+
+.connect-screen > * {
+  flex-shrink: 0;
+}
+
+.connect-screen__title {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 400;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--txt-primary);
+  text-align: center;
+  animation: fade-in 0.6s ease;
+}
+
+/* Branchement par câble : simple explication sous le bouton Bluetooth */
+.usb-hint {
+  width: min(100%, 440px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  text-align: center;
+  animation: fade-in 0.6s ease;
+}
+
+.usb-hint__title {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--txt-secondary);
+}
+
+.usb-hint__text {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  line-height: 1.5;
+  color: var(--txt-dim);
+}
+
+.usb-hint__text--warn {
+  color: var(--warn);
 }
 
 .no-piano {
@@ -965,6 +1083,11 @@
   .connect-screen {
     gap: 8px;
     padding-bottom: 0;
+  }
+
+  /* Peu de hauteur : le bouton et les explications suffisent */
+  .connect-screen__title {
+    display: none;
   }
 }
 
