@@ -41,7 +41,7 @@ Both hooks decode MIDI the same way: `0x90` with velocity > 0 is note on; `0x80`
 - Results are sorted by score (template size), then by `SUFFIX_RANK` (how common the chord is, plus a 0.5 penalty for inversions), then alphabetically. They are deduplicated by `chordName`, filtered to within 5 points of the best score, and capped at 4. The first result is shown as the primary card and the rest as "Autres possibilités".
 - When notes are held but nothing matches, a placeholder card ("Accord non reconnu") is built with `buildPendingNotePairs`.
 
-**Naming conventions.** Chord roots use English names (`getRootNameEN`) and the note/interval table uses French solfège (`getNoteNameFR`). Both prefer flats for black keys (`PREFER_FLAT_ROOTS`). Interval labels come from `INTERVAL_LABEL`.
+**Naming conventions.** Chord roots use English names (`getRootNameEN`) and the note/interval table uses French solfège (`getNoteNameFR`). Both prefer flats for black keys (`BLACK_KEY_PCS`, also used for the virtual keyboard layout). Interval labels come from `INTERVAL_LABEL`.
 
 **Known inconsistencies** in the chord tables (worth knowing before editing them):
 - `SUFFIX_RANK` has the key `"mMaj7"`, but the template suffix is `"mM7"`, so that chord falls back to the default rank 6.

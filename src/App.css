@@ -134,6 +134,11 @@
      letter-spacing: 0.12em;
      text-transform: uppercase;
      transition: color 0.4s;
+     /* Sur écran étroit, tronque le libellé plutôt que d'écraser le bouton de mode */
+     min-width: 0;
+     overflow: hidden;
+     text-overflow: ellipsis;
+     white-space: nowrap;
    }
    
    /* States */
@@ -779,6 +784,8 @@
    ───────────────────────────────────────────── */
 .mode-toggle {
   margin-left: auto;
+  flex-shrink: 0;
+  white-space: nowrap;
   font-family: var(--font-mono);
   font-size: 0.6rem;
   font-weight: 600;
@@ -811,15 +818,23 @@
 }
 .midi-status--virtual .midi-label { color: var(--accent); }
 
-/* En mode virtuel, le clavier occupe le bas : la zone d'accords doit pouvoir défiler */
-.app--virtual .display-area {
-  min-height: 0;
-}
+/* En mode virtuel (portrait), le clavier occupe le bas.
+   La liste secondaire défile seule tant que la place suffit ; sur un écran court,
+   toute la zone d'accords défile pour que rien ne soit coupé.
+   Exclu en paysage bas, qui a sa propre mise en page en colonnes. */
+@media not all and (orientation: landscape) and (max-height: 560px) {
+  .app--virtual .display-area {
+    min-height: 0;
+    overflow-y: auto;
+    padding-bottom: 12px;
+  }
 
-.app--virtual .secondary-chords {
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow-y: auto;
+  .app--virtual .secondary-chords {
+    flex: 1 1 auto;
+    min-height: 120px;
+    overflow-y: auto;
+    padding-bottom: 0;
+  }
 }
 
 /* ─────────────────────────────────────────────

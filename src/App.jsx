@@ -15,17 +15,18 @@ const NOTE_NAMES_FR_FLAT = ["Do", "Ré♭", "Ré", "Mi♭", "Mi", "Fa", "Sol♭"
 const NOTE_NAMES_EN = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 const NOTE_NAMES_EN_FLAT = ["C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"];
 
-// Prefer flats for these roots (common musical convention)
-const PREFER_FLAT_ROOTS = new Set([1, 3, 6, 8, 10]); // C#/Db, D#/Eb, F#/Gb, G#/Ab, A#/Bb
+// Black-key pitch classes: C#/Db, D#/Eb, F#/Gb, G#/Ab, A#/Bb.
+// Used both to prefer flats in names (common musical convention) and to lay out the virtual keyboard.
+const BLACK_KEY_PCS = new Set([1, 3, 6, 8, 10]);
 
 function getRootNameEN(semitone) {
-  return PREFER_FLAT_ROOTS.has(semitone % 12)
+  return BLACK_KEY_PCS.has(semitone % 12)
     ? NOTE_NAMES_EN_FLAT[semitone % 12]
     : NOTE_NAMES_EN[semitone % 12];
 }
 
 function getNoteNameFR(semitone) {
-  return PREFER_FLAT_ROOTS.has(semitone % 12)
+  return BLACK_KEY_PCS.has(semitone % 12)
     ? NOTE_NAMES_FR_FLAT[semitone % 12]
     : NOTE_NAMES_FR[semitone % 12];
 }
@@ -379,31 +380,37 @@ function BluetoothMIDIButton({ btStatus, btError, onConnect }) {
 // VIRTUAL KEYBOARD COMPONENT (mode sans piano connecté)
 // ─────────────────────────────────────────────
 
-const VIRTUAL_KB_FIRST_NOTE = 48; // Do3
+const VIRTUAL_KB_FIRST_NOTE = 48; // Do2 en convention française (C3 en convention anglaise)
 const VIRTUAL_KB_OCTAVES = 2;
-const BLACK_KEY_PCS = new Set([1, 3, 6, 8, 10]);
 
-function VirtualKeyboard({ pressedNotes, onToggleNote, onClear }) {
-  const notes = Array.from(
-    { length: VIRTUAL_KB_OCTAVES * 12 },
-    (_, i) => VIRTUAL_KB_FIRST_NOTE + i
-  );
-  const whiteNotes = notes.filter((n) => !BLACK_KEY_PCS.has(n % 12));
-  const whiteWidth = 100 / whiteNotes.length;
+// Disposition statique du clavier, calculée une seule fois
+const VK_NOTES = Array.from(
+  { length: VIRTUAL_KB_OCTAVES * 12 },
+  (_, i) => VIRTUAL_KB_FIRST_NOTE + i
+);
+const VK_WHITE_NOTES = VK_NOTES.filter((n) => !BLACK_KEY_PCS.has(n % 12));
+const VK_WHITE_WIDTH = 100 / VK_WHITE_NOTES.length;
 
-  // Une touche noire est centrée sur la frontière entre deux touches blanches
+// Une touche noire est centrée sur la frontière entre deux touches blanches
+const VK_BLACK_KEYS = (() => {
   let whiteIndex = 0;
-  const blackKeys = [];
-  for (const n of notes) {
+  const keys = [];
+  for (const n of VK_NOTES) {
     if (BLACK_KEY_PCS.has(n % 12)) {
-      blackKeys.push({ note: n, left: whiteIndex * whiteWidth });
+      keys.push({ note: n, left: whiteIndex * VK_WHITE_WIDTH });
     } else {
       whiteIndex++;
     }
   }
+  return keys;
+})();
 
-  const octaveOf = (n) => Math.floor(n / 12) - 1;
-  const keyLabel = (n) => `${getNoteNameFR(n % 12)}${octaveOf(n)}`;
+// Convention française : le Do central (MIDI 60) est Do3
+const octaveOfFR = (n) => Math.floor(n / 12) - 2;
+const keyLabel = (n) => `${getNoteNameFR(n % 12)}${octaveOfFR(n)}`;
+
+function VirtualKeyboard({ pressedNotes, onToggleNote, onClear }) {
+  const whiteWidth = VK_WHITE_WIDTH;
 
   return (
     <div className="virtual-kb">
@@ -418,7 +425,7 @@ function VirtualKeyboard({ pressedNotes, onToggleNote, onClear }) {
         </button>
       </div>
       <div className="virtual-kb__keys">
-        {whiteNotes.map((n) => {
+        {VK_WHITE_NOTES.map((n) => {
           const isDown = pressedNotes.has(n);
           return (
             <button
@@ -437,7 +444,7 @@ function VirtualKeyboard({ pressedNotes, onToggleNote, onClear }) {
             </button>
           );
         })}
-        {blackKeys.map(({ note, left }) => {
+        {VK_BLACK_KEYS.map(({ note, left }) => {
           const isDown = pressedNotes.has(note);
           return (
             <button
@@ -515,9 +522,13 @@ export default function ChordIdentifier() {
     });
   }, []);
 
+  const clearVirtualNotes = useCallback(() => {
+    setVirtualNotes(new Set());
+  }, []);
+
   const toggleVirtualMode = () => {
     setVirtualMode(v => !v);
-    setVirtualNotes(new Set());
+    clearVirtualNotes();
   };
 
   const showBluetoothButton =
@@ -615,7 +626,7 @@ export default function ChordIdentifier() {
         <VirtualKeyboard
           pressedNotes={virtualNotes}
           onToggleNote={toggleVirtualNote}
-          onClear={() => setVirtualNotes(new Set())}
+          onClear={clearVirtualNotes}
         />
       )}
 

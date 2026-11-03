@@ -16,7 +16,7 @@
 - **Trois façons de jouer** :
   - **USB / câble** via Web MIDI : toutes les entrées MIDI du système sont écoutées automatiquement.
   - **Bluetooth MIDI (BLE)** via Web Bluetooth : un bouton « Connexion Bluetooth MIDI » apparaît quand aucun instrument n’est détecté.
-  - **Clavier virtuel** (sans piano) : le bouton « Clavier virtuel » de la barre d’état affiche un clavier de 2 octaves (Do3–Si4). Chaque clic enfonce une touche et la laisse enfoncée, un second clic la relâche ; « Effacer » relâche tout. La détection d’accord est la même qu’avec un piano.
+  - **Clavier virtuel** (sans piano) : le bouton « Clavier virtuel » de la barre d’état affiche un clavier de 2 octaves (Do2–Si3). Chaque clic enfonce une touche et la laisse enfoncée, un second clic la relâche ; « Effacer » relâche tout. La détection d’accord est la même qu’avec un piano.
 - **PWA installable** : ajoutez-la à l’écran d’accueil pour l’utiliser comme une application native.
 
 Interface en français ; symboles d’accords au format anglais usuel (C, Dm, Fmaj7, etc.).
