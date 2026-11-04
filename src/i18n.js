@@ -107,6 +107,9 @@ const MESSAGES = {
     "keyboard.invert": "Renverser ↻",
 
     "explorer.root": "Fondamentale",
+    "explorer.triad": "Triade",
+    "explorer.nth": "{n}e",
+    "explorer.altered": "Altérés",
 
     "info.more": "Plus d'informations",
 
@@ -186,6 +189,9 @@ const MESSAGES = {
     "keyboard.invert": "Invert ↻",
 
     "explorer.root": "Root",
+    "explorer.triad": "Triad",
+    "explorer.nth": "{n}th",
+    "explorer.altered": "Altered",
 
     "info.more": "More information",
 
@@ -265,6 +271,9 @@ const MESSAGES = {
     "keyboard.invert": "Umkehren ↻",
 
     "explorer.root": "Grundton",
+    "explorer.triad": "Dreikl.",
+    "explorer.nth": "{n}.",
+    "explorer.altered": "Alteriert",
 
     "info.more": "Mehr Informationen",
 
@@ -344,6 +353,9 @@ const MESSAGES = {
     "keyboard.invert": "Invertir ↻",
 
     "explorer.root": "Fundamental",
+    "explorer.triad": "Tríada",
+    "explorer.nth": "{n}.ª",
+    "explorer.altered": "Alterados",
 
     "info.more": "Más información",
 

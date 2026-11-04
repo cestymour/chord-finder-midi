@@ -9,6 +9,8 @@ Le format s’inspire de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/
 ### Modifié
 
 - **Onglets plus explicites** : « Piano » et « Accords » deviennent « Notes → Accord » (je joue des notes, l'appli trouve l'accord) et « Accord → Notes » (je choisis un accord, l'appli montre ses notes).
+- **Dictionnaire en tableau** : les types d'accords sont rangés dans une grille, avec la famille en ligne (majeur, mineur, dominante, sus, diminué, augmenté…) et la note la plus haute en colonne (triade, 6e, 7e, 9e, 11e, 13e). On lit l'accord à l'intersection : la ligne « m » croisée avec la colonne 9e donne m9. Les accords altérés (7♭9, 7♯9, m7♭5…) ont leur propre tableau, accord de base en ligne et altération en colonne, replié sous « Altérés ▸ ». Les boutons ne répètent plus la fondamentale (`m7` au lieu de `C♯m7`, `M` pour l'accord majeur) et sont plus compacts.
+- **Clavier moins haut** : le piano à l'écran prend un peu moins de place, sur les deux écrans, pour laisser plus de place au reste.
 
 ## [0.8.0] — 2026-11-04
 

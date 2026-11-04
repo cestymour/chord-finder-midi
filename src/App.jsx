@@ -13,7 +13,6 @@ import {
 import {
   ACCIDENTALS,
   BLACK_KEY_PCS,
-  CHORD_TEMPLATE_GROUPS,
   CHORD_TEMPLATES,
   DEFAULT_ACCIDENTALS,
   buildChordVoicing,
@@ -591,9 +590,90 @@ function VirtualKeyboard({ activeNotes, onKeyClick, scrollToNotes, noteLabels, t
 
 const ROOT_PCS = Array.from({ length: 12 }, (_, pc) => pc);
 
+// Types d'accords en deux grilles de 6 colonnes alignées. Une case = un suffixe
+// de CHORD_TEMPLATES, null = case vide ; chaque suffixe apparaît exactement une fois.
+//
+// 1) Qualité (lignes) × extension la plus haute (colonnes). "triad" s'affiche
+//    « Triade », les nombres en ordinal (7e, 7th, 7., 7.ª). « add » / « m add » :
+//    notes ajoutées ; « no3 » : accord de puissance (quinte sans tierce).
+const MATRIX_COLUMNS = ["triad", "6", "7", "9", "11", "13"];
+const MATRIX_ROWS = [
+  { label: "M",     cells: ["",     "6",    "maj7",  "maj9",  "maj11", "maj13"] },
+  { label: "add",   cells: [null,   "6/9",  null,    "add9",  "add11", null] },
+  { label: "m",     cells: ["m",    "m6",   "m7",    "m9",    "m11",   "m13"] },
+  { label: "m add", cells: [null,   "m6/9", null,    "madd9", null,    null] },
+  { label: "mM",    cells: [null,   null,   "mM7",   "mM9",   null,    null] },
+  { label: "dom",   cells: [null,   null,   "7",     "9",     "11",    "13"] },
+  { label: "sus4",  cells: ["sus4", null,   "7sus4", "9sus4", null,    null] },
+  { label: "sus2",  cells: ["sus2", null,   null,    null,    null,    null] },
+  { label: "dim",   cells: ["dim",  null,   "dim7",  null,    null,    null] },
+  { label: "aug",   cells: ["aug",  null,   "aug7",  null,    null,    null] },
+  { label: "no3",   cells: ["5",    null,   null,    null,    null,    null] },
+];
+// 2) Altérés, repliés par défaut : accord de base (lignes) + altération (colonnes),
+//    m7 + ♭5 = m7♭5, 7 + ♭5 = 7♭5, mM7 + ♭5 = dimM7…
+const ALTERED_COLUMNS = ["♭5", "♯5", "♭9", "♯9", "♯11", "♭13"];
+const ALTERED_ROWS = [
+  { label: "7",    cells: ["7♭5",  "7♯5",    "7♭9",   "7♯9",   "7♯11",    "7♭13"] },
+  { label: "7♯5",  cells: [null,   null,     "7♯5♭9", "7♯5♯9", null,      null] },
+  { label: "maj7", cells: [null,   "maj7♯5", null,    null,    "maj7♯11", null] },
+  { label: "m7",   cells: ["m7♭5", null,     null,    null,    null,      null] },
+  { label: "mM7",  cells: ["dimM7", null,    null,    null,    null,      null] },
+  { label: "13",   cells: [null,   null,     "13♭9",  null,    "13♯11",   null] },
+];
+const ALTERED_SUFFIXES = new Set(ALTERED_ROWS.flatMap((row) => row.cells).filter((cell) => cell !== null));
+
+// En dev : signale un modèle de chords.js absent des grilles (il serait introuvable
+// dans le dictionnaire) ou placé deux fois
+if (import.meta.env.DEV) {
+  const placed = [...MATRIX_ROWS, ...ALTERED_ROWS].flatMap((row) => row.cells).filter((cell) => cell !== null);
+  const missing = CHORD_TEMPLATES.filter((tpl) => !placed.includes(tpl.suffix)).map((tpl) => tpl.suffix);
+  const twice = placed.filter((cell, i) => placed.indexOf(cell) !== i);
+  if (missing.length || twice.length) console.warn("Dictionnaire : accords absents", missing, "ou en double", twice);
+}
+
 function ChordExplorer({ rootPc, template, onRootChange, onSuffixChange }) {
-  const { t, rootName, groupName, chordTypeName, accidentals } = useI18n();
+  const { t, rootName, chordTypeName, accidentals } = useI18n();
   const suffix = template.suffix;
+  // Ouvert d'emblée seulement si l'accord choisi est un altéré (retour sur l'écran)
+  const [alteredOpen, setAlteredOpen] = useState(() => ALTERED_SUFFIXES.has(suffix));
+
+  const typeButton = (tplSuffix) => (
+    <button
+      key={tplSuffix}
+      className={`explorer-chip explorer-chip--type${tplSuffix === suffix ? " explorer-chip--active" : ""}`}
+      onClick={() => onSuffixChange(tplSuffix)}
+      aria-pressed={tplSuffix === suffix}
+      title={chordTypeName(tplSuffix)}
+      aria-label={chordTypeName(tplSuffix)}
+    >
+      {/* Suffixe seul : la fondamentale est déjà dans la carte et les puces du haut */}
+      {tplSuffix || "M"}
+    </button>
+  );
+
+  // Grille : en-têtes de colonnes, puis une ligne par qualité (cases vides en point)
+  const matrix = (columns, rows, ariaLabel) => (
+    <div className="explorer-matrix" role="group" aria-label={ariaLabel}>
+      <div className="explorer-matrix__corner" aria-hidden="true" />
+      {columns.map((col) => (
+        <div key={col} className="explorer-matrix__col" aria-hidden="true">{col}</div>
+      ))}
+      {rows.map((row) => (
+        <div key={row.label} className="explorer-matrix__row" role="group" aria-label={row.label}>
+          <div className="explorer-matrix__label" aria-hidden="true">{row.label}</div>
+          {row.cells.map((cell, i) =>
+            cell === null
+              ? <div key={i} className="explorer-matrix__empty" aria-hidden="true" />
+              : typeButton(cell)
+          )}
+        </div>
+      ))}
+    </div>
+  );
+
+  const columnLabel = (col) => (col === "triad" ? t("explorer.triad") : t("explorer.nth").replace("{n}", col));
+
   return (
     <div className="explorer">
       {/* Fondamentales hors de la zone qui défile : toujours visibles, sans titre */}
@@ -611,24 +691,15 @@ function ChordExplorer({ rootPc, template, onRootChange, onSuffixChange }) {
         ))}
       </div>
       <div className="explorer__scroll">
-        {CHORD_TEMPLATE_GROUPS.map((group) => (
-          <div className="explorer__section" key={group.id}>
-            <div className="explorer__label">{groupName(group.id)}</div>
-            <div className="explorer__types">
-              {group.templates.map((tpl) => (
-                <button
-                  key={tpl.suffix}
-                  className={`explorer-chip${tpl.suffix === suffix ? " explorer-chip--active" : ""}`}
-                  onClick={() => onSuffixChange(tpl.suffix)}
-                  aria-pressed={tpl.suffix === suffix}
-                  title={chordTypeName(tpl.suffix)}
-                >
-                  {rootName(spellPc(rootPc, accidentals))}{tpl.suffix}
-                </button>
-              ))}
-            </div>
-          </div>
-        ))}
+        {matrix(MATRIX_COLUMNS.map(columnLabel), MATRIX_ROWS)}
+        <details
+          className="explorer-altered"
+          open={alteredOpen}
+          onToggle={(e) => setAlteredOpen(e.currentTarget.open)}
+        >
+          <summary className="explorer-altered__summary">{t("explorer.altered")}</summary>
+          {matrix(ALTERED_COLUMNS, ALTERED_ROWS, t("explorer.altered"))}
+        </details>
       </div>
     </div>
   );

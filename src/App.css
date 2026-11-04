@@ -1522,31 +1522,9 @@
   gap: 10px;
 }
 
-.explorer__section {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
-
-.explorer__label {
-  font-family: var(--font-mono);
-  font-size: 0.55rem;
-  font-weight: 600;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  color: var(--txt-dim);
-  padding: 0 2px;
-}
-
 .explorer__roots {
   display: grid;
   grid-template-columns: repeat(6, 1fr);
-  gap: 5px;
-}
-
-.explorer__types {
-  display: flex;
-  flex-wrap: wrap;
   gap: 5px;
 }
 
@@ -1576,6 +1554,118 @@
   color: var(--accent);
   border-color: var(--accent);
   background: var(--accent-dim);
+}
+
+/* Types d'accords : grille qualité (lignes) × extension (colonnes) */
+.explorer-matrix {
+  display: grid;
+  grid-template-columns: 2.2rem repeat(6, minmax(0, 1fr));
+  gap: 4px;
+  align-items: center;
+}
+
+/* Les cellules d'une ligne se placent directement dans la grille */
+.explorer-matrix__row {
+  display: contents;
+}
+
+.explorer-matrix__col,
+.explorer-matrix__label {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  font-weight: 600;
+  color: var(--txt-dim);
+}
+
+/* En-têtes de colonnes collés en haut quand la zone défile */
+.explorer-matrix__col {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--bg-deep);
+  text-align: center;
+  padding: 2px 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.explorer-matrix__corner {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  align-self: stretch;
+  background: var(--bg-deep);
+}
+
+.explorer-matrix__label {
+  text-align: right;
+  padding-right: 2px;
+}
+
+/* Case vide : petit point discret, garde la structure lisible */
+.explorer-matrix__empty {
+  justify-self: center;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--border-subtle);
+}
+
+/* Bouton de type : même police que les fondamentales, moins de marge */
+.explorer-chip--type {
+  min-width: 0;
+  padding: 3px 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.2;
+}
+
+/* Altérés : grille repliée par défaut sous un titre « Altérés ▸ » */
+.explorer-altered {
+  padding-top: 6px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.explorer-altered__summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  list-style: none;
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--txt-dim);
+  padding: 4px 2px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.explorer-altered__summary::-webkit-details-marker {
+  display: none;
+}
+
+.explorer-altered__summary::after {
+  content: "▸";
+  font-size: 0.8rem;
+  transition: transform 0.15s;
+}
+
+.explorer-altered[open] .explorer-altered__summary::after {
+  transform: rotate(90deg);
+}
+
+@media (hover: hover) {
+  .explorer-altered__summary:hover {
+    color: var(--txt-primary);
+  }
+}
+
+.explorer-altered[open] .explorer-matrix {
+  margin-top: 4px;
 }
 
 /* Paysage bas : sélecteurs dans la colonne de droite, défilant seuls */
@@ -1696,7 +1786,7 @@
   position: relative;
   display: flex;
   width: calc(var(--vk-white-keys) / 14 * 100%);
-  height: clamp(110px, 22vh, 170px);
+  height: clamp(95px, 18vh, 140px);
   user-select: none;
   touch-action: manipulation;
 }
@@ -1765,7 +1855,7 @@
   }
 
   .virtual-kb__keys {
-    height: clamp(80px, 30vh, 130px);
+    height: clamp(70px, 25vh, 110px);
   }
 }
 
