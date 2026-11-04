@@ -6,6 +6,12 @@ Le format s’inspire de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/
 
 ## [Non publié]
 
+## [0.9.0] — 2026-11-04
+
+### Corrigé
+
+- **Renversements dans « Accord → Notes »** : chaque renversement met le degré suivant de l'accord à la basse et empile les autres notes au-dessus dans le même ordre (Dm9 : Ré Fa La Do Mi, puis Fa La Do Mi Ré, La Do Mi Ré Fa…). Avec les accords de 9e, 11e et 13e, les notes se mélangeaient, et après un tour complet on ne retrouvait pas la position de départ (le Dm9 revenait avec Ré Mi Fa La Do).
+
 ### Modifié
 
 - **Onglets plus explicites** : « Piano » et « Accords » deviennent « Notes → Accord » (je joue des notes, l'appli trouve l'accord) et « Accord → Notes » (je choisis un accord, l'appli montre ses notes).
@@ -176,7 +182,8 @@ Première version numérotée. Elle regroupe tout ce qui a été développé dep
 - Application installable (PWA).
 - Déploiement automatique sur GitHub Pages à chaque mise à jour de la branche `main`.
 
-[Non publié]: https://github.com/cestymour/chord-finder-midi/compare/v0.8.0...HEAD
+[Non publié]: https://github.com/cestymour/chord-finder-midi/compare/v0.9.0...HEAD
+[0.9.0]: https://github.com/cestymour/chord-finder-midi/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/cestymour/chord-finder-midi/compare/v0.7.1...v0.8.0
 [0.7.1]: https://github.com/cestymour/chord-finder-midi/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/cestymour/chord-finder-midi/compare/v0.6.1...v0.7.0

@@ -379,20 +379,28 @@ export function buildPendingNotePairs(midiNotes, accidentals = DEFAULT_ACCIDENTA
 export const VOICING_LOWEST_NOTE = 48;
 
 /**
- * Voicing canonique d'un accord : fondamentale (ou basse du renversement)
- * dans l'octave [VOICING_LOWEST_NOTE, +11], puis les degrés de `template.voicing`
- * empilés vers le haut. Chaque renversement fait monter la note la plus grave
- * d'une octave. Renvoie [{ midi, degree }] trié du grave à l'aigu.
+ * Voicing canonique d'un accord : basse dans l'octave [VOICING_LOWEST_NOTE, +11],
+ * puis les degrés de `template.voicing` empilés vers le haut.
  *
- * L'écart grave→aigu ne dépasse jamais 21 demi-tons, donc le voicing tient
- * dans [48, 83] (3 octaves) et dans 2 octaves visibles.
+ * Le renversement k est une rotation de cet empilement : le k-ième degré passe
+ * à la basse, les suivants gardent leur ordre et chacun est placé juste
+ * au-dessus du précédent, puis viennent les degrés d'avant (Dm9 : D F A C E,
+ * puis F A C E D, A C E D F, C E D F A, E D F A C, et retour à D F A C E).
+ * Renvoie [{ midi, degree }] trié du grave à l'aigu.
+ *
+ * L'écart grave→aigu ne dépasse jamais 22 demi-tons, donc le voicing tient
+ * dans [48, 81].
  */
 export function buildChordVoicing(rootPc, template, inversion = 0) {
-  let notes = template.voicing.map((degree) => ({ midi: rootPc + degree.semitones, degree }));
-
-  for (let i = 0; i < inversion % notes.length; i++) {
-    const [lowest, ...rest] = notes;
-    notes = [...rest, { ...lowest, midi: lowest.midi + 12 }].sort((a, b) => a.midi - b.midi);
+  const stack = template.voicing;
+  const k = ((inversion % stack.length) + stack.length) % stack.length;
+  const notes = [];
+  for (const degree of [...stack.slice(k), ...stack.slice(0, k)]) {
+    let midi = rootPc + degree.semitones;
+    const prev = notes.at(-1)?.midi;
+    // Juste au-dessus de la note précédente (1 à 12 demi-tons plus haut)
+    if (prev !== undefined) midi = prev + 1 + ((((midi - prev - 1) % 12) + 12) % 12);
+    notes.push({ midi, degree });
   }
 
   // Ramène la basse dans l'octave la plus grave du clavier
