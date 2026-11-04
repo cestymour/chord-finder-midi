@@ -59,7 +59,7 @@ const MESSAGES = {
     "midi.denied": "MIDI non autorisé",
     "midi.unsupported": "MIDI non disponible",
     "status.connect": "Connecter un piano",
-    "status.virtual": "Clavier virtuel",
+    "status.virtual": "Piano virtuel",
 
     "connect.title": "Connectez votre piano",
 
@@ -90,14 +90,14 @@ const MESSAGES = {
     "usb.hint": "Branchez le piano en USB : il est détecté tout seul. Sur un téléphone, il faut un adaptateur USB OTG.",
     "usb.denied": "L'accès aux appareils MIDI a été refusé. Pour utiliser un câble USB, autorisez-le dans les paramètres du site (icône à gauche de l'adresse).",
     "usb.unsupported": "Ce navigateur ne gère pas le MIDI par câble. Utilisez Chrome ou Edge (l'iPhone et l'iPad ne le permettent pas).",
-    "usb.prompt": "Branchez le piano en USB, puis touchez « Autoriser le câble USB » et acceptez l'accès aux appareils MIDI. Ce choix est retenu pour les fois suivantes. Sur un téléphone, il faut un adaptateur USB OTG.",
+    "usb.prompt": "Branchez le piano en USB, touchez « Autoriser le câble USB » et acceptez l'accès MIDI (retenu pour la suite). Sur un téléphone, il faut un adaptateur USB OTG.",
     "usb.allow": "Autoriser le câble USB",
 
-    "fallback.title": "Pas de piano sous la main ?",
-    "fallback.keyboard": "Clavier virtuel",
+    "fallback.keyboard": "Piano virtuel",
+    "fallback.prompt": "Pas de piano connecté ?",
 
     "idle.play": "Jouez un accord…",
-    "idle.touch": "Touchez le clavier…",
+    "idle.touch": "Jouez un accord au piano…",
 
     "chord.unknown": "Accord non reconnu",
     "chord.alternatives": "Autres possibilités",
@@ -141,7 +141,7 @@ const MESSAGES = {
     "midi.denied": "MIDI not allowed",
     "midi.unsupported": "MIDI unavailable",
     "status.connect": "Connect a piano",
-    "status.virtual": "Virtual keyboard",
+    "status.virtual": "Virtual piano",
 
     "connect.title": "Connect your piano",
 
@@ -172,14 +172,14 @@ const MESSAGES = {
     "usb.hint": "Plug the piano in over USB: it is detected automatically. On a phone, you need a USB OTG adapter.",
     "usb.denied": "Access to MIDI devices was denied. To use a USB cable, allow it in the site settings (icon left of the address).",
     "usb.unsupported": "This browser doesn't support wired MIDI. Use Chrome or Edge (iPhone and iPad don't allow it).",
-    "usb.prompt": "Plug the piano in over USB, then tap “Allow USB cable” and accept access to MIDI devices. Your choice is remembered next time. On a phone, you need a USB OTG adapter.",
+    "usb.prompt": "Plug the piano in over USB, tap “Allow USB cable” and accept MIDI access (remembered next time). On a phone, you need a USB OTG adapter.",
     "usb.allow": "Allow USB cable",
 
-    "fallback.title": "No piano at hand?",
-    "fallback.keyboard": "Virtual keyboard",
+    "fallback.keyboard": "Virtual piano",
+    "fallback.prompt": "No piano connected?",
 
     "idle.play": "Play a chord…",
-    "idle.touch": "Tap the keyboard…",
+    "idle.touch": "Play a chord on the piano…",
 
     "chord.unknown": "Unrecognized chord",
     "chord.alternatives": "Other possibilities",
@@ -223,7 +223,7 @@ const MESSAGES = {
     "midi.denied": "MIDI nicht erlaubt",
     "midi.unsupported": "MIDI nicht verfügbar",
     "status.connect": "Klavier verbinden",
-    "status.virtual": "Virtuelle Tastatur",
+    "status.virtual": "Virtuelles Klavier",
 
     "connect.title": "Verbinde dein Klavier",
 
@@ -254,14 +254,14 @@ const MESSAGES = {
     "usb.hint": "Schließe das Klavier per USB an: Es wird automatisch erkannt. Am Handy brauchst du einen USB-OTG-Adapter.",
     "usb.denied": "Der Zugriff auf MIDI-Geräte wurde verweigert. Um ein USB-Kabel zu nutzen, erlaube ihn in den Website-Einstellungen (Symbol links neben der Adresse).",
     "usb.unsupported": "Dieser Browser unterstützt kein MIDI per Kabel. Verwende Chrome oder Edge (auf iPhone und iPad nicht möglich).",
-    "usb.prompt": "Schließe das Klavier per USB an, tippe dann auf „USB-Kabel erlauben“ und erlaube den Zugriff auf MIDI-Geräte. Die Wahl wird für das nächste Mal gespeichert. Am Handy brauchst du einen USB-OTG-Adapter.",
+    "usb.prompt": "Schließe das Klavier per USB an, tippe auf „USB-Kabel erlauben“ und erlaube den MIDI-Zugriff (wird gespeichert). Am Handy brauchst du einen USB-OTG-Adapter.",
     "usb.allow": "USB-Kabel erlauben",
 
-    "fallback.title": "Kein Klavier zur Hand?",
-    "fallback.keyboard": "Virtuelle Tastatur",
+    "fallback.keyboard": "Virtuelles Klavier",
+    "fallback.prompt": "Kein Klavier verbunden?",
 
     "idle.play": "Spiel einen Akkord…",
-    "idle.touch": "Tippe auf die Tastatur…",
+    "idle.touch": "Spiel einen Akkord auf dem Klavier…",
 
     "chord.unknown": "Akkord nicht erkannt",
     "chord.alternatives": "Weitere Möglichkeiten",
@@ -305,7 +305,7 @@ const MESSAGES = {
     "midi.denied": "MIDI no autorizado",
     "midi.unsupported": "MIDI no disponible",
     "status.connect": "Conectar un piano",
-    "status.virtual": "Teclado virtual",
+    "status.virtual": "Piano virtual",
 
     "connect.title": "Conecta tu piano",
 
@@ -336,14 +336,14 @@ const MESSAGES = {
     "usb.hint": "Conecta el piano por USB: se detecta automáticamente. En un teléfono necesitas un adaptador USB OTG.",
     "usb.denied": "Se denegó el acceso a los dispositivos MIDI. Para usar un cable USB, permítelo en la configuración del sitio (icono a la izquierda de la dirección).",
     "usb.unsupported": "Este navegador no admite MIDI por cable. Usa Chrome o Edge (el iPhone y el iPad no lo permiten).",
-    "usb.prompt": "Conecta el piano por USB, toca «Permitir cable USB» y acepta el acceso a los dispositivos MIDI. La elección se recuerda para la próxima vez. En un teléfono necesitas un adaptador USB OTG.",
+    "usb.prompt": "Conecta el piano por USB, toca «Permitir cable USB» y acepta el acceso MIDI (se recuerda). En un teléfono necesitas un adaptador USB OTG.",
     "usb.allow": "Permitir cable USB",
 
-    "fallback.title": "¿No tienes un piano a mano?",
-    "fallback.keyboard": "Teclado virtual",
+    "fallback.keyboard": "Piano virtual",
+    "fallback.prompt": "¿No hay ningún piano conectado?",
 
     "idle.play": "Toca un acorde…",
-    "idle.touch": "Toca el teclado…",
+    "idle.touch": "Toca un acorde en el piano…",
 
     "chord.unknown": "Acorde no reconocido",
     "chord.alternatives": "Otras posibilidades",

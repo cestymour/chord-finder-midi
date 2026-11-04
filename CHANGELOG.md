@@ -6,6 +6,16 @@ Le format s’inspire de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/
 
 ## [Non publié]
 
+## [0.10.0] — 2026-11-04
+
+### Modifié
+
+- **Écran d'accueil repensé** : le Bluetooth et le câble USB ont maintenant deux ronds verts de même taille, côte à côte (le câble USB a son symbole). En dessous, un grand bouton « Piano virtuel », avec un petit clavier dessiné, sous la question « Pas de piano connecté ? ».
+- **Explications en fenêtre** : toucher le rond USB ou un ⓘ ouvre l'explication dans une fenêtre en haut de l'écran, sans rien décaler. Elle se ferme en touchant ailleurs (ou avec Échap).
+- **« Votre piano n'apparaît pas ? »** : après avoir fermé la liste des appareils Bluetooth sans choisir, ce conseil n'est plus un message affiché en permanence, mais un discret ⓘ sur le rond Bluetooth.
+- **« Clavier virtuel » devient « Piano virtuel »**, et son message d'attente « Jouez un accord au piano… ».
+- **Bandeau d'état** : il garde la même hauteur avec ou sans le bouton « Connecter un piano ».
+
 ## [0.9.0] — 2026-11-04
 
 ### Corrigé
@@ -182,7 +192,8 @@ Première version numérotée. Elle regroupe tout ce qui a été développé dep
 - Application installable (PWA).
 - Déploiement automatique sur GitHub Pages à chaque mise à jour de la branche `main`.
 
-[Non publié]: https://github.com/cestymour/chord-finder-midi/compare/v0.9.0...HEAD
+[Non publié]: https://github.com/cestymour/chord-finder-midi/compare/v0.10.0...HEAD
+[0.10.0]: https://github.com/cestymour/chord-finder-midi/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/cestymour/chord-finder-midi/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/cestymour/chord-finder-midi/compare/v0.7.1...v0.8.0
 [0.7.1]: https://github.com/cestymour/chord-finder-midi/compare/v0.7.0...v0.7.1

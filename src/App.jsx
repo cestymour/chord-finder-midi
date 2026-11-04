@@ -1,4 +1,5 @@
-import { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo, useId } from "react";
+import { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo, useId, createContext, useContext } from "react";
+import { createPortal } from "react-dom";
 import './App.css';
 import useBluetoothMIDI from "./useBluetoothMIDI";
 import { dispatchMidiMessage } from "./midiMessages";
@@ -209,7 +210,7 @@ const BT_LOADING_LABELS = {
  * une coupure, une déconnexion, ou retrouvé à l'ouverture), il propose de s'y reconnecter
  * sans sélecteur, avec un lien pour choisir un autre piano.
  */
-function BluetoothMIDIButton({ btStatus, btError, knownDevice, onConnect, onReconnect }) {
+function BluetoothMIDIButton({ btStatus, btError, knownDevice, onConnect, onReconnect, aside }) {
   const { t } = useI18n();
   const loadingLabel = BT_LOADING_LABELS[btStatus];
   const isLoading = Boolean(loadingLabel);
@@ -221,12 +222,16 @@ function BluetoothMIDIButton({ btStatus, btError, knownDevice, onConnect, onReco
   else if (btStatus === "error" && btError) {
     notice = { key: `bt.error.${btError}`, tone: btError === "cancelled" ? "hint" : "error" };
   }
+  // Simple conseil : un discret ⓘ posé sur le rond plutôt qu'un message
+  const hintBadge = notice?.tone === "hint" ? notice : null;
+  if (hintBadge) notice = null;
 
   // Navigateur sans Web Bluetooth (iPhone, Firefox…) : pas de gros bouton inutile,
   // seulement le message ; les solutions de secours passent au premier plan.
   if (btStatus === "unsupported") {
     return (
       <div className="bt-connect-container">
+        {aside && <div className="bt-connect-row">{aside}</div>}
         <InfoTip tone="warn" label={t("bt.unsupported")}>{t("bt.unsupported.help")}</InfoTip>
       </div>
     );
@@ -234,6 +239,8 @@ function BluetoothMIDIButton({ btStatus, btError, knownDevice, onConnect, onReco
 
   return (
     <div className="bt-connect-container">
+      <div className="bt-connect-row">
+      <div className="bt-connect-btn-wrap">
       <button
         className={`bt-connect-btn ${isLoading ? "bt-connect-btn--loading" : ""}`}
         onClick={offerReconnect ? onReconnect : onConnect}
@@ -255,6 +262,14 @@ function BluetoothMIDIButton({ btStatus, btError, knownDevice, onConnect, onReco
           )}
         </span>
       </button>
+      {hintBadge && (
+        <span className="bt-connect-hint" key={hintBadge.key}>
+          <PopupInfoButton title={t(hintBadge.key)}>{t(`${hintBadge.key}.help`)}</PopupInfoButton>
+        </span>
+      )}
+      </div>
+      {aside}
+      </div>
 
       {/* Message court ; l'explication s'ouvre avec le bouton ⓘ.
           (key : un nouveau message repart fermé) */}
@@ -311,17 +326,45 @@ function InfoBubble({ id, children }) {
   return <p id={id} className="info-bubble">{children}</p>;
 }
 
-/** Libellé court suivi d'un bouton ⓘ ; l'explication (children) s'affiche dessous. */
-function InfoTip({ label, children, tone, className = "" }) {
-  const [open, setOpen] = useState(false);
-  const bubbleId = useId();
+/**
+ * Fenêtres d'information de l'écran de connexion : au lieu de s'ouvrir sous leur bouton
+ * (ce qui décale l'écran), elles s'affichent dans une zone fixe (portail).
+ * Valeur : { openId, toggle(id), render(node) }, fournie par ConnectScreen.
+ */
+const PopupContext = createContext(null);
+
+function Popup({ id, tone, title, children }) {
   return (
-    <div className={`info-tip${tone ? ` info-tip--${tone}` : ""}${className ? ` ${className}` : ""}`}>
-      <div className="info-tip__head">
-        <span className="info-tip__label">{label}</span>
-        <InfoButton open={open} onToggle={() => setOpen((o) => !o)} bubbleId={bubbleId} />
-      </div>
-      {open && <InfoBubble id={bubbleId}>{children}</InfoBubble>}
+    <div id={id} className={`popup${tone ? ` popup--${tone}` : ""}`}>
+      {title && <p className="popup__title">{title}</p>}
+      {children}
+    </div>
+  );
+}
+
+/** Bouton ⓘ dont l'explication s'ouvre dans la zone des fenêtres d'information. */
+function PopupInfoButton({ title, tone, children }) {
+  const popup = useContext(PopupContext);
+  const id = useId();
+  const open = popup.openId === id;
+  return (
+    <>
+      <InfoButton open={open} onToggle={() => popup.toggle(id)} bubbleId={id} />
+      {open && popup.render(
+        <Popup id={id} tone={tone} title={title}>
+          <p className="popup__text">{children}</p>
+        </Popup>
+      )}
+    </>
+  );
+}
+
+/** Libellé court suivi d'un bouton ⓘ ; l'explication (children) s'ouvre en fenêtre. */
+function InfoTip({ label, children, tone }) {
+  return (
+    <div className={`info-tip${tone ? ` info-tip--${tone}` : ""}`}>
+      <span className="info-tip__label">{label}</span>
+      <PopupInfoButton tone={tone}>{children}</PopupInfoButton>
     </div>
   );
 }
@@ -344,25 +387,146 @@ function Switch({ checked, onChange, labelledBy }) {
 
 const USB_TEXT_KEYS = { denied: "usb.denied", unsupported: "usb.unsupported", prompt: "usb.prompt" };
 
-/**
- * Branchement par câble : détecté tout seul par Web MIDI une fois l'accès accordé.
- * Accès pas encore demandé : bouton « Autoriser » (onAllow), qui ouvre la demande du navigateur.
- */
-function UsbHint({ midiStatus, onAllow }) {
+/** Symbole USB (trident) : rond à la base, flèche au centre, branches rond et carré. */
+function UsbIcon({ className }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <line x1="12" y1="4.5" x2="12" y2="18.5" />
+      <polygon points="12,1.5 9.6,5.3 14.4,5.3" fill="currentColor" />
+      <circle cx="12" cy="20.2" r="2" fill="currentColor" />
+      <polyline points="12,15.5 6.5,12 6.5,9.2" />
+      <circle cx="6.5" cy="7.6" r="1.6" fill="currentColor" />
+      <polyline points="12,13 17.5,9.6 17.5,7.4" />
+      <rect x="16" y="4.4" width="3" height="3" fill="currentColor" />
+    </svg>
+  );
+}
+
+/** Petit clavier dessiné (une octave), pour le bouton « Piano virtuel ». */
+function MiniKeysIcon({ className }) {
+  const whites = 7;
+  const w = 20;
+  // Touches noires après Do, Ré, Fa, Sol, La
+  const blacks = [0, 1, 3, 4, 5];
+  return (
+    <svg className={className} viewBox={`0 0 ${whites * w} 64`} preserveAspectRatio="none" aria-hidden="true">
+      {Array.from({ length: whites }, (_, i) => (
+        <rect key={i} className="mini-keys__white" x={i * w + 0.75} y="0" width={w - 1.5} height="64" rx="2.5" />
+      ))}
+      {blacks.map((i) => (
+        <rect key={`b${i}`} className="mini-keys__black" x={(i + 1) * w - 6.5} y="0" width="13" height="38" rx="2" />
+      ))}
+    </svg>
+  );
+}
+
+/** Grand bouton « Piano virtuel » : touches en haut, libellé en bas. */
+function VirtualPianoButton({ onClick, describedBy }) {
   const { t } = useI18n();
-  const textKey = USB_TEXT_KEYS[midiStatus] ?? "usb.hint";
+  return (
+    <button type="button" className="vpiano-btn" onClick={onClick} aria-describedby={describedBy}>
+      <MiniKeysIcon className="vpiano-btn__keys" />
+      <span className="vpiano-btn__label">{t("fallback.keyboard")}</span>
+    </button>
+  );
+}
+
+/**
+ * Bouton USB : ouvre ou ferme l'explication du branchement par câble. Le câble est
+ * détecté tout seul par Web MIDI une fois l'accès accordé ; tant qu'il n'est pas demandé,
+ * l'explication propose « Autoriser le câble USB », qui ouvre la demande du navigateur.
+ */
+function UsbButton({ midiStatus, open, onToggle, detailsId }) {
+  const { t } = useI18n();
   const warn = midiStatus === "denied" || midiStatus === "unsupported";
   return (
-    <>
-      <InfoTip className="usb-hint" tone={warn ? "warn" : undefined} label={<>🔌 {t("usb.title")}</>}>
-        {t(textKey)}
-      </InfoTip>
-      {midiStatus === "prompt" && (
-        <button className="usb-allow" onClick={onAllow}>
-          {t("usb.allow")}
-        </button>
-      )}
-    </>
+    <button
+      type="button"
+      className={`usb-btn${open ? " usb-btn--open" : ""}${warn ? " usb-btn--warn" : ""}`}
+      aria-expanded={open}
+      aria-controls={detailsId}
+      onClick={onToggle}
+    >
+      <UsbIcon className="usb-btn__icon" />
+      <span className="usb-btn__label">{t("usb.title")}</span>
+    </button>
+  );
+}
+
+/**
+ * Écran de connexion (aucun piano) : ronds Bluetooth et USB côte à côte, grand bouton
+ * « Piano virtuel » dessous. Toutes les explications (ⓘ, USB) s'ouvrent dans une zone
+ * fixe en haut de l'écran, par-dessus, sans rien décaler ; une seule à la fois.
+ */
+function ConnectScreen({ btProps, midi, onUseKeyboard }) {
+  const { t } = useI18n();
+  const [openId, setOpenId] = useState(null);
+  const [slot, setSlot] = useState(null);
+  const usbId = useId();
+  const promptId = useId();
+
+  const popup = useMemo(() => ({
+    openId,
+    toggle: (id) => setOpenId((o) => (o === id ? null : id)),
+    render: (node) => slot && createPortal(node, slot),
+  }), [openId, slot]);
+
+  // Un toucher hors de la fenêtre (et hors de son bouton) ou Échap la referme
+  useEffect(() => {
+    if (!openId) return;
+    const onPointerDown = (e) => {
+      if (slot?.contains(e.target)) return;
+      if (e.target.closest?.(`[aria-controls="${CSS.escape(openId)}"]`)) return;
+      setOpenId(null);
+    };
+    const onKeyDown = (e) => {
+      if (e.key === "Escape") setOpenId(null);
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [openId, slot]);
+
+  const usbWarn = midi.status === "denied" || midi.status === "unsupported";
+  const usbOpen = openId === usbId;
+
+  return (
+    <PopupContext.Provider value={popup}>
+      <div className="connect-screen">
+        <div className="connect-popups" ref={setSlot} />
+        <h2 className="connect-screen__title">{t("connect.title")}</h2>
+        <BluetoothMIDIButton
+          {...btProps}
+          aside={
+            <UsbButton
+              midiStatus={midi.status}
+              open={usbOpen}
+              onToggle={() => popup.toggle(usbId)}
+              detailsId={usbId}
+            />
+          }
+        />
+        {usbOpen && popup.render(
+          <Popup id={usbId} tone={usbWarn ? "warn" : undefined} title={t("usb.title")}>
+            <p className="popup__text">{t(USB_TEXT_KEYS[midi.status] ?? "usb.hint")}</p>
+            {midi.status === "prompt" && (
+              <button className="usb-allow" onClick={midi.requestAccess}>{t("usb.allow")}</button>
+            )}
+          </Popup>
+        )}
+        <div className="no-piano">
+          {/* La main 👇 est décorative : le libellé décrit le bouton qui suit */}
+          <span className="no-piano__label" id={promptId}>
+            {t("fallback.prompt")} <span aria-hidden="true">👇</span>
+          </span>
+          <VirtualPianoButton onClick={onUseKeyboard} describedBy={promptId} />
+        </div>
+      </div>
+    </PopupContext.Provider>
   );
 }
 
@@ -741,25 +905,6 @@ function TopBar({ mode, onModeChange, onOpenSettings }) {
         </svg>
       </button>
     </header>
-  );
-}
-
-/**
- * Solution de secours proposée sous le bouton Bluetooth quand aucun piano n'est connecté
- * (le dictionnaire reste accessible par l'onglet Accords).
- * prominent : mise en avant (navigateur sans Bluetooth, où elle devient l'essentiel).
- */
-function NoPianoFallback({ onUseKeyboard, prominent }) {
-  const { t } = useI18n();
-  return (
-    <div className={`no-piano${prominent ? " no-piano--prominent" : ""}`}>
-      <span className="no-piano__label">{t("fallback.title")}</span>
-      <div className="no-piano__actions">
-        <button className="no-piano__btn" onClick={onUseKeyboard}>
-          🎹 {t("fallback.keyboard")}
-        </button>
-      </div>
-    </div>
   );
 }
 
@@ -1304,21 +1449,17 @@ export default function ChordIdentifier() {
         <div className="display-area">
 
           {showBluetoothButton && (
-            <div className="connect-screen">
-              <h2 className="connect-screen__title">{t("connect.title")}</h2>
-              <BluetoothMIDIButton
-                btStatus={btStatus}
-                btError={btError}
-                knownDevice={btKnownDevice}
-                onConnect={requestBluetoothMIDI}
-                onReconnect={reconnectBluetooth}
-              />
-              <UsbHint midiStatus={midi.status} onAllow={midi.requestAccess} />
-              <NoPianoFallback
-                onUseKeyboard={() => setKeyboardChosen(true)}
-                prominent={btStatus === "unsupported"}
-              />
-            </div>
+            <ConnectScreen
+              btProps={{
+                btStatus,
+                btError,
+                knownDevice: btKnownDevice,
+                onConnect: requestBluetoothMIDI,
+                onReconnect: reconnectBluetooth,
+              }}
+              midi={midi}
+              onUseKeyboard={() => setKeyboardChosen(true)}
+            />
           )}
 
           {exploreMode ? (

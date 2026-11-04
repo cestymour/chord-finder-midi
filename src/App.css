@@ -112,6 +112,8 @@
      display: flex;
      align-items: center;
      gap: 8px;
+     /* Même hauteur avec ou sans bouton (« Connecter un piano », « Déconnecter ») */
+     min-height: 34px;
      padding: 6px 20px;
      border-bottom: 1px solid var(--border-subtle);
      background: var(--bg-surface);
@@ -714,7 +716,6 @@
   align-items: center;
   justify-content: center;
   gap: 16px;
-  flex: 1;
   animation: fade-in 0.6s ease;
 }
 
@@ -724,7 +725,7 @@
   align-items: center;
   justify-content: center;
   gap: 14px;
-  width: clamp(200px, 55vw, 280px);
+  width: var(--connect-round);
   aspect-ratio: 1;
   border-radius: 50%;
   border: 2px solid var(--accent);
@@ -769,8 +770,8 @@
 
 /* Icône Bluetooth SVG */
 .bt-connect-icon {
-  width: 48px;
-  height: 48px;
+  width: 40px;
+  height: 40px;
   flex-shrink: 0;
   position: relative;
   z-index: 1;
@@ -779,13 +780,13 @@
 /* Label sous l'icône */
 .bt-connect-label {
   font-family: var(--font-mono);
-  font-size: 0.7rem;
+  font-size: 0.6rem;
   font-weight: 600;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   text-align: center;
   line-height: 1.4;
-  padding: 0 20px;
+  padding: 0 12px;
   position: relative;
   z-index: 1;
 }
@@ -884,19 +885,12 @@
 
 /* Message court + ⓘ, centré (écran de connexion) */
 .info-tip {
-  width: min(100%, 340px);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  animation: fade-in 0.4s ease;
-}
-
-.info-tip__head {
+  max-width: min(100%, 340px);
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
+  animation: fade-in 0.4s ease;
 }
 
 .info-tip__label {
@@ -910,8 +904,6 @@
 
 .info-tip--error .info-tip__label { color: var(--err); }
 .info-tip--warn .info-tip__label { color: var(--warn); }
-.info-tip--error .info-bubble { border-left-color: var(--err); }
-.info-tip--warn .info-bubble { border-left-color: var(--warn); }
 .info-tip--error .info-btn--open { color: var(--err); background: #ff4d6a22; }
 .info-tip--warn .info-btn--open { color: var(--warn); background: var(--amber-dim); }
 
@@ -984,22 +976,10 @@
    BLUETOOTH BUTTON — LANDSCAPE OVERRIDE
    ───────────────────────────────────────────── */
 @media (orientation: landscape) and (max-height: 560px) {
-  .bt-connect-container {
-    flex: 1;
-    justify-content: center;
-  }
-
-  .bt-connect-btn {
-    width: clamp(140px, 30vmin, 200px);
-  }
-
-  .bt-connect-icon {
+  .bt-connect-icon,
+  .usb-btn__icon {
     width: 36px;
     height: 36px;
-  }
-
-  .bt-connect-label {
-    font-size: 0.6rem;
   }
 }
 
@@ -1100,11 +1080,15 @@
    ÉCRAN DE CONNEXION (piano non connecté)
    ───────────────────────────────────────────── */
 .connect-screen {
+  /* Diamètre des ronds Bluetooth et USB (le bouton Piano virtuel couvre les deux) */
+  --connect-round: clamp(124px, 38vw, 168px);
   flex: 1;
   min-height: 0;
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: safe center;
   gap: 16px;
   padding-bottom: max(16px, env(safe-area-inset-bottom));
   /* Petit écran avec un message d'erreur : on fait défiler plutôt que de couper */
@@ -1126,59 +1110,25 @@
   animation: fade-in 0.6s ease;
 }
 
+/* « Pas de piano connecté ? 👇 » au-dessus du bouton Piano virtuel */
 .no-piano {
-  width: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
+  margin-top: 20px;
   animation: fade-in 0.6s ease;
 }
 
 .no-piano__label {
+  max-width: calc(var(--connect-round) * 2 + 16px);
   font-family: var(--font-mono);
   font-size: 0.58rem;
   letter-spacing: 0.15em;
+  line-height: 1.5;
   text-transform: uppercase;
-  color: var(--txt-dim);
-}
-
-/* Un seul bouton (clavier virtuel), centré */
-.no-piano__actions {
-  display: flex;
-  justify-content: center;
-  width: min(100%, 440px);
-}
-
-.no-piano__btn {
-  min-width: min(100%, 220px);
   text-align: center;
-  font-family: var(--font-mono);
-  font-size: 0.65rem;
-  font-weight: 600;
-  letter-spacing: 0.05em;
-  color: var(--txt-secondary);
-  background: var(--bg-card);
-  border: 1px solid var(--border-mid);
-  border-radius: var(--radius-sm);
-  padding: 8px 12px;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-}
-
-@media (hover: hover) {
-  .no-piano__btn:hover {
-    color: var(--accent);
-    border-color: var(--accent);
-  }
-}
-
-/* Sans Bluetooth, les solutions de secours deviennent les actions principales */
-.no-piano--prominent .no-piano__btn {
-  font-size: 0.75rem;
-  padding: 14px 16px;
-  color: var(--accent);
-  border-color: var(--accent);
+  color: var(--txt-dim);
 }
 
 /* « Autoriser le câble USB » : ouvre la demande d'accès MIDI du navigateur */
@@ -1198,6 +1148,7 @@
 
 @media (orientation: landscape) and (max-height: 560px) {
   .connect-screen {
+    --connect-round: clamp(104px, 28vmin, 136px);
     gap: 8px;
     padding-bottom: 0;
   }
@@ -1862,5 +1813,227 @@
 @media (orientation: landscape) {
   .virtual-kb__keys {
     width: calc(var(--vk-white-keys) / 21 * 100%);
+  }
+}
+
+/* ─────────────────────────────────────────────
+   ÉCRAN DE CONNEXION : bouton USB à côté du rond Bluetooth
+   ───────────────────────────────────────────── */
+.bt-connect-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+}
+
+.usb-btn {
+  width: var(--connect-round);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  /* Même vert que le rond Bluetooth : les deux moyens de connexion sont à égalité */
+  color: var(--accent);
+  background: var(--bg-card);
+  border: 2px solid var(--accent);
+  cursor: pointer;
+  font-family: var(--font-mono);
+  transition: color 0.2s, border-color 0.2s, background 0.2s, box-shadow 0.3s, transform 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.usb-btn__icon {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+}
+
+.usb-btn__label {
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  text-align: center;
+  line-height: 1.3;
+}
+
+/* Explication ouverte : même lueur que le rond Bluetooth au survol */
+.usb-btn--open {
+  background: var(--bg-card-hover);
+  box-shadow: var(--accent-glow);
+}
+
+/* Accès MIDI refusé ou non pris en charge */
+.usb-btn--warn {
+  color: var(--warn);
+  border-color: var(--warn);
+}
+.usb-btn--warn.usb-btn--open { box-shadow: 0 0 20px #ffb93055; }
+
+@media (hover: hover) {
+  .usb-btn:hover {
+    background: var(--bg-card-hover);
+    box-shadow: var(--accent-glow);
+  }
+  .usb-btn--warn:hover { box-shadow: 0 0 20px #ffb93055; }
+}
+
+.usb-btn:active { transform: scale(0.96); }
+
+.usb-btn:focus-visible,
+.bt-connect-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+/* Rond Bluetooth et son ⓘ discret (« votre piano n'apparaît pas ? ») */
+.bt-connect-btn-wrap {
+  position: relative;
+  display: flex;
+}
+
+.bt-connect-hint {
+  position: absolute;
+  top: 4%;
+  right: 4%;
+  z-index: 2;
+  display: flex;
+  border-radius: 50%;
+  background: var(--bg-deep);
+  animation: fade-in 0.4s ease;
+}
+
+.bt-connect-hint .info-btn {
+  width: 26px;
+  height: 26px;
+}
+
+/* ─────────────────────────────────────────────
+   ÉCRAN DE CONNEXION : bouton « Piano virtuel »
+   ───────────────────────────────────────────── */
+.vpiano-btn {
+  width: calc(var(--connect-round) * 2 + 16px);
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+  color: var(--txt-secondary);
+  background: var(--bg-card);
+  border: 2px solid var(--border-accent);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  transition: color 0.2s, border-color 0.2s, transform 0.15s;
+  -webkit-tap-highlight-color: transparent;
+  animation: fade-in 0.6s ease;
+}
+
+.vpiano-btn__keys {
+  display: block;
+  width: 100%;
+  height: clamp(64px, 18vw, 84px);
+  border-bottom: 2px solid var(--border-accent);
+  transition: border-color 0.2s;
+}
+
+.mini-keys__white { fill: #c9ced8; transition: fill 0.2s; }
+.mini-keys__black { fill: var(--bg-deep); }
+
+.vpiano-btn__label {
+  padding: 14px 12px;
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  text-align: center;
+}
+
+@media (hover: hover) {
+  .vpiano-btn:hover { color: var(--accent); border-color: var(--accent); }
+  .vpiano-btn:hover .vpiano-btn__keys { border-color: var(--accent); }
+  .vpiano-btn:hover .mini-keys__white { fill: #e8eaf0; }
+}
+.vpiano-btn:active { transform: scale(0.98); }
+.vpiano-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+@media (orientation: landscape) and (max-height: 560px) {
+  .vpiano-btn__keys { height: 52px; }
+  .vpiano-btn__label { padding: 8px 12px; }
+}
+
+/* ─────────────────────────────────────────────
+   ÉCRAN DE CONNEXION : fenêtres d'information
+   Elles flottent en haut de l'écran, hors du flux : rien ne bouge à l'ouverture.
+   ───────────────────────────────────────────── */
+.connect-popups {
+  position: absolute;
+  top: 12px;
+  left: 0;
+  right: 0;
+  z-index: 4;
+  display: flex;
+  justify-content: center;
+  padding: 0 16px;
+  pointer-events: none;
+}
+
+.popup {
+  pointer-events: auto;
+  width: min(100%, 340px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-accent);
+  border-top: 2px solid var(--accent);
+  border-radius: var(--radius-md);
+  box-shadow: 0 12px 32px #000000b0;
+  animation: info-in 0.2s ease;
+}
+
+.popup--warn  { border-top-color: var(--warn); }
+.popup--error { border-top-color: var(--err); }
+
+.popup__title {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--txt-primary);
+  text-align: center;
+}
+
+.popup--warn .popup__title  { color: var(--warn); }
+.popup--error .popup__title { color: var(--err); }
+
+.popup__text {
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  color: var(--txt-secondary);
+  text-align: left;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .popup { animation: none; }
+}
+
+/* Paysage peu haut : pas d'espace libre en haut, la fenêtre se centre sur l'écran */
+@media (orientation: landscape) and (max-height: 560px) {
+  .connect-popups > .popup {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    translate: -50% -50%;
+    max-height: calc(100dvh - 24px);
+    overflow-y: auto;
   }
 }
