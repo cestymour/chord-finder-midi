@@ -67,14 +67,16 @@ En production, `vite.config.js` fixe `base` à `/chord-finder-midi/`. Pour hébe
 The app has two screens, picked from the tabs at the top. It always opens on **Piano**.
 
 - **Piano**: connect by cable (Web MIDI, all inputs are picked up automatically) or over Bluetooth LE MIDI (Web Bluetooth). Until an instrument is connected, a large Bluetooth button is shown. Once a piano is connected, an 88-key on-screen keyboard lights up the keys you play and scrolls to them. No piano? The “Clavier virtuel” button shows the same keyboard: click keys to hold them down (click again to release) and hear each note; the chord is detected the same way.
-- **Accords** (chord dictionary): pick a root and a chord type to see its keys light up on the keyboard, and step through its inversions. Each choice plays the chord as an arpeggio.
+- **Accords** (chord dictionary): pick a root and a chord type to see its keys light up on the keyboard, and step through its inversions. Each choice plays the chord as an arpeggio; tapping it again plays it as a block chord.
 - **Settings** (gear icon): pick the language (French by default, English, German or Spanish) show accidentals as sharps (♯) or flats (♭) throughout the app, turn the sound on or off, and choose whether chords played without optional notes (such as the fifth) are recognized. These choices are remembered. The app version is shown here too.
 - **Browser**: Chrome or Edge on desktop or Android. Firefox and Safari (including every iOS browser) don’t support Web Bluetooth.
 - **Install** it as a PWA from your browser.
 - Chord symbols use standard English notation, except in German, which writes B natural as H (Hmaj7).
 
-Run it locally with `npm install` then `npm run dev`.
+Run it locally with `npm install` then `npm run dev`; `npm test` runs the unit tests.
 
 ## Licence
 
 [MIT](LICENSE) © cestymour
+
+Piano samples (`public/piano/`): [Salamander Grand Piano V3](https://archive.org/details/SalamanderGrandPianoV3) by Alexander Holm, licensed [CC-BY 3.0](https://creativecommons.org/licenses/by/3.0/), resampled to mono and shortened.

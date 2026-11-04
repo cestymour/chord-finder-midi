@@ -30,6 +30,8 @@
      --accent:         #00e5a0;
      --accent-dim:     #00c88833;
      --accent-glow:    0 0 20px #00e5a055, 0 0 60px #00e5a018;
+     /* Contour vert atténué : bouton proposé, pas sélectionné (écran d'accueil) */
+     --accent-line:    #00e5a052;
    
      /* Secondary accent — amber (warm note) */
      --amber:          #ffb930;
@@ -196,6 +198,11 @@
      .midi-status__action:hover {
        color: var(--err);
        border-color: var(--err);
+     }
+     /* « Connecter un piano » n'a rien de dangereux : survol vert discret */
+     .midi-status__action--connect:hover {
+       color: var(--accent);
+       border-color: var(--accent-line);
      }
    }
    
@@ -680,20 +687,35 @@
        border-radius: 4px;
      }
    
-     /* Typo : vmin suit la dimension la plus contrainte (souvent la hauteur en paysage) */
+     /* La carte a la hauteur de la zone (fixée par l'écran, pas par son contenu) :
+        le nom de l'accord se règle sur cette hauteur (unités cqh) et les espaces sont
+        resserrés, pour que tout tienne sans barre de défilement. */
+     .chord-card--primary {
+       container-type: size;
+       gap: 8px;
+     }
+
+     .chord-card--primary .chord-name {
+       margin-bottom: 0;
+     }
+
      .chord-card--primary .chord-root {
-       font-size: clamp(2rem, 14vmin, 4rem);
+       font-size: clamp(1.5rem, 26cqh, 4rem);
        letter-spacing: -1px;
      }
    
      .chord-card--primary .chord-suffix {
-       font-size: clamp(0.95rem, 6vmin, 2rem);
+       font-size: clamp(0.8rem, 11cqh, 2rem);
        padding-bottom: 2px;
      }
    
      .chord-card--primary .chord-inversion {
-       font-size: clamp(0.75rem, 4vmin, 1.35rem);
+       font-size: clamp(0.7rem, 7cqh, 1.35rem);
        padding-bottom: 4px;
+     }
+
+     .chord-card--primary .chord-table {
+       padding-top: 6px;
      }
    
      .chord-card--primary .chord-table__note {
@@ -702,6 +724,14 @@
    
      .chord-card--primary .chord-type {
        font-size: 0.58rem;
+     }
+   }
+
+   /* Paysage très bas (navigateur avec barres, petit téléphone) : encore plus serré */
+   @media (orientation: landscape) and (max-height: 340px) {
+     .chord-card--primary {
+       padding: 8px 14px 8px;
+       gap: 4px;
      }
    }
    
@@ -728,9 +758,11 @@
   width: var(--connect-round);
   aspect-ratio: 1;
   border-radius: 50%;
-  border: 2px solid var(--accent);
+  /* Les trois boutons d'accueil se ressemblent : contour vert atténué, icône verte,
+     libellé clair. Le vert franc (et la lueur) vient au survol ou à l'ouverture. */
+  border: 2px solid var(--accent-line);
   background: var(--bg-card);
-  color: var(--accent);
+  color: var(--txt-primary);
   cursor: pointer;
   position: relative;
   overflow: hidden;
@@ -749,6 +781,7 @@
 }
 
 .bt-connect-btn:hover:not(:disabled) {
+  border-color: var(--accent);
   background: var(--bg-card-hover);
   box-shadow: var(--accent-glow);
   transform: scale(1.03);
@@ -773,6 +806,7 @@
   width: 40px;
   height: 40px;
   flex-shrink: 0;
+  color: var(--accent);
   position: relative;
   z-index: 1;
 }
@@ -799,6 +833,7 @@
 }
 
 .bt-connect-btn--loading .bt-connect-icon {
+  color: inherit;
   animation: bt-spin 2s linear infinite;
 }
 
@@ -858,29 +893,9 @@
   }
 }
 
-.info-bubble {
-  margin: 0;
-  padding: 10px 12px;
-  font-size: 0.75rem;
-  line-height: 1.5;
-  color: var(--txt-secondary);
-  background: var(--bg-surface);
-  border: 1px solid var(--border-mid);
-  border-left: 2px solid var(--accent);
-  border-radius: var(--radius-sm);
-  text-align: left;
-  animation: info-in 0.2s ease;
-}
-
 @keyframes info-in {
   from { opacity: 0; transform: translateY(-4px); }
   to   { opacity: 1; transform: translateY(0); }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .info-bubble {
-    animation: none;
-  }
 }
 
 /* Message court + ⓘ, centré (écran de connexion) */
@@ -986,6 +1001,89 @@
 /* ─────────────────────────────────────────────
    TOP BAR : onglets d'écran + roue crantée
    ───────────────────────────────────────────── */
+/* En-tête : onglets, puis ligne d'état (écran Piano) */
+.app-header {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 5;
+}
+
+/* Paysage peu haut : onglets, état et roue crantée sur une seule ligne */
+@media (orientation: landscape) and (max-height: 560px) {
+  .app-header {
+    flex-direction: row;
+    align-items: center;
+    gap: 12px;
+    padding: max(6px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right))
+      6px max(12px, env(safe-area-inset-left));
+    border-bottom: 1px solid var(--border-subtle);
+    background: var(--bg-surface);
+  }
+
+  /* Ses éléments se placent directement dans la ligne de l'en-tête */
+  .app-header .top-bar {
+    display: contents;
+  }
+
+  .app-header .mode-tabs {
+    order: 1;
+    flex: 1 1 0;
+  }
+
+  .app-header .mode-tab {
+    padding: 5px 4px;
+  }
+
+  /* Ligne d'état : une pastille arrondie, plus claire et moins haute que les onglets
+     (bloc sombre et creusé), séparée d'eux par un trait vertical : on distingue
+     bien la navigation de l'état du piano. */
+  .app-header .midi-status {
+    order: 2;
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: 0;
+    height: 30px;
+    margin-left: 13px; /* place du trait, au milieu de l'écart avec les onglets */
+    padding: 0 4px 0 14px;
+    border: 1px solid var(--border-mid);
+    border-radius: 999px;
+    background: var(--bg-card-hover);
+    overflow: visible;
+  }
+
+  .app-header .midi-status::before {
+    content: "";
+    position: absolute;
+    left: -19px;
+    top: -4px;
+    bottom: -4px;
+    width: 1px;
+    background: var(--border-mid);
+  }
+
+  .app-header .midi-status__action {
+    border-radius: 999px;
+    padding: 3px 10px;
+  }
+
+  /* « Accord → Notes » n'a pas de ligne d'état : place vide à sa place,
+     pour que les onglets gardent la même largeur que sur l'écran Piano */
+  .app-header--explore::after {
+    content: "";
+    order: 2;
+    flex: 1 1 0;
+    margin-left: 13px; /* même marge que la pastille d'état */
+  }
+
+  .app-header .settings-btn {
+    order: 3;
+    width: 32px;
+    height: 32px;
+  }
+}
+
 .top-bar {
   display: flex;
   align-items: center;
@@ -1441,6 +1539,20 @@
   border-color: var(--border-accent);
 }
 
+/* Altérations (♯ ♭ 𝄪 𝄫) : leur police de secours dépasse en haut et en bas ;
+   sans hauteur de ligne, elles n'agrandissent plus la carte. */
+.chord-acc {
+  line-height: 0;
+}
+
+/* Dictionnaire en portrait : moins d'espace autour de la carte de l'accord */
+@media not all and (orientation: landscape) and (max-height: 560px) {
+  .display-area--explore {
+    padding-top: 10px;
+    gap: 10px;
+  }
+}
+
 .chord-card--explore::before {
   background: linear-gradient(to bottom, transparent, var(--accent), transparent);
   opacity: 1;
@@ -1479,15 +1591,23 @@
   gap: 5px;
 }
 
+/* Fondamentales en grand ; les types d'accords restent en 0.7rem */
+.explorer__roots .explorer-chip {
+  font-size: 1.2rem;
+}
+
 .explorer-chip {
   font-family: var(--font-mono);
   font-size: 0.7rem;
   font-weight: 600;
   color: var(--txt-secondary);
   background: var(--bg-card);
-  border: 1px solid var(--border-subtle);
+  /* Contour vert atténué, comme les boutons de l'écran d'accueil */
+  border: 1px solid var(--accent-line);
   border-radius: var(--radius-sm);
-  padding: 5px 8px;
+  /* Boutons plus hauts (plus faciles à toucher), sans écarts supplémentaires */
+  min-height: 36px;
+  padding: 0 8px;
   cursor: pointer;
   transition: color 0.15s, border-color 0.15s, background 0.15s;
   -webkit-tap-highlight-color: transparent;
@@ -1495,7 +1615,7 @@
 
 @media (hover: hover) {
   .explorer-chip:hover {
-    border-color: var(--border-accent);
+    border-color: var(--accent);
     color: var(--txt-primary);
   }
 }
@@ -1566,7 +1686,7 @@
 /* Bouton de type : même police que les fondamentales, moins de marge */
 .explorer-chip--type {
   min-width: 0;
-  padding: 3px 4px;
+  padding: 0 4px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1633,6 +1753,18 @@
     max-width: calc((100% - 12px) / 2);
     min-width: 0;
     min-height: 0;
+  }
+
+  /* Les 12 fondamentales sur une ligne : plus de place pour les types d'accords */
+  .explorer__roots {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    gap: 4px;
+  }
+
+  .explorer__roots .explorer-chip {
+    padding: 0;
+    /* 1.2rem, réduit sur les écrans étroits pour que « C♯ » tienne dans sa case */
+    font-size: min(1.2rem, 2.6vw);
   }
 
   .explorer__scroll {
@@ -1702,7 +1834,7 @@
   text-transform: uppercase;
   color: var(--accent);
   background: transparent;
-  border: 1px solid var(--accent-dim);
+  border: 1px solid var(--accent-line);
   border-radius: var(--radius-sm);
   padding: 4px 10px;
   cursor: pointer;
@@ -1810,9 +1942,18 @@
   }
 }
 
+/* Ordinateur (colonne de 480 px) : 3 octaves visibles */
 @media (orientation: landscape) {
   .virtual-kb__keys {
     width: calc(var(--vk-white-keys) / 21 * 100%);
+  }
+}
+
+/* Téléphone couché : touches de la même largeur qu'en portrait (la largeur du
+   téléphone en portrait ≈ sa hauteur en paysage), donc plus de touches visibles. */
+@media (orientation: landscape) and (max-height: 560px) {
+  .virtual-kb__keys {
+    width: calc(var(--vk-white-keys) * clamp(22px, (100vh - 24px) / 14, 32px));
   }
 }
 
@@ -1836,10 +1977,10 @@
   align-items: center;
   justify-content: center;
   gap: 10px;
-  /* Même vert que le rond Bluetooth : les deux moyens de connexion sont à égalité */
-  color: var(--accent);
+  /* Même style que le rond Bluetooth : les deux moyens de connexion sont à égalité */
+  color: var(--txt-primary);
   background: var(--bg-card);
-  border: 2px solid var(--accent);
+  border: 2px solid var(--accent-line);
   cursor: pointer;
   font-family: var(--font-mono);
   transition: color 0.2s, border-color 0.2s, background 0.2s, box-shadow 0.3s, transform 0.15s;
@@ -1850,6 +1991,7 @@
   width: 40px;
   height: 40px;
   flex-shrink: 0;
+  color: var(--accent);
 }
 
 .usb-btn__label {
@@ -1863,6 +2005,7 @@
 
 /* Explication ouverte : même lueur que le rond Bluetooth au survol */
 .usb-btn--open {
+  border-color: var(--accent);
   background: var(--bg-card-hover);
   box-shadow: var(--accent-glow);
 }
@@ -1870,16 +2013,19 @@
 /* Accès MIDI refusé ou non pris en charge */
 .usb-btn--warn {
   color: var(--warn);
-  border-color: var(--warn);
+  border-color: #ffb93066;
 }
+.usb-btn--warn .usb-btn__icon { color: var(--warn); }
+.usb-btn--warn.usb-btn--open { border-color: var(--warn); }
 .usb-btn--warn.usb-btn--open { box-shadow: 0 0 20px #ffb93055; }
 
 @media (hover: hover) {
   .usb-btn:hover {
+    border-color: var(--accent);
     background: var(--bg-card-hover);
     box-shadow: var(--accent-glow);
   }
-  .usb-btn--warn:hover { box-shadow: 0 0 20px #ffb93055; }
+  .usb-btn--warn:hover { border-color: var(--warn); box-shadow: 0 0 20px #ffb93055; }
 }
 
 .usb-btn:active { transform: scale(0.96); }
@@ -1921,12 +2067,12 @@
   flex-direction: column;
   padding: 0;
   overflow: hidden;
-  color: var(--txt-secondary);
+  color: var(--txt-primary);
   background: var(--bg-card);
-  border: 2px solid var(--border-accent);
+  border: 2px solid var(--accent-line);
   border-radius: var(--radius-lg);
   cursor: pointer;
-  transition: color 0.2s, border-color 0.2s, transform 0.15s;
+  transition: color 0.2s, border-color 0.2s, box-shadow 0.3s, transform 0.15s;
   -webkit-tap-highlight-color: transparent;
   animation: fade-in 0.6s ease;
 }
@@ -1935,7 +2081,7 @@
   display: block;
   width: 100%;
   height: clamp(64px, 18vw, 84px);
-  border-bottom: 2px solid var(--border-accent);
+  border-bottom: 2px solid var(--accent-line);
   transition: border-color 0.2s;
 }
 
@@ -1953,7 +2099,7 @@
 }
 
 @media (hover: hover) {
-  .vpiano-btn:hover { color: var(--accent); border-color: var(--accent); }
+  .vpiano-btn:hover { color: var(--accent); border-color: var(--accent); box-shadow: var(--accent-glow); }
   .vpiano-btn:hover .vpiano-btn__keys { border-color: var(--accent); }
   .vpiano-btn:hover .mini-keys__white { fill: #e8eaf0; }
 }
@@ -1966,10 +2112,11 @@
 }
 
 /* ─────────────────────────────────────────────
-   ÉCRAN DE CONNEXION : fenêtres d'information
-   Elles flottent en haut de l'écran, hors du flux : rien ne bouge à l'ouverture.
+   FENÊTRES D'INFORMATION (écran de connexion, paramètres)
+   Elles flottent en haut de l'écran ou des paramètres, hors du flux :
+   rien ne bouge à l'ouverture.
    ───────────────────────────────────────────── */
-.connect-popups {
+.popup-zone {
   position: absolute;
   top: 12px;
   left: 0;
@@ -2022,18 +2169,174 @@
   text-align: left;
 }
 
+.popup__text a {
+  color: var(--accent);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .popup { animation: none; }
 }
 
 /* Paysage peu haut : pas d'espace libre en haut, la fenêtre se centre sur l'écran */
 @media (orientation: landscape) and (max-height: 560px) {
-  .connect-popups > .popup {
+  .popup-zone > .popup {
     position: fixed;
     top: 50%;
     left: 50%;
     translate: -50% -50%;
     max-height: calc(100dvh - 24px);
     overflow-y: auto;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   ORDINATEUR : écran large et plus haut qu'un téléphone couché.
+   Même media query que DESKTOP_QUERY (App.jsx). Rien ici ne touche le mobile.
+   Mise en page du portrait, dans une colonne centrée de 960 px.
+   ═══════════════════════════════════════════════════════════ */
+
+/* Titres des grilles du dictionnaire : seulement sur ordinateur */
+.explorer-grid-title {
+  display: none;
+}
+
+@media (min-width: 900px) and (min-height: 561px) {
+  /* Largeur de l'appli : celle du clavier entier (52 touches blanches de 24 px) + marges */
+  .app {
+    --desk-kb-width: 1248px;
+    --desk-col: 960px;
+    max-width: calc(var(--desk-kb-width) + 48px);
+  }
+
+  /* Clavier entier, centré ; défilement seulement si la fenêtre est plus étroite */
+  .virtual-kb__keys {
+    width: calc(var(--vk-white-keys) * 24px);
+  }
+
+  .virtual-kb__toolbar,
+  .virtual-kb__scroller {
+    width: min(100%, var(--desk-kb-width));
+    margin-inline: auto;
+  }
+
+  /* Fonds et traits sur toute la largeur, contenu centré dans la colonne */
+  .app .top-bar,
+  .app .midi-status,
+  .app .display-area {
+    padding-inline: max(20px, calc((100% - var(--desk-col)) / 2));
+  }
+
+  /* Onglets centrés dans la colonne : une place vide à gauche, de la largeur de la
+     roue crantée, pour que la séparation des deux onglets tombe au milieu, comme
+     celle des cartes et des grilles en dessous */
+  .app .top-bar::before {
+    content: "";
+    flex: 0 0 36px;
+  }
+
+  /* Accord principal à gauche, autres possibilités à droite */
+  .app .display-area:has(> .chord-card--primary) {
+    flex-direction: row;
+    align-items: flex-start;
+  }
+
+  /* Accord seul, sans autres possibilités : centré */
+  .app .display-area:has(> .chord-card--primary):not(:has(> .secondary-chords)) {
+    justify-content: center;
+  }
+
+  .app .display-area > .chord-card--primary {
+    flex: 0 0 calc((100% - 20px) / 2);
+    max-width: calc((100% - 20px) / 2);
+    min-width: 0;
+  }
+
+  .app .display-area > .secondary-chords {
+    flex: 1 1 0;
+    min-width: 0;
+    align-self: stretch;
+    min-height: 0;
+    overflow-y: auto;
+  }
+
+  /* Dictionnaire : carte de l'accord | fondamentales (2 lignes de 6), puis les
+     deux grilles côte à côte sur toute la largeur, seules à défiler */
+  .app .display-area--explore {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+    gap: 14px 20px;
+    overflow: hidden;
+  }
+
+  .app .display-area--explore .explorer {
+    display: contents;
+  }
+
+  .app .chord-card--explore {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .app .explorer__roots {
+    grid-column: 2;
+    grid-row: 1;
+    align-self: center;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+
+  /* Deux grilles de même largeur, alignées sur la carte et les fondamentales
+     au-dessus (même écart de 20 px), le trait de séparation au milieu de cet écart */
+  .app .explorer__scroll {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    min-height: 0;
+    overflow-y: auto;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    column-gap: 20px;
+    align-items: start;
+  }
+
+  /* Grille des altérés toujours dépliée (pas de titre à ouvrir) */
+  .explorer-altered__summary {
+    display: none;
+  }
+
+  .app .explorer-altered {
+    position: relative;
+    padding: 0;
+    border: none;
+  }
+
+  .app .explorer-altered::before {
+    content: "";
+    position: absolute;
+    left: -10px;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background: var(--border-subtle);
+  }
+
+  .explorer-altered[open] .explorer-matrix {
+    margin-top: 0;
+  }
+
+  /* À la place, un titre au-dessus de chaque grille (même style que « Altérés ▸ ») */
+  .explorer-grid-title {
+    display: block;
+    font-family: var(--font-mono);
+    font-size: 0.6rem;
+    font-weight: 600;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--txt-dim);
+    padding: 0 2px 6px;
+  }
+
+  /* Noms de types serrés au plus juste pour tenir dans les cases */
+  .explorer-chip--type {
+    padding: 0 2px;
   }
 }

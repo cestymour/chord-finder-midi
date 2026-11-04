@@ -6,6 +6,29 @@ Le format s’inspire de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/
 
 ## [Non publié]
 
+## [0.11.0] — 2026-11-05
+
+### Ajouté
+
+- **Accord plaqué dans « Accord → Notes »** : retoucher le même accord le fait entendre plaqué (toutes les notes ensemble), puis de nouveau arpégé, et ainsi de suite.
+- **Hors ligne** : les polices de l'appli sont gardées en cache, l'affichage reste le même sans connexion.
+
+### Modifié
+
+- **Son de piano** : un vrai piano enregistré (Salamander Grand Piano d'Alexander Holm, licence CC-BY, crédité dans l'ⓘ du réglage « Son ») remplace le son synthétisé. Les échantillons (~900 Ko) sont gardés en cache avec l'appli : le son marche hors ligne.
+- **Paramètres** : les ⓘ ouvrent leur explication dans une fenêtre, comme sur l'écran d'accueil, au lieu de l'insérer sous le réglage.
+- **Écran d'accueil** : les trois boutons (Bluetooth, câble USB, Piano virtuel) ont le même style, contour vert atténué et icône verte ; le vert franc vient au survol ou quand l'explication USB est ouverte.
+- **Paysage** : les onglets et la ligne d'état du piano tiennent sur une seule ligne, pour laisser plus de hauteur au reste. Les onglets gardent la même largeur (moitié gauche) sur les deux écrans. La ligne d'état y est une pastille plus claire, séparée des onglets par un trait, pour bien distinguer les deux.
+- **« Accord → Notes »** : boutons plus hauts, plus faciles à toucher, avec le contour vert de l'écran d'accueil, et noms des fondamentales en plus grand. Moins d'espace autour de la carte de l'accord. En paysage, les 12 fondamentales tiennent sur une ligne.
+- **Clavier en paysage** : sur un téléphone couché, les touches gardent leur largeur du portrait ; on en voit donc davantage (environ 4 octaves au lieu de 3).
+- **Ordinateur** : l'appli utilise la largeur de l'écran au lieu d'une colonne de téléphone. Le clavier entier est visible, les autres possibilités s'affichent à droite de l'accord principal (centré quand il est seul), et dans « Accord → Notes » les fondamentales sont à droite de la carte de l'accord, avec les grilles « Classiques » et « Altérés » côte à côte.
+- **« Connecter un piano »** : survol vert discret au lieu du rouge, réservé à « Déconnecter ».
+
+### Corrigé
+
+- **Paysage** : la carte de l'accord principal n'a plus de petite barre de défilement ; le nom de l'accord s'adapte à la hauteur disponible et les espaces sont resserrés.
+- **Accords en bémols** : le ♭ (ou ♯, 𝄪, 𝄫), dessiné dans une police plus haute, n'agrandit plus la carte de l'accord ; les boutons en dessous ne bougent plus d'un accord à l'autre.
+
 ## [0.10.0] — 2026-11-04
 
 ### Modifié
@@ -192,7 +215,8 @@ Première version numérotée. Elle regroupe tout ce qui a été développé dep
 - Application installable (PWA).
 - Déploiement automatique sur GitHub Pages à chaque mise à jour de la branche `main`.
 
-[Non publié]: https://github.com/cestymour/chord-finder-midi/compare/v0.10.0...HEAD
+[Non publié]: https://github.com/cestymour/chord-finder-midi/compare/v0.11.0...HEAD
+[0.11.0]: https://github.com/cestymour/chord-finder-midi/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/cestymour/chord-finder-midi/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/cestymour/chord-finder-midi/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/cestymour/chord-finder-midi/compare/v0.7.1...v0.8.0

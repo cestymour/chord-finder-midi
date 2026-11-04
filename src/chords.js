@@ -211,7 +211,7 @@ export const CHORD_TEMPLATES = CHORD_TEMPLATE_GROUPS.flatMap((g) => g.templates)
 
 // Fréquence d'usage par suffixe (plus petit = plus courant).
 // Les clés doivent correspondre exactement aux suffixes des templates.
-const SUFFIX_RANK = {
+export const SUFFIX_RANK = {
   "":       1,
   "m":      1,
   "7":      1,

@@ -31,6 +31,9 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Run unit tests
+        run: npm test # Un test en échec bloque le déploiement
+
       - name: Build project with Vite
         run: npm run build # Commande qui génère le dossier 'dist' de ton projet Vite
 

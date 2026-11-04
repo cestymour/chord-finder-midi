@@ -46,7 +46,7 @@ const OCTAVE_OFFSET = { fr: -2, es: -2, en: -1, de: -1 };
 // LIBELLÉS
 // ─────────────────────────────────────────────
 
-const MESSAGES = {
+export const MESSAGES = {
   fr: {
     "tabs.aria": "Écran affiché",
     "tabs.notesToChord": "Notes → Accord",
@@ -109,6 +109,7 @@ const MESSAGES = {
     "explorer.root": "Fondamentale",
     "explorer.triad": "Triade",
     "explorer.nth": "{n}e",
+    "explorer.main": "Classiques",
     "explorer.altered": "Altérés",
 
     "info.more": "Plus d'informations",
@@ -126,6 +127,7 @@ const MESSAGES = {
     "settings.incompleteHint": "Reconnaître un accord joué sans ses notes facultatives, comme la quinte : Do Mi Si♭ donne C7.",
     "settings.version": "version",
     "settings.license": "Licence MIT",
+    "settings.soundHint": "Le son est celui d'un vrai piano à queue enregistré par Alexander Holm, sous licence CC-BY 3.0 :",
     "settings.source": "Code source sur GitHub",
   },
 
@@ -191,6 +193,7 @@ const MESSAGES = {
     "explorer.root": "Root",
     "explorer.triad": "Triad",
     "explorer.nth": "{n}th",
+    "explorer.main": "Standard",
     "explorer.altered": "Altered",
 
     "info.more": "More information",
@@ -208,6 +211,7 @@ const MESSAGES = {
     "settings.incompleteHint": "Recognize a chord played without its optional notes, such as the fifth: C E B♭ gives C7.",
     "settings.version": "version",
     "settings.license": "MIT License",
+    "settings.soundHint": "The sound is a real grand piano recorded by Alexander Holm, licensed CC-BY 3.0:",
     "settings.source": "Source code on GitHub",
   },
 
@@ -273,6 +277,7 @@ const MESSAGES = {
     "explorer.root": "Grundton",
     "explorer.triad": "Dreikl.",
     "explorer.nth": "{n}.",
+    "explorer.main": "Standard",
     "explorer.altered": "Alteriert",
 
     "info.more": "Mehr Informationen",
@@ -290,6 +295,7 @@ const MESSAGES = {
     "settings.incompleteHint": "Einen Akkord auch ohne seine optionalen Töne erkennen, etwa ohne Quinte: C E B ergibt C7.",
     "settings.version": "Version",
     "settings.license": "MIT-Lizenz",
+    "settings.soundHint": "Der Klang stammt von einem echten Flügel, aufgenommen von Alexander Holm, Lizenz CC-BY 3.0:",
     "settings.source": "Quellcode auf GitHub",
   },
 
@@ -355,6 +361,7 @@ const MESSAGES = {
     "explorer.root": "Fundamental",
     "explorer.triad": "Tríada",
     "explorer.nth": "{n}.ª",
+    "explorer.main": "Clásicos",
     "explorer.altered": "Alterados",
 
     "info.more": "Más información",
@@ -372,12 +379,13 @@ const MESSAGES = {
     "settings.incompleteHint": "Reconocer un acorde tocado sin sus notas opcionales, como la quinta: Do Mi Si♭ da C7.",
     "settings.version": "versión",
     "settings.license": "Licencia MIT",
+    "settings.soundHint": "El sonido es el de un piano de cola real grabado por Alexander Holm, con licencia CC-BY 3.0:",
     "settings.source": "Código fuente en GitHub",
   },
 };
 
 // Groupes de types d'accords (dictionnaire), indexés par `id` de groupe (src/chords.js)
-const GROUP_NAMES = {
+export const GROUP_NAMES = {
   fr: { triads: "Triades", sixths: "Sixtes", sevenths: "Septièmes", ninths: "Neuvièmes", elevenths: "Onzièmes", thirteenths: "Treizièmes" },
   en: { triads: "Triads", sixths: "Sixths", sevenths: "Sevenths", ninths: "Ninths", elevenths: "Elevenths", thirteenths: "Thirteenths" },
   de: { triads: "Dreiklänge", sixths: "Sextakkorde", sevenths: "Septakkorde", ninths: "Nonakkorde", elevenths: "Undezimakkorde", thirteenths: "Tredezimakkorde" },
@@ -385,7 +393,7 @@ const GROUP_NAMES = {
 };
 
 // Noms des types d'accords, indexés par `suffix` (src/chords.js)
-const CHORD_TYPE_NAMES = {
+export const CHORD_TYPE_NAMES = {
   fr: {
     "": "Majeur", "m": "Mineur", "dim": "Diminué", "aug": "Augmenté",
     "sus2": "Suspendu 2", "sus4": "Suspendu 4", "5": "Quinte (power)",

@@ -19,6 +19,30 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png'],
+      // L'appli (JS, CSS, HTML, icônes) est déjà précachée par le service worker.
+      // Les polices Google viennent d'un autre site : mises en cache à la première
+      // ouverture, pour garder le même affichage hors ligne.
+      workbox: {
+        // Les échantillons de piano (public/piano/*.mp3, ~900 Ko) sont précachés
+        // avec l'appli : le son marche hors ligne dès la première visite.
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,webmanifest,mp3}'],
+        runtimeCaching: [
+          {
+            urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
+            handler: 'StaleWhileRevalidate',
+            options: { cacheName: 'google-fonts-stylesheets' },
+          },
+          {
+            urlPattern: /^https:\/\/fonts\.gstatic\.com\/.*/i,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'google-fonts-webfonts',
+              expiration: { maxEntries: 30, maxAgeSeconds: 60 * 60 * 24 * 365 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+        ],
+      },
       manifest: {
         name: 'InstantChordBT',
         short_name: 'InstantChordBT',

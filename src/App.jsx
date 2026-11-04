@@ -1,4 +1,4 @@
-import { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo, useId, createContext, useContext } from "react";
+import { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo, useId, createContext, useContext, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import './App.css';
 import useBluetoothMIDI from "./useBluetoothMIDI";
@@ -6,6 +6,7 @@ import { dispatchMidiMessage } from "./midiMessages";
 import {
   playPianoNote,
   playPianoArpeggio,
+  playPianoChord,
   stopPianoNote,
   stopAllPianoNotes,
   setPianoSoundEnabled,
@@ -23,6 +24,7 @@ import {
   inversionCount,
   spellPc,
 } from "./chords";
+import { ALTERED_COLUMNS, ALTERED_ROWS, MATRIX_COLUMNS, MATRIX_ROWS } from "./explorerLayout.js";
 import {
   DEFAULT_LANGUAGE,
   I18nContext,
@@ -322,16 +324,53 @@ function InfoButton({ open, onToggle, bubbleId }) {
   );
 }
 
-function InfoBubble({ id, children }) {
-  return <p id={id} className="info-bubble">{children}</p>;
-}
-
 /**
- * Fenêtres d'information de l'écran de connexion : au lieu de s'ouvrir sous leur bouton
- * (ce qui décale l'écran), elles s'affichent dans une zone fixe (portail).
- * Valeur : { openId, toggle(id), render(node) }, fournie par ConnectScreen.
+ * Fenêtres d'information (écran de connexion, paramètres) : au lieu de s'ouvrir sous leur
+ * bouton (ce qui décale l'écran), elles s'affichent dans une zone flottante (portail).
+ * Valeur : { openId, toggle(id), close(), render(node) }, créée par usePopupZone.
  */
 const PopupContext = createContext(null);
+
+/**
+ * Zone de fenêtres d'information : une seule ouverte à la fois. Un toucher hors de la
+ * fenêtre (et hors de son bouton) ou Échap la referme. Renvoie { popup, slotRef } :
+ * popup va dans PopupContext, slotRef sur l'élément `.popup-zone` qui les accueille.
+ */
+function usePopupZone() {
+  const [openId, setOpenId] = useState(null);
+  const [slot, setSlot] = useState(null);
+  const close = useCallback(() => setOpenId(null), []);
+
+  const popup = useMemo(() => ({
+    openId,
+    toggle: (id) => setOpenId((o) => (o === id ? null : id)),
+    close,
+    render: (node) => slot && createPortal(node, slot),
+  }), [openId, slot, close]);
+
+  useEffect(() => {
+    if (!openId) return;
+    const onPointerDown = (e) => {
+      if (slot?.contains(e.target)) return;
+      if (e.target.closest?.(`[aria-controls="${CSS.escape(openId)}"]`)) return;
+      setOpenId(null);
+    };
+    const onKeyDown = (e) => {
+      if (e.key !== "Escape") return;
+      // Dans les paramètres, Échap ferme la fenêtre d'information, pas les paramètres
+      e.preventDefault();
+      setOpenId(null);
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [openId, slot]);
+
+  return { popup, slotRef: setSlot };
+}
 
 function Popup({ id, tone, title, children }) {
   return (
@@ -461,43 +500,17 @@ function UsbButton({ midiStatus, open, onToggle, detailsId }) {
  */
 function ConnectScreen({ btProps, midi, onUseKeyboard }) {
   const { t } = useI18n();
-  const [openId, setOpenId] = useState(null);
-  const [slot, setSlot] = useState(null);
+  const { popup, slotRef } = usePopupZone();
   const usbId = useId();
   const promptId = useId();
 
-  const popup = useMemo(() => ({
-    openId,
-    toggle: (id) => setOpenId((o) => (o === id ? null : id)),
-    render: (node) => slot && createPortal(node, slot),
-  }), [openId, slot]);
-
-  // Un toucher hors de la fenêtre (et hors de son bouton) ou Échap la referme
-  useEffect(() => {
-    if (!openId) return;
-    const onPointerDown = (e) => {
-      if (slot?.contains(e.target)) return;
-      if (e.target.closest?.(`[aria-controls="${CSS.escape(openId)}"]`)) return;
-      setOpenId(null);
-    };
-    const onKeyDown = (e) => {
-      if (e.key === "Escape") setOpenId(null);
-    };
-    document.addEventListener("pointerdown", onPointerDown);
-    document.addEventListener("keydown", onKeyDown);
-    return () => {
-      document.removeEventListener("pointerdown", onPointerDown);
-      document.removeEventListener("keydown", onKeyDown);
-    };
-  }, [openId, slot]);
-
   const usbWarn = midi.status === "denied" || midi.status === "unsupported";
-  const usbOpen = openId === usbId;
+  const usbOpen = popup.openId === usbId;
 
   return (
     <PopupContext.Provider value={popup}>
       <div className="connect-screen">
-        <div className="connect-popups" ref={setSlot} />
+        <div className="popup-zone" ref={slotRef} />
         <h2 className="connect-screen__title">{t("connect.title")}</h2>
         <BluetoothMIDIButton
           {...btProps}
@@ -579,7 +592,7 @@ function ConnectionStatus({ btStatus, btKnownDevice, midi, onDisconnect, onConne
         </button>
       )}
       {!bluetooth && status !== "connected" && onConnect && (
-        <button className="midi-status__action" onClick={onConnect}>
+        <button className="midi-status__action midi-status__action--connect" onClick={onConnect}>
           {t("status.connect")}
         </button>
       )}
@@ -754,53 +767,15 @@ function VirtualKeyboard({ activeNotes, onKeyClick, scrollToNotes, noteLabels, t
 
 const ROOT_PCS = Array.from({ length: 12 }, (_, pc) => pc);
 
-// Types d'accords en deux grilles de 6 colonnes alignées. Une case = un suffixe
-// de CHORD_TEMPLATES, null = case vide ; chaque suffixe apparaît exactement une fois.
-//
-// 1) Qualité (lignes) × extension la plus haute (colonnes). "triad" s'affiche
-//    « Triade », les nombres en ordinal (7e, 7th, 7., 7.ª). « add » / « m add » :
-//    notes ajoutées ; « no3 » : accord de puissance (quinte sans tierce).
-const MATRIX_COLUMNS = ["triad", "6", "7", "9", "11", "13"];
-const MATRIX_ROWS = [
-  { label: "M",     cells: ["",     "6",    "maj7",  "maj9",  "maj11", "maj13"] },
-  { label: "add",   cells: [null,   "6/9",  null,    "add9",  "add11", null] },
-  { label: "m",     cells: ["m",    "m6",   "m7",    "m9",    "m11",   "m13"] },
-  { label: "m add", cells: [null,   "m6/9", null,    "madd9", null,    null] },
-  { label: "mM",    cells: [null,   null,   "mM7",   "mM9",   null,    null] },
-  { label: "dom",   cells: [null,   null,   "7",     "9",     "11",    "13"] },
-  { label: "sus4",  cells: ["sus4", null,   "7sus4", "9sus4", null,    null] },
-  { label: "sus2",  cells: ["sus2", null,   null,    null,    null,    null] },
-  { label: "dim",   cells: ["dim",  null,   "dim7",  null,    null,    null] },
-  { label: "aug",   cells: ["aug",  null,   "aug7",  null,    null,    null] },
-  { label: "no3",   cells: ["5",    null,   null,    null,    null,    null] },
-];
-// 2) Altérés, repliés par défaut : accord de base (lignes) + altération (colonnes),
-//    m7 + ♭5 = m7♭5, 7 + ♭5 = 7♭5, mM7 + ♭5 = dimM7…
-const ALTERED_COLUMNS = ["♭5", "♯5", "♭9", "♯9", "♯11", "♭13"];
-const ALTERED_ROWS = [
-  { label: "7",    cells: ["7♭5",  "7♯5",    "7♭9",   "7♯9",   "7♯11",    "7♭13"] },
-  { label: "7♯5",  cells: [null,   null,     "7♯5♭9", "7♯5♯9", null,      null] },
-  { label: "maj7", cells: [null,   "maj7♯5", null,    null,    "maj7♯11", null] },
-  { label: "m7",   cells: ["m7♭5", null,     null,    null,    null,      null] },
-  { label: "mM7",  cells: ["dimM7", null,    null,    null,    null,      null] },
-  { label: "13",   cells: [null,   null,     "13♭9",  null,    "13♯11",   null] },
-];
 const ALTERED_SUFFIXES = new Set(ALTERED_ROWS.flatMap((row) => row.cells).filter((cell) => cell !== null));
-
-// En dev : signale un modèle de chords.js absent des grilles (il serait introuvable
-// dans le dictionnaire) ou placé deux fois
-if (import.meta.env.DEV) {
-  const placed = [...MATRIX_ROWS, ...ALTERED_ROWS].flatMap((row) => row.cells).filter((cell) => cell !== null);
-  const missing = CHORD_TEMPLATES.filter((tpl) => !placed.includes(tpl.suffix)).map((tpl) => tpl.suffix);
-  const twice = placed.filter((cell, i) => placed.indexOf(cell) !== i);
-  if (missing.length || twice.length) console.warn("Dictionnaire : accords absents", missing, "ou en double", twice);
-}
 
 function ChordExplorer({ rootPc, template, onRootChange, onSuffixChange }) {
   const { t, rootName, chordTypeName, accidentals } = useI18n();
   const suffix = template.suffix;
   // Ouvert d'emblée seulement si l'accord choisi est un altéré (retour sur l'écran)
   const [alteredOpen, setAlteredOpen] = useState(() => ALTERED_SUFFIXES.has(suffix));
+  // Sur ordinateur, la grille des altérés est toujours dépliée, à droite de l'autre
+  const isDesktop = useMediaQuery(DESKTOP_QUERY);
 
   const typeButton = (tplSuffix) => (
     <button
@@ -828,7 +803,7 @@ function ChordExplorer({ rootPc, template, onRootChange, onSuffixChange }) {
           <div className="explorer-matrix__label" aria-hidden="true">{row.label}</div>
           {row.cells.map((cell, i) =>
             cell === null
-              ? <div key={i} className="explorer-matrix__empty" aria-hidden="true" />
+              ? <div key={`empty-${i}`} className="explorer-matrix__empty" aria-hidden="true" />
               : typeButton(cell)
           )}
         </div>
@@ -855,13 +830,19 @@ function ChordExplorer({ rootPc, template, onRootChange, onSuffixChange }) {
         ))}
       </div>
       <div className="explorer__scroll">
-        {matrix(MATRIX_COLUMNS.map(columnLabel), MATRIX_ROWS)}
+        {/* Titres des deux grilles : seulement sur ordinateur, où elles sont côte à côte
+            et où la grille des altérés n'a plus son titre à déplier */}
+        <div className="explorer-main">
+          <div className="explorer-grid-title" aria-hidden="true">{t("explorer.main")}</div>
+          {matrix(MATRIX_COLUMNS.map(columnLabel), MATRIX_ROWS, t("explorer.main"))}
+        </div>
         <details
           className="explorer-altered"
-          open={alteredOpen}
-          onToggle={(e) => setAlteredOpen(e.currentTarget.open)}
+          open={isDesktop || alteredOpen}
+          onToggle={(e) => { if (!isDesktop) setAlteredOpen(e.currentTarget.open); }}
         >
           <summary className="explorer-altered__summary">{t("explorer.altered")}</summary>
+          <div className="explorer-grid-title" aria-hidden="true">{t("explorer.altered")}</div>
           {matrix(ALTERED_COLUMNS, ALTERED_ROWS, t("explorer.altered"))}
         </details>
       </div>
@@ -926,12 +907,30 @@ const ACCIDENTAL_OPTIONS = [
 // Auteur et dépôt (licence MIT, voir le fichier LICENSE)
 const APP_AUTHOR = "cestymour";
 const APP_REPOSITORY = "https://github.com/cestymour/chord-finder-midi";
+// Échantillons du son de piano (public/piano/), cités dans l'ⓘ du réglage « Son »
+const PIANO_SAMPLES_URL = "https://archive.org/details/SalamanderGrandPianoV3";
 
 function GitHubIcon() {
   return (
     <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
       <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" />
     </svg>
+  );
+}
+
+// Écran d'ordinateur : assez large, et plus haut qu'un téléphone couché.
+// Doit rester identique à la media query « ORDINATEUR » de App.css.
+const DESKTOP_QUERY = "(min-width: 900px) and (min-height: 561px)";
+
+/** Vrai tant que la media query correspond (suit les changements de taille). */
+function useMediaQuery(query) {
+  return useSyncExternalStore(
+    (onChange) => {
+      const list = window.matchMedia(query);
+      list.addEventListener("change", onChange);
+      return () => list.removeEventListener("change", onChange);
+    },
+    () => window.matchMedia(query).matches,
   );
 }
 
@@ -1000,10 +999,9 @@ function SettingsDialog({
 }) {
   const { t, language, accidentals } = useI18n();
   const dialogRef = useRef(null);
-  const [incompleteInfo, setIncompleteInfo] = useState(false);
-  const incompleteInfoId = useId();
-  const [accidentalsInfo, setAccidentalsInfo] = useState(false);
-  const accidentalsInfoId = useId();
+  // Explications ⓘ : fenêtres flottantes en haut des paramètres, comme sur l'écran de connexion
+  const { popup, slotRef } = usePopupZone();
+  const closePopup = popup.close;
 
   // <dialog> natif : fond assombri, Échap pour fermer, focus gardé dans la fenêtre
   useEffect(() => {
@@ -1011,16 +1009,21 @@ function SettingsDialog({
     if (!dialog) return;
     if (open && !dialog.open) dialog.showModal();
     if (!open && dialog.open) dialog.close();
-  }, [open]);
+    if (!open) closePopup(); // rouverts plus tard sans explication ouverte
+  }, [open, closePopup]);
 
   return (
     <dialog
       ref={dialogRef}
       className="settings"
       onClose={onClose}
+      // Échap avec une explication ouverte : seule l'explication se ferme
+      onCancel={(e) => { if (popup.openId) e.preventDefault(); }}
       // Un clic sur le fond (hors du contenu) ferme la fenêtre
       onClick={(e) => { if (e.target === dialogRef.current) onClose(); }}
     >
+      <PopupContext.Provider value={popup}>
+      <div className="popup-zone" ref={slotRef} />
       <div className="settings__content">
         <div className="settings__header">
           <h2 className="settings__title">{t("settings.title")}</h2>
@@ -1051,11 +1054,7 @@ function SettingsDialog({
             <span className="settings__label-group">
               <span className="settings__label" id="settings-accidentals">{t("settings.accidentals")}</span>
               {/* Nom des accords selon le réglage, notes du tableau toujours exactes */}
-              <InfoButton
-                open={accidentalsInfo}
-                onToggle={() => setAccidentalsInfo((o) => !o)}
-                bubbleId={accidentalsInfoId}
-              />
+              <PopupInfoButton title={t("settings.accidentals")}>{t("settings.accidentalsHint")}</PopupInfoButton>
             </span>
             <div className="settings__segmented" role="group" aria-labelledby="settings-accidentals">
               {ACCIDENTAL_OPTIONS.map((opt) => (
@@ -1072,11 +1071,19 @@ function SettingsDialog({
               ))}
             </div>
           </div>
-          {accidentalsInfo && <InfoBubble id={accidentalsInfoId}>{t("settings.accidentalsHint")}</InfoBubble>}
         </div>
 
         <div className="settings__row settings__row--inline">
-          <span className="settings__label" id="settings-sound">{t("settings.sound")}</span>
+          <span className="settings__label-group">
+            <span className="settings__label" id="settings-sound">{t("settings.sound")}</span>
+            {/* Crédit des échantillons de piano (licence CC-BY) */}
+            <PopupInfoButton title={t("settings.sound")}>
+              {t("settings.soundHint")}{" "}
+              <a href={PIANO_SAMPLES_URL} target="_blank" rel="noopener noreferrer">
+                Salamander Grand Piano V3
+              </a>
+            </PopupInfoButton>
+          </span>
           <Switch
             checked={sound === "on"}
             onChange={(on) => onSoundChange(on ? "on" : "off")}
@@ -1088,11 +1095,7 @@ function SettingsDialog({
           <div className="settings__row--inline">
             <span className="settings__label-group">
               <span className="settings__label" id="settings-incomplete">{t("settings.incomplete")}</span>
-              <InfoButton
-                open={incompleteInfo}
-                onToggle={() => setIncompleteInfo((o) => !o)}
-                bubbleId={incompleteInfoId}
-              />
+              <PopupInfoButton title={t("settings.incomplete")}>{t("settings.incompleteHint")}</PopupInfoButton>
             </span>
             <Switch
               checked={incomplete === "on"}
@@ -1100,7 +1103,6 @@ function SettingsDialog({
               labelledBy="settings-incomplete"
             />
           </div>
-          {incompleteInfo && <InfoBubble id={incompleteInfoId}>{t("settings.incompleteHint")}</InfoBubble>}
         </div>
 
         <footer className="settings__footer">
@@ -1125,6 +1127,7 @@ function SettingsDialog({
           </div>
         </footer>
       </div>
+      </PopupContext.Provider>
     </dialog>
   );
 }
@@ -1324,9 +1327,17 @@ export default function ChordIdentifier() {
     };
   }, [exploreMode, exploreRoot, exploreTemplate, exploreInversion, accidentals]);
 
-  // Chaque choix dans le dictionnaire fait entendre l'accord en arpège.
+  // Chaque choix dans le dictionnaire fait entendre l'accord en arpège. Retoucher le même
+  // accord, plusieurs fois de suite, alterne : plaqué (2e, 4e… fois), puis arpégé de nouveau.
+  const exploreRepeatRef = useRef({ key: null, count: 0 });
   const playExploreChord = (rootPc, template, inversion) => {
-    playPianoArpeggio(buildChordVoicing(rootPc, template, inversion).map(n => n.midi));
+    const key = `${rootPc}|${template.suffix}|${inversion}`;
+    const repeat = exploreRepeatRef.current;
+    repeat.count = repeat.key === key ? repeat.count + 1 : 1;
+    repeat.key = key;
+    const notes = buildChordVoicing(rootPc, template, inversion).map(n => n.midi);
+    if (repeat.count % 2 === 0) playPianoChord(notes);
+    else playPianoArpeggio(notes);
   };
 
   const changeExploreRoot = (pc) => {
@@ -1422,22 +1433,25 @@ export default function ChordIdentifier() {
     <I18nContext.Provider value={i18n}>
       <div className={`app${showKeyboard || exploreMode ? " app--keyboard" : ""}`}>
 
-        <TopBar
-          mode={mode}
-          onModeChange={changeMode}
-          onOpenSettings={() => setSettingsOpen(true)}
-        />
-
-        {/* ── MIDI Status (écran Piano uniquement) ── */}
-        {mode === "midi" && (
-          <ConnectionStatus
-            btStatus={btStatus}
-            btKnownDevice={btKnownDevice}
-            midi={midi}
-            onDisconnect={disconnectBluetooth}
-            onConnect={showKeyboard && !pianoLinked ? showConnectScreen : undefined}
+        {/* En-tête : onglets puis ligne d'état ; en paysage peu haut, sur une seule ligne */}
+        <div className={`app-header${exploreMode ? " app-header--explore" : ""}`}>
+          <TopBar
+            mode={mode}
+            onModeChange={changeMode}
+            onOpenSettings={() => setSettingsOpen(true)}
           />
-        )}
+
+          {/* ── MIDI Status (écran Piano uniquement) ── */}
+          {mode === "midi" && (
+            <ConnectionStatus
+              btStatus={btStatus}
+              btKnownDevice={btKnownDevice}
+              midi={midi}
+              onDisconnect={disconnectBluetooth}
+              onConnect={showKeyboard && !pianoLinked ? showConnectScreen : undefined}
+            />
+          )}
+        </div>
 
         {/* Lecteurs d'écran : annonce de l'accord joué (zone toujours présente) */}
         <ChordAnnouncer
@@ -1446,7 +1460,7 @@ export default function ChordIdentifier() {
         />
 
         {/* ── Main display area ── */}
-        <div className="display-area">
+        <div className={`display-area${exploreMode ? " display-area--explore" : ""}`}>
 
           {showBluetoothButton && (
             <ConnectScreen
@@ -1542,6 +1556,7 @@ export default function ChordIdentifier() {
           />
         )}
 
+
         <SettingsDialog
           open={settingsOpen}
           onClose={() => setSettingsOpen(false)}
@@ -1597,6 +1612,13 @@ function ChordAnnouncer({ chord, unknown }) {
 // CHORD CARD SUB-COMPONENT
 // ─────────────────────────────────────────────
 
+/** Isole les altérations dans un <span class="chord-acc"> (voir App.css). */
+function withAccidentals(text) {
+  return text.split(/([♯♭𝄪𝄫])/u).map((part, i) =>
+    i % 2 ? <span key={i} className="chord-acc">{part}</span> : part,
+  );
+}
+
 function ChordCard({ chord, size, isPending = false, className = "" }) {
   const { t, noteName, rootName, chordTypeName } = useI18n();
   // Split chord name into root + suffix + inversion for styled rendering.
@@ -1612,9 +1634,9 @@ function ChordCard({ chord, size, isPending = false, className = "" }) {
 
       {/* Chord name — very large */}
       <div className="chord-name">
-        <span className="chord-root">{rootPart}</span>
-        {suffixPart && <span className="chord-suffix">{suffixPart}</span>}
-        {inversionPart && <span className="chord-inversion">{inversionPart}</span>}
+        <span className="chord-root">{withAccidentals(rootPart)}</span>
+        {suffixPart && <span className="chord-suffix">{withAccidentals(suffixPart)}</span>}
+        {inversionPart && <span className="chord-inversion">{withAccidentals(inversionPart)}</span>}
       </div>
 
       {/* Note / Interval table — 2 rows × N columns */}
@@ -1630,7 +1652,7 @@ function ChordCard({ chord, size, isPending = false, className = "" }) {
             className={`chord-table__note${pair.missing ? " chord-table__note--missing" : ""}`}
             style={{ gridColumn: i + 1, gridRow: 1 }}
           >
-            {noteName(pair.note)}
+            {withAccidentals(noteName(pair.note))}
           </span>
         ))}
         {chord.noteIntervalPairs.map((pair, i) => (
@@ -1639,7 +1661,7 @@ function ChordCard({ chord, size, isPending = false, className = "" }) {
             className={`chord-table__interval${pair.missing ? " chord-table__interval--missing" : ""}`}
             style={{ gridColumn: i + 1, gridRow: 2 }}
           >
-            {pair.interval}
+            {withAccidentals(pair.interval)}
           </span>
         ))}
         {/* Note facultative non jouée : entre deux grandes parenthèses */}

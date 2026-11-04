@@ -27,7 +27,7 @@ const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
  * - "denied"     : accès au Bluetooth refusé (paramètres du site)
  * - "failed"     : connexion au piano impossible (souvent déjà connecté ailleurs)
  */
-function errorCode(err) {
+export function errorCode(err) {
   const message = err?.message || "";
   if (err?.name === "NotFoundError") return /adapter/i.test(message) ? "adapterOff" : "cancelled";
   if (err?.name === "NotAllowedError" || err?.name === "SecurityError") return "denied";
@@ -35,7 +35,7 @@ function errorCode(err) {
 }
 
 /** Décode une notification BLE MIDI et appelle les callbacks note on / note off / sustain. */
-function decodeNotification(value, callbacks) {
+export function decodeNotification(value, callbacks) {
   if (!value) return;
   let info;
   try {
