@@ -49,8 +49,10 @@ const OCTAVE_OFFSET = { fr: -2, es: -2, en: -1, de: -1 };
 const MESSAGES = {
   fr: {
     "tabs.aria": "Écran affiché",
-    "tabs.piano": "Piano",
-    "tabs.chords": "Accords",
+    "tabs.notesToChord": "Notes → Accord",
+    "tabs.notesToChord.aria": "Trouver l'accord à partir des notes",
+    "tabs.chordToNotes": "Accord → Notes",
+    "tabs.chordToNotes.aria": "Voir les notes d'un accord",
 
     "midi.pending": "Connexion…",
     "midi.disconnected": "Aucun piano connecté",
@@ -126,8 +128,10 @@ const MESSAGES = {
 
   en: {
     "tabs.aria": "Screen",
-    "tabs.piano": "Piano",
-    "tabs.chords": "Chords",
+    "tabs.notesToChord": "Notes → Chord",
+    "tabs.notesToChord.aria": "Find the chord from the notes",
+    "tabs.chordToNotes": "Chord → Notes",
+    "tabs.chordToNotes.aria": "See the notes of a chord",
 
     "midi.pending": "Connecting…",
     "midi.disconnected": "No piano connected",
@@ -203,8 +207,10 @@ const MESSAGES = {
 
   de: {
     "tabs.aria": "Ansicht",
-    "tabs.piano": "Klavier",
-    "tabs.chords": "Akkorde",
+    "tabs.notesToChord": "Noten → Akkord",
+    "tabs.notesToChord.aria": "Akkord aus den Noten bestimmen",
+    "tabs.chordToNotes": "Akkord → Noten",
+    "tabs.chordToNotes.aria": "Noten eines Akkords anzeigen",
 
     "midi.pending": "Verbinde…",
     "midi.disconnected": "Kein Klavier verbunden",
@@ -280,8 +286,10 @@ const MESSAGES = {
 
   es: {
     "tabs.aria": "Pantalla",
-    "tabs.piano": "Piano",
-    "tabs.chords": "Acordes",
+    "tabs.notesToChord": "Notas → Acorde",
+    "tabs.notesToChord.aria": "Encontrar el acorde a partir de las notas",
+    "tabs.chordToNotes": "Acorde → Notas",
+    "tabs.chordToNotes.aria": "Ver las notas de un acorde",
 
     "midi.pending": "Conectando…",
     "midi.disconnected": "Ningún piano conectado",

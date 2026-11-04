@@ -639,8 +639,8 @@ function ChordExplorer({ rootPc, template, onRootChange, onSuffixChange }) {
 // ─────────────────────────────────────────────
 
 const MODE_TABS = [
-  { mode: "midi",    labelKey: "tabs.piano",  icon: "🎹" },
-  { mode: "explore", labelKey: "tabs.chords", icon: "📖" },
+  { mode: "midi",    labelKey: "tabs.notesToChord", icon: "🎹" },
+  { mode: "explore", labelKey: "tabs.chordToNotes", icon: "📖" },
 ];
 
 function TopBar({ mode, onModeChange, onOpenSettings }) {
@@ -653,6 +653,7 @@ function TopBar({ mode, onModeChange, onOpenSettings }) {
             key={tab.mode}
             role="tab"
             aria-selected={mode === tab.mode}
+            aria-label={t(`${tab.labelKey}.aria`)}
             className={`mode-tab${mode === tab.mode ? " mode-tab--active" : ""}`}
             onClick={() => onModeChange(tab.mode)}
           >

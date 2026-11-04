@@ -6,6 +6,10 @@ Le format s’inspire de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/
 
 ## [Non publié]
 
+### Modifié
+
+- **Onglets plus explicites** : « Piano » et « Accords » deviennent « Notes → Accord » (je joue des notes, l'appli trouve l'accord) et « Accord → Notes » (je choisis un accord, l'appli montre ses notes).
+
 ## [0.8.0] — 2026-11-04
 
 ### Modifié
