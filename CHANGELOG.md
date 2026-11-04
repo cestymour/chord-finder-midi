@@ -6,6 +6,12 @@ Le format s’inspire de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/
 
 ## [Non publié]
 
+## [0.8.0] — 2026-11-04
+
+### Modifié
+
+- **Noms d'accords tout en dièses ou tout en bémols** : le réglage des altérations décide maintenant du nom de chaque accord sur touche noire. Avec les dièses, on lit toujours C♯, D♯, F♯, G♯, A♯ ; avec les bémols, toujours D♭, E♭, G♭, A♭, B♭. La basse d'un accord renversé suit la même règle (E/A♭ en bémols, D♯/G en dièses). Les notes du tableau gardent leur nom exact à partir de la fondamentale (la tierce de D♯ est Fa𝄪, celle de G♭m est Si𝄫).
+
 ## [0.7.1] — 2026-11-04
 
 ### Modifié
@@ -164,7 +170,8 @@ Première version numérotée. Elle regroupe tout ce qui a été développé dep
 - Application installable (PWA).
 - Déploiement automatique sur GitHub Pages à chaque mise à jour de la branche `main`.
 
-[Non publié]: https://github.com/cestymour/chord-finder-midi/compare/v0.7.1...HEAD
+[Non publié]: https://github.com/cestymour/chord-finder-midi/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/cestymour/chord-finder-midi/compare/v0.7.1...v0.8.0
 [0.7.1]: https://github.com/cestymour/chord-finder-midi/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/cestymour/chord-finder-midi/compare/v0.6.1...v0.7.0
 [0.6.1]: https://github.com/cestymour/chord-finder-midi/compare/v0.6.0...v0.6.1

@@ -1,7 +1,7 @@
 // Moteur d'accords (fonctions pures, sans React) :
 // - détection : notes MIDI → accords (identifyChords)
 // - sens inverse : accord → touches à jouer (buildChordVoicing, describeVoicing)
-// - orthographe : nom exact de chaque note d'un accord (spellRoot, spellDegree)
+// - orthographe : nom de l'accord (spellPc) et nom exact de chacune de ses notes (spellDegree)
 //
 // Une note orthographiée est un objet { letter, alter } :
 //   letter : 0–6 pour C D E F G A B (Do Ré Mi Fa Sol La Si)
@@ -13,8 +13,8 @@
 // ─────────────────────────────────────────────
 
 // Réglage dièses/bémols. Il décide du nom des touches noires hors accord
-// (clavier, accord non reconnu) et des fondamentales à égalité (F♯/G♭ majeur,
-// D♯m/E♭m). Les autres notes d'un accord s'écrivent selon sa fondamentale.
+// (clavier, accord non reconnu) et du nom des accords (fondamentale et basse).
+// Les notes d'un accord s'écrivent selon sa fondamentale.
 export const ACCIDENTALS = ["sharp", "flat"];
 // Valeur par défaut (avant tout choix de l'utilisateur dans les paramètres)
 export const DEFAULT_ACCIDENTALS = "sharp";
@@ -38,36 +38,12 @@ export function spellPc(pc, accidentals = DEFAULT_ACCIDENTALS) {
     : { letter: LETTER_PCS.indexOf(p - 1), alter: 1 };
 }
 
-// Fondamentale sur une touche noire : on garde l'écriture dont la tonalité
-// a le moins d'altérations à la clé (Si♭ majeur : 2 bémols, La♯ majeur : 10 dièses).
-// "tie" = autant d'altérations des deux côtés → le réglage décide.
-const BLACK_ROOT_SPELLING = {
-  major: { 1: "flat", 3: "flat", 6: "tie", 8: "flat", 10: "flat" },   // D♭ E♭ F♯/G♭ A♭ B♭
-  minor: { 1: "sharp", 3: "tie", 6: "sharp", 8: "sharp", 10: "flat" }, // C♯m D♯m/E♭m F♯m G♯m B♭m
-};
-
-/** Fondamentale d'un accord, selon son type (mineur ou non) et le réglage en cas d'égalité. */
-export function spellRoot(pc, template, accidentals = DEFAULT_ACCIDENTALS) {
-  const p = ((pc % 12) + 12) % 12;
-  const choice = BLACK_ROOT_SPELLING[template?.minor ? "minor" : "major"][p];
-  return spellPc(p, choice === undefined || choice === "tie" ? accidentals : choice);
-}
-
-/**
- * Fondamentale d'un accord reconnu, de basse `bassPc` (null à l'état fondamental).
- * Fondamentale à égalité (F♯/G♭ majeur, D♯m/E♭m) d'un accord renversé : on garde
- * l'écriture dont la basse est la moins altérée (E♭m6/C plutôt que D♯m6/B♯) ;
- * à altération égale, le réglage décide comme d'habitude.
- */
-function spellChordRoot(rootPc, template, accidentals, bassPc) {
-  const root = spellRoot(rootPc, template, accidentals);
-  const p = ((rootPc % 12) + 12) % 12;
-  if (bassPc == null || BLACK_ROOT_SPELLING[template.minor ? "minor" : "major"][p] !== "tie") return root;
-  const other = spellPc(p, accidentals === "flat" ? "sharp" : "flat");
-  const bassDegree = template.degreeByInterval.get((bassPc - p + 12) % 12);
-  const bassAlter = (r) => Math.abs(spellDegree(r, bassDegree).alter);
-  return bassAlter(other) < bassAlter(root) ? other : root;
-}
+// Nom d'un accord (fondamentale et basse d'un renversement) : il suit toujours
+// le réglage, comme une touche seule (spellPc). Un symbole n'a donc que des
+// dièses ou que des bémols (C♯, D♯, F♯, G♯, A♯ ou D♭, E♭, G♭, A♭, B♭), et la
+// basse se lit comme la touche jouée (E/A♭ en bémols, D♯/G en dièses).
+// Les notes du tableau, elles, s'écrivent exactement à partir de la fondamentale
+// (spellDegree) : la tierce de D♯ est F𝄪, la basse de E/A♭ y reste G♯.
 
 /** Note située à un degré donné au-dessus d'une fondamentale orthographiée. */
 export function spellDegree(root, degree) {
@@ -207,7 +183,6 @@ const RAW_TEMPLATE_GROUPS = [
  * - `required`  : celles qui doivent être jouées
  * - `degreeByInterval` : degré correspondant à chaque classe de hauteur
  * - `voicing`   : degrés empilés pour le dictionnaire (demi-tons croissants)
- * - `minor`     : tierce mineure (choix de l'écriture de la fondamentale)
  */
 function buildTemplate(raw) {
   const degrees = raw.degrees.map(parseDegree);
@@ -220,7 +195,6 @@ function buildTemplate(raw) {
     required: degrees.filter((d) => !optional.has(d.label)).map((d) => d.semitones % 12),
     degreeByInterval,
     voicing: [...degrees].sort((a, b) => a.semitones - b.semitones),
-    minor: raw.degrees.includes("♭3"),
   };
 }
 
@@ -293,7 +267,7 @@ const MISSING_NOTE_PENALTY = 1;
 
 /**
  * Notes MIDI jouées → accords possibles, du plus probable au moins probable (4 au plus).
- * `accidentals` : "sharp" | "flat", pour les fondamentales à égalité.
+ * `accidentals` : "sharp" | "flat", pour le nom de l'accord (fondamentale, basse).
  * `allowIncomplete` : accepter un accord dont des notes facultatives ne sont pas
  *   jouées (sinon, toutes les notes du template sont obligatoires).
  *
@@ -327,13 +301,13 @@ export function identifyChords(
 
       const missing = template.intervals.length - intervalSet.size;
       const isInversion = bassPc !== rootPc;
-      const root = spellChordRoot(rootPc, template, accidentals, isInversion ? bassPc : null);
+      const root = spellPc(rootPc, accidentals);
 
       const playedPairs = pitchClasses.map((pc) => {
         const degree = template.degreeByInterval.get((pc - rootPc + 12) % 12);
         return { pc, note: spellDegree(root, degree), interval: degree.label, degree };
       });
-      const bass = isInversion ? playedPairs[0].note : null;
+      const bass = isInversion ? spellPc(bassPc, accidentals) : null;
       const noteIntervalPairs = insertMissingDegrees(playedPairs, template, rootPc, root);
 
       results.push({
@@ -432,7 +406,7 @@ export const inversionCount = (template) => template.voicing.length;
 
 /** Données d'affichage (même forme que identifyChords) pour un voicing choisi. */
 export function describeVoicing(rootPc, template, voicing, accidentals = DEFAULT_ACCIDENTALS) {
-  const root = spellRoot(rootPc, template, accidentals);
+  const root = spellPc(rootPc, accidentals);
   const noteIntervalPairs = voicing.map((n) => ({
     pc: n.midi % 12,
     note: spellDegree(root, n.degree),
@@ -440,7 +414,7 @@ export function describeVoicing(rootPc, template, voicing, accidentals = DEFAULT
   }));
   const bassPc = voicing[0].midi % 12;
   const isInversion = bassPc !== rootPc;
-  const bass = isInversion ? noteIntervalPairs[0].note : null;
+  const bass = isInversion ? spellPc(bassPc, accidentals) : null;
 
   return {
     rootPc,

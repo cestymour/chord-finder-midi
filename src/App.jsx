@@ -21,7 +21,7 @@ import {
   describeVoicing,
   identifyChords,
   inversionCount,
-  spellRoot,
+  spellPc,
 } from "./chords";
 import {
   DEFAULT_LANGUAGE,
@@ -605,8 +605,8 @@ function ChordExplorer({ rootPc, template, onRootChange, onSuffixChange }) {
             onClick={() => onRootChange(pc)}
             aria-pressed={pc === rootPc}
           >
-            {/* Nom selon le type choisi : D♭ en majeur, C♯ en mineur */}
-            {rootName(spellRoot(pc, template, accidentals))}
+            {/* Touches noires en dièses ou en bémols selon le réglage */}
+            {rootName(spellPc(pc, accidentals))}
           </button>
         ))}
       </div>
@@ -623,7 +623,7 @@ function ChordExplorer({ rootPc, template, onRootChange, onSuffixChange }) {
                   aria-pressed={tpl.suffix === suffix}
                   title={chordTypeName(tpl.suffix)}
                 >
-                  {rootName(spellRoot(rootPc, tpl, accidentals))}{tpl.suffix}
+                  {rootName(spellPc(rootPc, accidentals))}{tpl.suffix}
                 </button>
               ))}
             </div>
@@ -833,7 +833,7 @@ function SettingsDialog({
           <div className="settings__row--inline">
             <span className="settings__label-group">
               <span className="settings__label" id="settings-accidentals">{t("settings.accidentals")}</span>
-              {/* Pourquoi des bémols restent affichés avec les dièses (et inversement) */}
+              {/* Nom des accords selon le réglage, notes du tableau toujours exactes */}
               <InfoButton
                 open={accidentalsInfo}
                 onToggle={() => setAccidentalsInfo((o) => !o)}
