@@ -46,7 +46,7 @@ export default defineConfig({
       manifest: {
         name: 'InstantChordBT',
         short_name: 'InstantChordBT',
-        description: 'Trouve les accords depuis ton clavier MIDI (Bluetooth ou câble).',
+        description: 'Find the chords you play on your MIDI keyboard (Bluetooth or cable).',
         theme_color: '#1a1a2e',
         background_color: '#1a1a2e',
         display: 'standalone',

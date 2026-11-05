@@ -986,13 +986,105 @@ const FLAGS = {
       <rect y="2" width="5" height="1" fill="#ffce00" />
     </svg>
   ),
+  // Espagne : bandes 1/4, 1/2, 1/4 ; armoiries simplifiées (colonnes, couronne,
+  // écu écartelé), centrées au tiers de la largeur côté hampe
   es: (
-    <svg viewBox="0 0 4 4" preserveAspectRatio="xMidYMid slice">
-      <rect width="4" height="4" fill="#aa151b" />
-      <rect y="1" width="4" height="2" fill="#f1bf00" />
+    <svg viewBox="0 0 30 20" preserveAspectRatio="xMidYMid slice">
+      <rect width="30" height="20" fill="#aa151b" />
+      <rect y="5" width="30" height="10" fill="#f1bf00" />
+      {/* Colonnes d'Hercule */}
+      <rect x="6.3" y="7.6" width="1" height="5.2" fill="#d8d8d8" />
+      <rect x="12.7" y="7.6" width="1" height="5.2" fill="#d8d8d8" />
+      <rect x="6" y="7.1" width="1.6" height="0.6" fill="#aa151b" />
+      <rect x="12.4" y="7.1" width="1.6" height="0.6" fill="#aa151b" />
+      <rect x="6" y="12.7" width="1.6" height="0.6" fill="#8a6a00" />
+      <rect x="12.4" y="12.7" width="1.6" height="0.6" fill="#8a6a00" />
+      {/* Couronne */}
+      <path d="M8.2,7 L8.2,5.6 L9.1,6.3 L10,5.3 L10.9,6.3 L11.8,5.6 L11.8,7 Z" fill="#c8102e" stroke="#8a6a00" strokeWidth="0.3" />
+      {/* Écu : Castille, León, Aragon, Navarre */}
+      <clipPath id="flag-es-shield">
+        <path d="M8.2,7.4 h3.6 v3.6 a1.8,1.8 0 0 1 -3.6,0 z" />
+      </clipPath>
+      <g clipPath="url(#flag-es-shield)">
+        <rect x="8.2" y="7.4" width="1.8" height="2.6" fill="#c8102e" />
+        <rect x="10" y="7.4" width="1.8" height="2.6" fill="#f4f4f4" />
+        <rect x="8.2" y="10" width="1.8" height="3" fill="#f1bf00" />
+        <rect x="8.8" y="10" width="0.6" height="3" fill="#c8102e" />
+        <rect x="10" y="10" width="1.8" height="3" fill="#c8102e" />
+      </g>
+      <path d="M8.2,7.4 h3.6 v3.6 a1.8,1.8 0 0 1 -3.6,0 z" fill="none" stroke="#8a6a00" strokeWidth="0.3" />
+    </svg>
+  ),
+  // Portugal simplifié : sphère armillaire réduite à un anneau et à l'écu
+  pt: (
+    <svg viewBox="0 0 30 20" preserveAspectRatio="xMidYMid slice">
+      <rect width="30" height="20" fill="#da291c" />
+      <rect width="12" height="20" fill="#046a38" />
+      <circle cx="12" cy="10" r="4.2" fill="none" stroke="#ffe900" strokeWidth="1" />
+      <path d="M9.6,7.6 h4.8 v3.4 a2.4,2.4 0 0 1 -4.8,0 z" fill="#da291c" />
+      <path d="M10.6,8.6 h2.8 v2.3 a1.4,1.4 0 0 1 -2.8,0 z" fill="#fff" />
+    </svg>
+  ),
+  zh: (
+    <svg viewBox="0 0 30 20" preserveAspectRatio="xMidYMid slice">
+      <rect width="30" height="20" fill="#ee1c25" />
+      <polygon points={starPoints(5, 5, 3, 5, 0)} fill="#ffff00" />
+      {[[10, 2], [12, 4], [12, 7], [10, 9]].map(([x, y]) => (
+        <polygon key={`${x},${y}`} points={starPoints(x, y, 1, 5, 5)} fill="#ffff00" />
+      ))}
+    </svg>
+  ),
+  ja: (
+    <svg viewBox="0 0 3 2" preserveAspectRatio="xMidYMid slice">
+      <rect width="3" height="2" fill="#fff" />
+      <circle cx="1.5" cy="1" r="0.6" fill="#bc002d" />
+    </svg>
+  ),
+  // Corée du Sud : taegeuk incliné et quatre trigrammes sur les diagonales
+  ko: (
+    <svg viewBox="0 0 36 24" preserveAspectRatio="xMidYMid slice">
+      <rect width="36" height="24" fill="#fff" />
+      <g transform="translate(18 12) rotate(33.69)">
+        <circle r="6" fill="#0047a0" />
+        <path d="M-6,0 A6,6 0 0 1 6,0 A3,3 0 0 0 0,0 A3,3 0 0 1 -6,0 Z" fill="#cd2e3a" />
+      </g>
+      {[
+        [-56.31, [1, 1, 1]], // ☰ geon, en haut à gauche
+        [56.31, [0, 1, 0]], // ☵ gam, en haut à droite
+        [123.69, [0, 0, 0]], // ☷ gon, en bas à droite
+        [-123.69, [1, 0, 1]], // ☲ ri, en bas à gauche
+      ].map(([angle, bars]) => (
+        <g key={angle} transform={`translate(18 12) rotate(${angle})`} fill="#000">
+          {bars.map((solid, i) => {
+            const y = -13 + i * 1.5;
+            return solid
+              ? <rect key={i} x="-3" y={y} width="6" height="1" />
+              : (
+                <g key={i}>
+                  <rect x="-3" y={y} width="2.75" height="1" />
+                  <rect x="0.25" y={y} width="2.75" height="1" />
+                </g>
+              );
+          })}
+        </g>
+      ))}
     </svg>
   ),
 };
+
+/** Sommets d'une étoile à 5 branches de centre (cx, cy) et de rayon r, une
+ *  pointe tournée vers le point (tx, ty) (vers le haut si c'est le centre). */
+function starPoints(cx, cy, r, tx, ty) {
+  const aim = tx === cx && ty === cy ? -Math.PI / 2 : Math.atan2(ty - cy, tx - cx);
+  const inner = r * 0.382;
+  const points = [];
+  for (let i = 0; i < 10; i++) {
+    const a = aim + (i * Math.PI) / 5;
+    const radius = i % 2 === 0 ? r : inner;
+    points.push(`${(cx + radius * Math.cos(a)).toFixed(3)},${(cy + radius * Math.sin(a)).toFixed(3)}`);
+  }
+  return points.join(" ");
+}
 
 function SettingsDialog({
   open, onClose, onLanguageChange, onAccidentalsChange, sound, onSoundChange, incomplete, onIncompleteChange,

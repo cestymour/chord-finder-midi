@@ -6,6 +6,15 @@ Le format s’inspire de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/
 
 ## [Non publié]
 
+### Ajouté
+
+- **Quatre nouvelles langues** : portugais, chinois (simplifié), japonais et coréen. Les drapeaux des paramètres sont maintenant sur 2 lignes de 4. En chinois, japonais et coréen, les notes sont nommées C D E… ; en portugais Dó Ré Mi…
+
+### Modifié
+
+- **Anglais par défaut** : l'application s'ouvre en anglais tant qu'aucune langue n'a été choisie (un choix déjà fait est conservé).
+- **Drapeau espagnol** (paramètres) : bandes rouges à la bonne largeur (1/4, 1/2, 1/4 au lieu d'un recadrage qui les amincissait) et armoiries simplifiées.
+
 ## [0.11.1] — 2026-11-05
 
 ### Corrigé

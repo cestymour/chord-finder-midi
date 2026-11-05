@@ -1347,7 +1347,7 @@
   -webkit-tap-highlight-color: transparent;
 }
 
-/* Langues : 4 drapeaux sur une ligne */
+/* Langues : 8 drapeaux sur 2 lignes de 4 */
 .settings__choices--flags {
   grid-template-columns: repeat(4, 1fr);
 }
