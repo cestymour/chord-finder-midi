@@ -6,6 +6,12 @@ Le format s’inspire de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/
 
 ## [Non publié]
 
+## [0.11.1] — 2026-11-05
+
+### Corrigé
+
+- **Notes sans accord** : quand on ajoute ou enlève une touche sans former d'accord, les notes affichées se mettent à jour tout de suite. Le court délai (0,25 s) ne sert plus qu'à garder un accord reconnu affiché le temps que les doigts se posent ou se lèvent.
+
 ## [0.11.0] — 2026-11-05
 
 ### Ajouté
@@ -215,7 +221,8 @@ Première version numérotée. Elle regroupe tout ce qui a été développé dep
 - Application installable (PWA).
 - Déploiement automatique sur GitHub Pages à chaque mise à jour de la branche `main`.
 
-[Non publié]: https://github.com/cestymour/chord-finder-midi/compare/v0.11.0...HEAD
+[Non publié]: https://github.com/cestymour/chord-finder-midi/compare/v0.11.1...HEAD
+[0.11.1]: https://github.com/cestymour/chord-finder-midi/compare/v0.11.0...v0.11.1
 [0.11.0]: https://github.com/cestymour/chord-finder-midi/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/cestymour/chord-finder-midi/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/cestymour/chord-finder-midi/compare/v0.8.0...v0.9.0

@@ -1396,22 +1396,23 @@ export default function ChordIdentifier() {
     [midiArray, primaryChord, accidentals]
   );
 
-  // Affichage : un accord reconnu s'affiche tout de suite ; sinon (notes sans
-  // accord, ou plus aucune touche) l'affichage précédent reste un instant, le
-  // temps que les doigts se posent ou se lèvent tous.
+  // Affichage : seul le passage d'un accord reconnu à « pas d'accord » (notes
+  // sans accord, ou plus aucune touche) est retardé : l'accord reste un instant,
+  // le temps que les doigts se posent ou se lèvent tous. Tout le reste
+  // (accord → accord, pas d'accord → accord ou → pas d'accord) est immédiat.
   const live = useMemo(
     () => ({ notes: midiArray, chords, placeholder: pendingChordPlaceHolder }),
     [midiArray, chords, pendingChordPlaceHolder]
   );
-  const liveHasChord = chords.length > 0;
   const [held, setHeld] = useState(live);
-  if (liveHasChord && held !== live) setHeld(live);
+  const showLive = chords.length > 0 || held.chords.length === 0;
+  if (showLive && held !== live) setHeld(live);
   useEffect(() => {
-    if (liveHasChord) return;
+    if (showLive) return;
     const id = setTimeout(() => setHeld(live), DISPLAY_HOLD_MS);
     return () => clearTimeout(id);
-  }, [live, liveHasChord]);
-  const shown = liveHasChord ? live : held;
+  }, [live, showLive]);
+  const shown = showLive ? live : held;
   const shownChord = shown.chords[0] ?? null;
   const shownAlternatives = shown.chords.slice(1);
 
@@ -1577,7 +1578,7 @@ export default function ChordIdentifier() {
 // ANNONCE POUR LES LECTEURS D'ÉCRAN
 // ─────────────────────────────────────────────
 
-// Durée pendant laquelle l'affichage précédent reste quand les touches ne forment
+// Durée pendant laquelle l'accord affiché reste quand les touches ne forment
 // plus d'accord (voir `shown` dans ChordIdentifier).
 const DISPLAY_HOLD_MS = 250;
 
