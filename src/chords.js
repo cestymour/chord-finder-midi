@@ -375,8 +375,8 @@ export function buildPendingNotePairs(midiNotes, accidentals = DEFAULT_ACCIDENTA
 // CHORD EXPLORER (sens inverse : accord → touches)
 // ─────────────────────────────────────────────
 
-/** Note la plus grave possible d'un voicing (Do2, convention française). */
-export const VOICING_LOWEST_NOTE = 48;
+/** Note la plus grave possible d'un voicing (Do3, Do central, convention française). */
+export const VOICING_LOWEST_NOTE = 60;
 
 /**
  * Voicing canonique d'un accord : basse dans l'octave [VOICING_LOWEST_NOTE, +11],
@@ -389,7 +389,7 @@ export const VOICING_LOWEST_NOTE = 48;
  * Renvoie [{ midi, degree }] trié du grave à l'aigu.
  *
  * L'écart grave→aigu ne dépasse jamais 22 demi-tons, donc le voicing tient
- * dans [48, 81].
+ * dans [60, 93].
  */
 export function buildChordVoicing(rootPc, template, inversion = 0) {
   const stack = template.voicing;

@@ -6,14 +6,19 @@ Le format s’inspire de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/
 
 ## [Non publié]
 
+## [1.0.0] — 2026-11-05
+
 ### Ajouté
 
 - **Quatre nouvelles langues** : portugais, chinois (simplifié), japonais et coréen. Les drapeaux des paramètres sont maintenant sur 2 lignes de 4. En chinois, japonais et coréen, les notes sont nommées C D E… ; en portugais Dó Ré Mi…
+- **Portée dans la carte de l'accord** (« Notes → Accord ») : à droite du nom, les touches jouées sont écrites sur une portée, en têtes noires sans hampe, avec leurs altérations. La clé suit l'accord : clé de sol, clé de fa, ou les deux pour un accord large. Les notes facultatives non jouées sont entre parenthèses, comme dans le tableau. Aussi dans la carte de « Accord → Notes », entre le nom de l'accord et le tableau des notes. Dans « Notes → Accord », masquée pour l'instant sur un téléphone couché.
 
 ### Modifié
 
 - **Anglais par défaut** : l'application s'ouvre en anglais tant qu'aucune langue n'a été choisie (un choix déjà fait est conservé).
+- **« Accord → Notes »** : les accords sont joués une octave plus haut, à partir du Do central (Do3) au lieu du Do2.
 - **Drapeau espagnol** (paramètres) : bandes rouges à la bonne largeur (1/4, 1/2, 1/4 au lieu d'un recadrage qui les amincissait) et armoiries simplifiées.
+- **« Accord → Notes » sur un téléphone couché** : les 12 fondamentales passent à gauche, sous la carte de l'accord, sur 2 lignes de 6 ; la colonne de droite est réservée aux types d'accords.
 
 ## [0.11.1] — 2026-11-05
 
@@ -230,7 +235,8 @@ Première version numérotée. Elle regroupe tout ce qui a été développé dep
 - Application installable (PWA).
 - Déploiement automatique sur GitHub Pages à chaque mise à jour de la branche `main`.
 
-[Non publié]: https://github.com/cestymour/chord-finder-midi/compare/v0.11.1...HEAD
+[Non publié]: https://github.com/cestymour/chord-finder-midi/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/cestymour/chord-finder-midi/compare/v0.11.1...v1.0.0
 [0.11.1]: https://github.com/cestymour/chord-finder-midi/compare/v0.11.0...v0.11.1
 [0.11.0]: https://github.com/cestymour/chord-finder-midi/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/cestymour/chord-finder-midi/compare/v0.9.0...v0.10.0

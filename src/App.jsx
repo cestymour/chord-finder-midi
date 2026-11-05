@@ -24,6 +24,8 @@ import {
   inversionCount,
   spellPc,
 } from "./chords";
+import { buildScoreNotes, chooseStaves } from "./score.js";
+import { drawChordScore, loadVexFlow } from "./scoreRenderer.js";
 import { ALTERED_COLUMNS, ALTERED_ROWS, MATRIX_COLUMNS, MATRIX_ROWS } from "./explorerLayout.js";
 import {
   DEFAULT_LANGUAGE,
@@ -921,6 +923,8 @@ function GitHubIcon() {
 // Écran d'ordinateur : assez large, et plus haut qu'un téléphone couché.
 // Doit rester identique à la media query « ORDINATEUR » de App.css.
 const DESKTOP_QUERY = "(min-width: 900px) and (min-height: 561px)";
+// Téléphone couché : même media query que les blocs « paysage bas » de App.css.
+const SHORT_LANDSCAPE_QUERY = "(orientation: landscape) and (max-height: 560px)";
 
 /** Vrai tant que la media query correspond (suit les changements de taille). */
 function useMediaQuery(query) {
@@ -1344,6 +1348,9 @@ export default function ChordIdentifier() {
   // ou "explore" (dictionnaire : choisir un accord pour voir ses touches)
   const [mode, setMode] = useState("midi");
   const exploreMode = mode === "explore";
+  // Portée dans la carte de l'accord joué : pas sur un téléphone couché (pas la
+  // place) ; la carte du dictionnaire, plus petite, l'affiche toujours
+  const scoreHidden = useMediaQuery(SHORT_LANDSCAPE_QUERY);
 
   // Sans piano, le clavier virtuel n'apparaît que si l'utilisateur le demande
   // (la connexion du piano reste la proposition principale).
@@ -1572,7 +1579,12 @@ export default function ChordIdentifier() {
           {exploreMode ? (
             <>
               {/* Carte compacte : les sélecteurs doivent tenir sous elle sur mobile */}
-              <ChordCard chord={explore.chord}size="secondary" className="chord-card--explore" />
+              <ChordCard
+                chord={explore.chord}
+                size="secondary"
+                className="chord-card--explore"
+                scoreNotes={explore.notes}
+              />
               <ChordExplorer
                 rootPc={exploreRoot}
                 template={exploreTemplate}
@@ -1592,10 +1604,19 @@ export default function ChordIdentifier() {
           ) : (
             <>
               {shownChord ? (
-                <ChordCard chord={shownChord} size="primary" />
+                <ChordCard
+                  chord={shownChord}
+                  size="primary"
+                  scoreNotes={scoreHidden ? null : shown.notes}
+                />
               ) : (
                 shown.placeholder && (
-                  <ChordCard chord={shown.placeholder} size="primary" isPending />
+                  <ChordCard
+                    chord={shown.placeholder}
+                    size="primary"
+                    isPending
+                    scoreNotes={scoreHidden ? null : shown.notes}
+                  />
                 )
               )}
               {shownChord && shownAlternatives.length > 0 && (
@@ -1712,7 +1733,7 @@ function withAccidentals(text) {
   );
 }
 
-function ChordCard({ chord, size, isPending = false, className = "" }) {
+function ChordCard({ chord, size, isPending = false, className = "", scoreNotes = null }) {
   const { t, noteName, rootName, chordTypeName } = useI18n();
   // Split chord name into root + suffix + inversion for styled rendering.
   // Fondamentale et basse nommées selon la langue (H/B en allemand).
@@ -1725,11 +1746,14 @@ function ChordCard({ chord, size, isPending = false, className = "" }) {
       className={`chord-card chord-card--${size}${isPending ? " chord-card--pending" : ""}${className ? ` ${className}` : ""}`}
     >
 
-      {/* Chord name — very large */}
-      <div className="chord-name">
-        <span className="chord-root">{withAccidentals(rootPart)}</span>
-        {suffixPart && <span className="chord-suffix">{withAccidentals(suffixPart)}</span>}
-        {inversionPart && <span className="chord-inversion">{withAccidentals(inversionPart)}</span>}
+      {/* Chord name — very large, et à sa droite l'accord sur une portée */}
+      <div className="chord-card__head">
+        <div className="chord-name">
+          <span className="chord-root">{withAccidentals(rootPart)}</span>
+          {suffixPart && <span className="chord-suffix">{withAccidentals(suffixPart)}</span>}
+          {inversionPart && <span className="chord-inversion">{withAccidentals(inversionPart)}</span>}
+        </div>
+        {scoreNotes && <ChordScore midiNotes={scoreNotes} chord={chord} />}
       </div>
 
       {/* Note / Interval table — 2 rows × N columns */}
@@ -1774,4 +1798,43 @@ function ChordCard({ chord, size, isPending = false, className = "" }) {
       <div className="chord-type">{isPending ? t("chord.unknown") : chordTypeName(chord.suffix)}</div>
     </div>
   );
+}
+
+/**
+ * L'accord sur une portée (clé de sol, de fa, ou les deux) : une tête noire
+ * sans hampe par touche jouée, les notes facultatives non jouées entre
+ * parenthèses. VexFlow se charge à la première portée affichée ; d'ici là,
+ * la zone reste vide.
+ */
+function ChordScore({ midiNotes, chord }) {
+  const ref = useRef(null);
+  const [vexFlow, setVexFlow] = useState(null);
+  useEffect(() => {
+    let alive = true;
+    loadVexFlow().then((module) => alive && setVexFlow(module), () => {});
+    return () => { alive = false; };
+  }, []);
+
+  const staves = useMemo(
+    () => chooseStaves(buildScoreNotes(midiNotes, chord.noteIntervalPairs, chord.rootPc ?? null)),
+    [midiNotes, chord]
+  );
+
+  useLayoutEffect(() => {
+    const element = ref.current;
+    if (!vexFlow || !element) return;
+    // Couleurs du thème (variables CSS de .chord-score)
+    const style = getComputedStyle(element);
+    const color = (name) => style.getPropertyValue(name).trim();
+    const size = drawChordScore(vexFlow, element, staves, {
+      line: color("--score-line"),
+      note: color("--score-note"),
+      dim: color("--score-dim"),
+    });
+    // Taille en interlignes : l'interligne reste le même d'un accord à l'autre
+    element.style.setProperty("--score-w", size.width);
+    element.style.setProperty("--score-h", size.height);
+  }, [vexFlow, staves]);
+
+  return <div className="chord-score" ref={ref} aria-hidden="true" />;
 }

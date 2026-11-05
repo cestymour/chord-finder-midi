@@ -1,7 +1,7 @@
 {
   "name": "instant-chord-bt",
   "private": true,
-  "version": "0.11.1",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -13,7 +13,8 @@
   "dependencies": {
     "ble-midi-parser": "^1.0.1",
     "react": "^19.2.4",
-    "react-dom": "^19.2.4"
+    "react-dom": "^19.2.4",
+    "vexflow": "^5.0.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",

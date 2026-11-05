@@ -307,7 +307,7 @@ describe("buildChordVoicing", () => {
   });
 
   test("état fondamental : 9, 11 et 13 au-dessus de l'octave", () => {
-    expect(buildChordVoicing(C, template("13♯11"), 0).map((n) => n.midi)).toEqual([48, 52, 55, 58, 62, 66, 69]);
+    expect(buildChordVoicing(C, template("13♯11"), 0).map((n) => n.midi)).toEqual([60, 64, 67, 70, 74, 78, 81]);
   });
 
   test.each(allVoicings)("$tpl.suffix, fondamentale $rootPc, renversement $inversion", ({ tpl, rootPc, inversion }) => {

@@ -80,3 +80,5 @@ Run it locally with `npm install` then `npm run dev`; `npm test` runs the unit t
 [MIT](LICENSE) © cestymour
 
 Piano samples (`public/piano/`): [Salamander Grand Piano V3](https://archive.org/details/SalamanderGrandPianoV3) by Alexander Holm, licensed [CC-BY 3.0](https://creativecommons.org/licenses/by/3.0/), resampled to mono and shortened.
+
+Staff notation: [VexFlow](https://github.com/vexflow/vexflow) (MIT) with the Bravura music font (SIL Open Font License).

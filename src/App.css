@@ -353,6 +353,77 @@
      line-height: 1;
    }
    
+   /* Nom de l'accord à gauche, portée à droite */
+   .chord-card__head {
+     display: flex;
+     flex-wrap: wrap; /* nom très long sur un petit écran : la portée passe dessous */
+     align-items: center;
+     justify-content: space-between;
+     gap: 4px 12px;
+   }
+
+   .chord-card__head .chord-score {
+     margin-left: auto;
+   }
+
+   .chord-card__head .chord-name {
+     min-width: 0;
+   }
+
+   /* ─────────────────────────────────────────────
+      PORTÉE (VexFlow, dessinée par ChordScore)
+      Taille fixée en interlignes (--score-w, --score-h, posés par ChordScore) :
+      l'interligne reste le même d'un accord à l'autre.
+      ───────────────────────────────────────────── */
+   .chord-score {
+     --score-space: 9px; /* un interligne à l’écran */
+     --score-line: var(--txt-dim);
+     --score-note: var(--txt-primary);
+     --score-dim: var(--txt-dim);
+     flex-shrink: 0;
+     display: flex;
+     line-height: 0;
+   }
+
+   .chord-score svg {
+     width: calc(var(--score-w, 0) * var(--score-space));
+     height: calc(var(--score-h, 0) * var(--score-space));
+   }
+
+   /* Carte compacte (grille) : le nom reste une case de la grille */
+   .chord-card--secondary .chord-card__head {
+     display: contents;
+   }
+
+   /* Dictionnaire : nom à gauche, portée à droite contre le trait vertical.
+      Nom et portée forment la colonne de gauche : un tiers de la carte quand il
+      y a la place (le trait ne bouge pas d'un accord à l'autre), sinon juste
+      leur largeur (au moins 110 px, comme sans portée). */
+   .chord-card--explore:has(.chord-score) {
+     grid-template-columns: minmax(max-content, 1fr) minmax(0, 2fr);
+   }
+
+   .chord-card--explore .chord-card__head:has(.chord-score) {
+     display: flex;
+     flex-wrap: nowrap;
+     justify-content: space-between;
+     grid-column: 1;
+     grid-row: 1 / -1;
+     align-self: center;
+     min-width: 110px;
+     gap: 10px;
+     padding-right: 12px;
+   }
+
+   .chord-card--explore .chord-card__head:has(.chord-score) .chord-name {
+     width: auto;
+   }
+
+   .chord-card--explore .chord-score {
+     --score-space: 6px;
+     margin-left: 0;
+   }
+
    /* Primary size */
    .chord-card--primary .chord-name {
      margin-bottom: 4px;
@@ -1739,36 +1810,40 @@
   margin-top: 4px;
 }
 
-/* Paysage bas : sélecteurs dans la colonne de droite, défilant seuls */
+/* Paysage bas : à gauche la carte puis les fondamentales (2 lignes de 6),
+   à droite les types d'accords, seuls à défiler */
 @media (orientation: landscape) and (max-height: 560px) {
+  .display-area--explore {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-rows: auto auto minmax(0, 1fr);
+    align-content: start;
+    gap: 8px 12px;
+  }
+
+  .display-area--explore .explorer {
+    display: contents;
+  }
+
   .chord-card--explore {
-    flex: 0 0 calc((100% - 12px) / 2);
-    max-width: calc((100% - 12px) / 2);
+    grid-column: 1;
+    grid-row: 1;
     min-width: 0;
-    align-self: flex-start;
   }
 
-  .explorer {
-    flex: 0 0 calc((100% - 12px) / 2);
-    max-width: calc((100% - 12px) / 2);
-    min-width: 0;
-    min-height: 0;
-  }
-
-  /* Les 12 fondamentales sur une ligne : plus de place pour les types d'accords */
   .explorer__roots {
-    grid-template-columns: repeat(12, minmax(0, 1fr));
+    grid-column: 1;
+    grid-row: 2;
     gap: 4px;
   }
 
   .explorer__roots .explorer-chip {
     padding: 0;
-    /* 1.2rem, réduit sur les écrans étroits pour que « C♯ » tienne dans sa case */
-    font-size: min(1.2rem, 2.6vw);
   }
 
   .explorer__scroll {
-    flex: 1 1 auto;
+    grid-column: 2;
+    grid-row: 1 / -1;
     min-height: 0;
     overflow-y: auto;
     scrollbar-width: thin;

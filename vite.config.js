@@ -14,6 +14,11 @@ export default defineConfig({
   define: {
     'import.meta.env.VITE_APP_VERSION': JSON.stringify(version),
   },
+  build: {
+    // VexFlow et sa police musicale (~720 Ko) : un morceau à part, chargé à la
+    // demande pour la portée de la carte d'accord (précaché par le service worker)
+    chunkSizeWarningLimit: 800,
+  },
   plugins: [
     react(),
     VitePWA({
