@@ -24,6 +24,10 @@ Tests cover the React-free modules: `chords.js` (spelling, detection rules, and 
 
 Pushing to `main` triggers `.github/workflows/deploy.yml`, which builds with the Node version from `.nvmrc` (24) and deploys `dist/` to GitHub Pages. The service worker (vite-plugin-pwa, `generateSW`) precaches the app shell, and `workbox.runtimeCaching` caches the Google Fonts (imported at the top of `App.css`) for offline use. The `base` path in `vite.config.js` switches on `NODE_ENV` (`/chord-finder-midi/` in production), and the PWA manifest `scope`/`start_url` reuse it, so renaming the repo means updating that value. The PWA manifest (name, icons, theme colors) is also defined in `vite.config.js`; icon files live in `public/`.
 
+## Planned work
+
+`TODO.md` (in French) lists planned features not started yet, with their design notes. Currently: a microphone mode recognizing chords played on an acoustic piano, as a third input source next to Bluetooth and USB/MIDI, with two candidate engines (chromagram vs. in-browser ML transcription) to be both built and compared in real-world tests. Read it before working on that feature, and remove an entry once it ships.
+
 ## Versions
 
 `CHANGELOG.md` (in French) lists every version, newest first, in Keep a Changelog style. Note user-visible changes under `[Non publié]` as you make them. To release: move that section under a new `[X.Y.Z] — date` heading, bump `package.json` with `npm version X.Y.Z --no-git-tag-version` (the settings dialog shows this number), update the compare links at the bottom, then tag `vX.Y.Z` on `main`.
