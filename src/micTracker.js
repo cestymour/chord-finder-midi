@@ -13,13 +13,16 @@
 // - Stabilité : l'ensemble affiché ne change que quand la même lecture (classes et
 //   basse) revient sur `stableFrames` trames de suite. Une note qui clignote d'une
 //   trame à l'autre ne fait donc pas clignoter l'accord, et un nouvel accord
-//   remplace l'ancien d'un coup, sans mélange intermédiaire.
+//   remplace l'ancien d'un coup, sans mélange intermédiaire. Sur un appareil lent,
+//   quand deux analyses sont espacées de plus de slowFrameMs, une seule suffit :
+//   attendre la suivante retarderait trop l'affichage.
 // - Silence : sous gateDb (avec hystérésis, enterDb pour commencer), plus de note.
 
 const DEFAULTS = {
   onSalience: 0.15,
   offSalience: 0.08,
   stableFrames: 2,
+  slowFrameMs: 300,
   enterDb: -50,
   gateDb: -58,
 };
@@ -43,8 +46,9 @@ function readFrame(notes, held, { onSalience, offSalience }) {
 }
 
 /**
- * Crée un suivi. update(frame) prend la sortie d'un moteur ({ notes, level }) et
- * renvoie les notes MIDI tenues (tableau trié). reset() oublie tout.
+ * Crée un suivi. update(frame, elapsedMs) prend la sortie d'un moteur ({ notes, level })
+ * et le temps écoulé depuis l'analyse précédente (facultatif), et renvoie les notes
+ * MIDI tenues (tableau trié). reset() oublie tout.
  */
 export function createNoteTracker(options = {}) {
   const opts = { ...DEFAULTS, ...options };
@@ -57,7 +61,7 @@ export function createNoteTracker(options = {}) {
   const notesOf = () => [...output.values()].sort((a, b) => a - b);
 
   return {
-    update({ notes, level }) {
+    update({ notes, level }, elapsedMs = 0) {
       sounding = sounding ? level >= opts.gateDb : level >= opts.enterDb;
       const frame = sounding
         ? readFrame(notes, output, opts)
@@ -74,7 +78,8 @@ export function createNoteTracker(options = {}) {
         pendingCount = 1;
       }
       // Silence : relâché tout de suite (pas de lecture à confirmer)
-      if (pendingCount >= opts.stableFrames || (!sounding && frame.key === "")) {
+      const slow = elapsedMs >= opts.slowFrameMs;
+      if (pendingCount >= opts.stableFrames || slow || (!sounding && frame.key === "")) {
         output = frame.byPc;
         outputKey = frame.key;
         pendingKey = null;

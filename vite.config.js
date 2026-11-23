@@ -31,7 +31,21 @@ export default defineConfig({
         // Les échantillons de piano (public/piano/*.mp3, ~900 Ko) sont précachés
         // avec l'appli : le son marche hors ligne dès la première visite.
         globPatterns: ['**/*.{js,css,html,ico,png,svg,webmanifest,mp3}'],
+        // Moteur B du mode micro (TensorFlow.js ~800 Ko et modèle Basic Pitch
+        // ~900 Ko) : pas précaché pour tout le monde, mais gardé en cache dès la
+        // première utilisation de « Micro B », qui marche ensuite hors ligne.
+        globIgnores: ['**/micBasicPitchModel-*.js'],
         runtimeCaching: [
+          {
+            urlPattern: /\/assets\/micBasicPitchModel-[^/]*\.js$/,
+            handler: 'CacheFirst',
+            options: { cacheName: 'mic-engine-b', expiration: { maxEntries: 4 } },
+          },
+          {
+            urlPattern: /\/models\/basic-pitch\//,
+            handler: 'StaleWhileRevalidate',
+            options: { cacheName: 'mic-engine-b-model' },
+          },
           {
             urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
             handler: 'StaleWhileRevalidate',

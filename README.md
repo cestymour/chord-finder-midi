@@ -59,6 +59,7 @@ En production, `vite.config.js` fixe `base` à `/chord-finder-midi/`. Pour hébe
 
 - [React 19](https://react.dev), [Vite 8](https://vitejs.dev), [vite-plugin-pwa](https://vite-pwa-org.netlify.app/)
 - [ble-midi-parser](https://www.npmjs.com/package/ble-midi-parser) pour décoder les paquets MIDI over BLE
+- [TensorFlow.js](https://www.tensorflow.org/js) et le modèle [Basic Pitch](https://github.com/spotify/basic-pitch) pour le moteur B du mode micro, chargés seulement quand on l'utilise
 - Web MIDI API, Web Bluetooth API, Web Audio API
 
 ## 🇬🇧 English
@@ -81,5 +82,7 @@ Run it locally with `npm install` then `npm run dev`; `npm test` runs the unit t
 [MIT](LICENSE) © cestymour
 
 Piano samples (`public/piano/`): [Salamander Grand Piano V3](https://archive.org/details/SalamanderGrandPianoV3) by Alexander Holm, licensed [CC-BY 3.0](https://creativecommons.org/licenses/by/3.0/), resampled to mono and shortened.
+
+Microphone engine B: the [Basic Pitch](https://github.com/spotify/basic-pitch) model (`public/models/basic-pitch/`) by Spotify, licensed [Apache 2.0](public/models/basic-pitch/LICENSE), run with [TensorFlow.js](https://www.tensorflow.org/js) (Apache 2.0).
 
 Staff notation: [VexFlow](https://github.com/vexflow/vexflow) (MIT) with the Bravura music font (SIL Open Font License).

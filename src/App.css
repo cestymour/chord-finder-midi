@@ -2131,6 +2131,15 @@
 }
 .mic-btn--starting .usb-btn__icon { color: inherit; }
 
+/* Durée de la dernière analyse (phase d'essai des moteurs A et B) */
+.mic-time {
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-size: 0.55rem;
+  color: var(--txt-dim);
+  font-variant-numeric: tabular-nums;
+}
+
 /* Vumètre du micro, dans la ligne d'état */
 .mic-level {
   width: 40px;

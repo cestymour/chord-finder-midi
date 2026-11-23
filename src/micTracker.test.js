@@ -86,6 +86,13 @@ describe("suivi des notes du micro", () => {
     expect(tracker.update(frame([60], -60))).toEqual([]);
   });
 
+  test("appareil lent : analyses espacées, une seule lecture suffit", () => {
+    const tracker = createNoteTracker();
+    expect(tracker.update(frame([60, 64, 67]), 1500)).toEqual([60, 64, 67]);
+    expect(tracker.update(frame([57, 60, 64]), 100)).toEqual([60, 64, 67]);
+    expect(tracker.update(frame([57, 60, 64]), 100)).toEqual([57, 60, 64]);
+  });
+
   test("reset", () => {
     const tracker = createNoteTracker();
     tracker.update(frame([60]));

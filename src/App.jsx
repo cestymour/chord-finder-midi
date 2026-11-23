@@ -487,62 +487,60 @@ function MicIcon({ className }) {
 }
 
 /**
- * Rond « Micro A » ou « Micro B » de l'écran d'accueil (un par moteur d'analyse, le temps
- * de les comparer). Le A démarre l'écoute d'un piano acoustique (la demande
- * d'autorisation du navigateur arrive sur ce geste), avec un ⓘ qui explique le mode et
- * ses limites. Le B n'est pas encore fait : il ouvre seulement un message.
+ * Rond « Micro A » ou « Micro B » de l'écran d'accueil : un par moteur d'analyse, le
+ * temps de les comparer sur un vrai piano. Il démarre l'écoute (la demande
+ * d'autorisation du navigateur arrive sur ce geste) ; un ⓘ explique le moteur et les
+ * limites du mode.
  */
-function MicButton({ engine, status, onStart, open, detailsId }) {
+function MicButton({ engine, mic, onStart }) {
   const { t } = useI18n();
   const label = `${t("mic.title")} ${engine}`;
-  if (engine !== "A") {
-    return (
-      <button
-        type="button"
-        className={`usb-btn mic-btn${open ? " usb-btn--open" : ""}`}
-        onClick={onStart}
-        aria-expanded={open}
-        aria-controls={detailsId}
-      >
-        <MicIcon className="usb-btn__icon" />
-        <span className="usb-btn__label">{label}</span>
-      </button>
-    );
-  }
-  const starting = status === "starting";
-  const warn = status === "unsupported" || status === "error";
+  const starting = mic.micStatus === "starting";
+  const mine = mic.micEngine === engine;
+  const warn = mic.micStatus === "unsupported" || mic.micStatus === "error";
   return (
     <div className="bt-connect-btn-wrap">
       <button
         type="button"
-        className={`usb-btn mic-btn${warn ? " usb-btn--warn" : ""}${starting ? " mic-btn--starting" : ""}`}
-        onClick={onStart}
-        disabled={starting || status === "unsupported"}
-        aria-label={starting ? undefined : `${label} : ${t("mic.aria")}`}
+        className={`usb-btn mic-btn${warn ? " usb-btn--warn" : ""}${starting && mine ? " mic-btn--starting" : ""}`}
+        onClick={() => onStart(engine)}
+        disabled={starting || mic.micStatus === "unsupported"}
+        aria-label={starting && mine ? undefined : `${label} : ${t("mic.aria")}`}
       >
         <MicIcon className="usb-btn__icon" />
-        <span className="usb-btn__label">{starting ? t("mic.starting") : label}</span>
+        <span className="usb-btn__label">{starting && mine ? t("mic.starting") : label}</span>
       </button>
       <span className="bt-connect-hint">
-        <PopupInfoButton title={label}>{t("mic.help")}</PopupInfoButton>
+        <PopupInfoButton title={label}>
+          {t(`mic.engine${engine}`)} {t("mic.help")}
+        </PopupInfoButton>
       </span>
     </div>
   );
 }
 
-/** Vumètre du micro : mis à jour hors de React, à chaque analyse (environ 20 fois par seconde). */
+/**
+ * Vumètre du micro, mis à jour hors de React (20 fois par seconde), suivi de la durée
+ * de la dernière analyse du moteur : utile pour comparer les moteurs A et B pendant
+ * les essais (à retirer ensuite).
+ */
 function MicLevel({ subscribe }) {
   const { t } = useI18n();
   const barRef = useRef(null);
-  useEffect(() => subscribe((db) => {
+  const timeRef = useRef(null);
+  useEffect(() => subscribe((db, ms) => {
     // −70 dB (silence d'une pièce) à −10 dB (piano fort tout près)
     const level = Number.isFinite(db) ? Math.min(1, Math.max(0, (db + 70) / 60)) : 0;
     barRef.current?.style.setProperty("--mic-level", level.toFixed(3));
+    if (timeRef.current) timeRef.current.textContent = ms == null ? "" : `${Math.round(ms)} ms`;
   }), [subscribe]);
   return (
-    <span className="mic-level" role="img" aria-label={t("mic.level")}>
-      <span className="mic-level__bar" ref={barRef} />
-    </span>
+    <>
+      <span className="mic-level" role="img" aria-label={t("mic.level")}>
+        <span className="mic-level__bar" ref={barRef} />
+      </span>
+      <span className="mic-time" ref={timeRef} title={t("mic.computeTime")} />
+    </>
   );
 }
 
@@ -583,18 +581,16 @@ function UsbButton({ midi, open, onToggle, detailsId, onUsePiano }) {
 /**
  * Écran d'accueil, en trois parties : « Connectez votre piano » (ronds Bluetooth et USB),
  * « Écoutez votre piano » (ronds Micro A et Micro B, le temps de comparer les deux
- * moteurs) et « Piano virtuel ». Toutes les explications (ⓘ, USB, Micro B) s'ouvrent dans
+ * moteurs) et « Piano virtuel ». Toutes les explications (ⓘ, USB) s'ouvrent dans
  * une zone fixe en haut de l'écran, par-dessus, sans rien décaler ; une seule à la fois.
  */
 function ConnectScreen({ btProps, midi, mic, onUseKeyboard, onUsePiano }) {
   const { t } = useI18n();
   const { popup, slotRef } = usePopupZone();
   const usbId = useId();
-  const micBId = useId();
 
   const usbWarn = midi.status === "denied" || midi.status === "unsupported";
   const usbOpen = popup.openId === usbId;
-  const micBOpen = popup.openId === micBId;
 
   // Micro refusé, absent ou indisponible : message court, détail derrière ⓘ
   const micNotice = mic.micStatus === "unsupported"
@@ -633,21 +629,11 @@ function ConnectScreen({ btProps, midi, mic, onUseKeyboard, onUsePiano }) {
         <section className="connect-section">
           <h2 className="connect-screen__title">{t("connect.listen")}</h2>
           <div className="bt-connect-row">
-            <MicButton engine="A" status={mic.micStatus} onStart={mic.startMic} />
-            <MicButton
-              engine="B"
-              open={micBOpen}
-              onStart={() => popup.toggle(micBId)}
-              detailsId={micBId}
-            />
+            <MicButton engine="A" mic={mic} onStart={mic.startMic} />
+            <MicButton engine="B" mic={mic} onStart={mic.startMic} />
           </div>
           {micNotice && (
             <InfoTip key={micNotice} tone="warn" label={t(micNotice)}>{t(`${micNotice}.help`)}</InfoTip>
-          )}
-          {micBOpen && popup.render(
-            <Popup id={micBId} title={`${t("mic.title")} B`}>
-              <p className="popup__text">{t("mic.todo")}</p>
-            </Popup>
           )}
         </section>
 
@@ -688,7 +674,7 @@ function ConnectionStatus({ btStatus, btKnownDevice, midi, mic, onHome }) {
     // Micro à l'écoute : choisi exprès, il passe en premier, avec son vumètre
     status = "connected";
     icon = <MicIcon className="midi-status__icon" />;
-    label = t("mic.listening");
+    label = `${t("mic.title")} ${mic.micEngine}`;
   } else if (btStatus === "connected") {
     status = "connected";
     icon = <BluetoothIcon className="midi-status__icon" />;

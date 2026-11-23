@@ -1,16 +1,35 @@
 // Mode micro : 3ᵉ source de notes, à côté du Bluetooth et du câble USB.
 //
-// Le micro de l'appareil écoute un piano acoustique ; un moteur d'analyse
-// (micChroma.js) dit quelles notes il entend, micTracker.js décide lesquelles
-// sont tenues, et ce hook les envoie à l'appli comme des note on / note off.
+// Le micro de l'appareil écoute un piano acoustique ; un moteur d'analyse dit
+// quelles notes il entend (A : micChroma.js, analyse du spectre ; B :
+// micBasicPitch.js, réseau de neurones), micTracker.js décide lesquelles sont
+// tenues, et ce hook les envoie à l'appli comme des note on / note off.
 // Tout se passe dans le navigateur : aucun son ne part sur le réseau.
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { createChromaEngine } from "./micChroma.js";
+import { createChromaEngine, levelDb } from "./micChroma.js";
+import { createBasicPitchEngine } from "./micBasicPitch.js";
 import { createNoteTracker } from "./micTracker.js";
+import { startCapture } from "./micCapture.js";
 
-// Une analyse toutes les 50 ms environ
+// Le suivi tourne toutes les 50 ms environ (le moteur B, plus lent, saute des tours)
 const HOP_MS = 50;
+// Échantillons gardés : de quoi nourrir le moteur B (2 s), avec de la marge
+const CAPTURE_SECONDS = 2.5;
+// Vumètre : niveau des 50 dernières ms environ
+const METER_SAMPLES = 2048;
+
+export const MIC_ENGINES = ["A", "B"];
+
+/** Prépare le moteur demandé (le B charge TensorFlow.js et son modèle à la demande). */
+async function createEngine(id, sampleRate) {
+  if (id === "B") {
+    const { loadBasicPitchModel } = await import("./micBasicPitchModel.js");
+    const model = await loadBasicPitchModel();
+    return createBasicPitchEngine({ sampleRate, model });
+  }
+  return createChromaEngine({ sampleRate });
+}
 
 function audioContextClass() {
   if (typeof window === "undefined") return null;
@@ -21,7 +40,7 @@ export function microphoneSupported() {
   return Boolean(navigator.mediaDevices?.getUserMedia && audioContextClass());
 }
 
-/** Code d'erreur traduit en `mic.error.<code>` : denied | noDevice | failed. */
+/** Code d'erreur traduit en `mic.error.<code>` : denied | noDevice | failed (| model). */
 function errorCode(error) {
   const name = error?.name;
   if (name === "NotAllowedError" || name === "SecurityError") return "denied";
@@ -33,19 +52,23 @@ function errorCode(error) {
  * callbacks : { onNoteOn(note), onNoteOff(note), onRelease() } (onRelease quand
  * l'écoute s'arrête : les notes tenues sont relâchées).
  *
- * Retourne { micStatus, micError, startMic, stopMic, suppress, subscribeLevel } :
+ * Retourne { micStatus, micEngine, micError, startMic, stopMic, suppress, subscribeLevel } :
  * - micStatus : "idle" | "starting" | "listening" | "error" | "unsupported"
- * - micError : "denied" | "noDevice" | "failed" | null (avec le statut "error" ;
- *   "denied" aussi d'avance, quand l'autorisation du site est déjà refusée)
- * - startMic() : à appeler sur un geste de l'utilisateur (demande d'autorisation,
+ * - micEngine : moteur demandé ("A" ou "B") pendant le démarrage et l'écoute, sinon null
+ * - micError : "denied" | "noDevice" | "failed" | "model" (moteur B non chargé) | null
+ *   (avec le statut "error" ; "denied" aussi d'avance, quand l'autorisation du site
+ *   est déjà refusée)
+ * - startMic(engine) : à appeler sur un geste de l'utilisateur (demande d'autorisation,
  *   démarrage du son sur iPhone)
  * - suppress() : éteint les notes entendues (toucher du clavier à l'écran), jusqu'au
  *   prochain accord différent ou au silence
- * - subscribeLevel(fn) : fn(dB) à chaque analyse, pour le vumètre (sans rendu React)
+ * - subscribeLevel(fn) : fn(dB, ms) toutes les 50 ms, pour le vumètre (sans rendu
+ *   React) ; ms est la durée de la dernière analyse du moteur (null avant la première)
  */
 export default function useMicrophone(callbacks) {
   const [state, setState] = useState(() => ({
     micStatus: microphoneSupported() ? "idle" : "unsupported",
+    micEngine: null,
     micError: null,
   }));
 
@@ -68,6 +91,7 @@ export default function useMicrophone(callbacks) {
     sessionRef.current = null;
     if (!session) return;
     clearInterval(session.timer);
+    session.capture?.stop();
     session.stream.getTracks().forEach((track) => {
       track.onended = null;
       track.stop();
@@ -80,14 +104,16 @@ export default function useMicrophone(callbacks) {
   const stopMic = useCallback(() => {
     attemptRef.current++;
     teardown();
-    setState((prev) => (prev.micStatus === "unsupported" ? prev : { micStatus: "idle", micError: null }));
+    setState((prev) => (prev.micStatus === "unsupported" ? prev : { micStatus: "idle", micEngine: null, micError: null }));
   }, [teardown]);
 
-  const startMic = useCallback(async () => {
+  const startMic = useCallback(async (engineId = "A") => {
     if (!microphoneSupported()) return;
     const attempt = ++attemptRef.current;
+    const stale = () => attempt !== attemptRef.current;
     teardown();
-    setState({ micStatus: "starting", micError: null });
+    setState({ micStatus: "starting", micEngine: engineId, micError: null });
+    const fail = (micError) => setState({ micStatus: "error", micEngine: null, micError });
 
     // Contexte audio créé pendant le geste : sinon, il reste suspendu (Safari, Chrome)
     const AudioCtx = audioContextClass();
@@ -107,37 +133,52 @@ export default function useMicrophone(callbacks) {
       if (context.state === "suspended") await context.resume();
     } catch (error) {
       context.close().catch(() => {});
-      if (attempt !== attemptRef.current) return;
-      setState({ micStatus: "error", micError: errorCode(error) });
+      if (!stale()) fail(errorCode(error));
       return;
     }
-    if (attempt !== attemptRef.current) {
+    const abandon = () => {
       stream.getTracks().forEach((track) => track.stop());
       context.close().catch(() => {});
+    };
+    if (stale()) return abandon();
+
+    // Moteur (le B peut prendre quelques secondes la première fois : téléchargement)
+    let engine;
+    try {
+      engine = await createEngine(engineId, context.sampleRate);
+    } catch {
+      abandon();
+      if (!stale()) fail("model");
       return;
     }
+    if (stale()) return abandon();
 
-    const engine = createChromaEngine({ sampleRate: context.sampleRate });
-    const tracker = createNoteTracker();
-    const source = context.createMediaStreamSource(stream);
-    const analyser = context.createAnalyser();
-    analyser.fftSize = engine.frameSize;
-    analyser.smoothingTimeConstant = 0;
-    // Sortie muette vers les haut-parleurs : certains navigateurs n'analysent
-    // qu'un graphe relié à la sortie
-    const mute = context.createGain();
-    mute.gain.value = 0;
-    source.connect(analyser).connect(mute).connect(context.destination);
+    let capture;
+    try {
+      capture = await startCapture(context, context.createMediaStreamSource(stream), CAPTURE_SECONDS);
+    } catch {
+      abandon();
+      if (!stale()) fail("failed");
+      return;
+    }
+    if (stale()) {
+      capture.stop();
+      return abandon();
+    }
 
-    const buffer = new Float32Array(analyser.fftSize);
+    const tracker = createNoteTracker(engine.tracker);
+    const frame = new Float32Array(engine.frameSize);
+    const meter = new Float32Array(METER_SAMPLES);
     // suppressed : classes de hauteur éteintes par un toucher de l'écran (voir suppress)
-    const session = { stream, context, timer: 0, notes: new Set(), suppressed: null };
+    const session = { stream, context, capture, timer: 0, notes: new Set(), suppressed: null };
+    let busy = false;
+    let lastRun = 0;
+    let lastResult = 0; // fin de l'analyse précédente
 
-    const tick = () => {
-      analyser.getFloatTimeDomainData(buffer);
-      const frame = engine.analyze(buffer);
-      levelListeners.current.forEach((listener) => listener(frame.level));
-      let next = new Set(tracker.update(frame));
+    const apply = (result) => {
+      const now = performance.now();
+      let next = new Set(tracker.update(result, lastResult ? now - lastResult : 0));
+      lastResult = now;
       if (session.suppressed) {
         // Tant que le micro n'entend que (ce qui reste de) l'accord éteint, rien ne
         // s'affiche ; une note nouvelle ou le silence lève la mise en sourdine.
@@ -150,6 +191,29 @@ export default function useMicrophone(callbacks) {
       next.forEach((note) => { if (!session.notes.has(note)) onNoteOn(note); });
       session.notes = next;
     };
+
+    let computeMs = null; // durée de la dernière analyse, affichée pendant les essais
+    const tick = async () => {
+      const level = levelDb(capture.ring.latest(METER_SAMPLES, meter));
+      levelListeners.current.forEach((listener) => listener(level, computeMs));
+      const now = performance.now();
+      if (busy || now - lastRun < (engine.minIntervalMs ?? 0)) return;
+      busy = true;
+      lastRun = now;
+      try {
+        const result = await engine.analyze(capture.ring.latest(engine.frameSize, frame));
+        computeMs = performance.now() - now;
+        if (sessionRef.current === session) apply(result);
+      } catch {
+        // Calcul impossible (contexte graphique perdu…) : l'écoute s'arrête
+        if (sessionRef.current !== session) return;
+        attemptRef.current++;
+        teardown();
+        fail("failed");
+      } finally {
+        busy = false;
+      }
+    };
     session.timer = setInterval(tick, HOP_MS);
 
     // Micro débranché ou coupé par le système
@@ -158,12 +222,12 @@ export default function useMicrophone(callbacks) {
         if (sessionRef.current !== session) return;
         attemptRef.current++;
         teardown();
-        setState({ micStatus: "error", micError: "failed" });
+        fail("failed");
       };
     });
 
     sessionRef.current = session;
-    setState({ micStatus: "listening", micError: null });
+    setState({ micStatus: "listening", micEngine: engineId, micError: null });
   }, [teardown]);
 
   // L'utilisateur touche le clavier à l'écran : les notes entendues s'éteignent, et
@@ -186,8 +250,8 @@ export default function useMicrophone(callbacks) {
     const apply = () => {
       setState((prev) => {
         if (prev.micStatus === "listening" || prev.micStatus === "starting") return prev;
-        if (permission.state === "denied") return { micStatus: "error", micError: "denied" };
-        if (prev.micError === "denied") return { micStatus: "idle", micError: null };
+        if (permission.state === "denied") return { micStatus: "error", micEngine: null, micError: "denied" };
+        if (prev.micError === "denied") return { micStatus: "idle", micEngine: null, micError: null };
         return prev;
       });
     };
