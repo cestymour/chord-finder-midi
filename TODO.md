@@ -2,7 +2,14 @@
 
 ## Mode micro : reconnaître les accords d'un vrai piano acoustique
 
-**Statut :** à faire (idée validée, pas encore commencée).
+**Statut :** en cours. Fait : le moteur A (`src/micChroma.js`), le suivi commun (`src/micTracker.js`), le hook `src/useMicrophone.js` et toute l'intégration (rond « Micro », statut avec vumètre et « Arrêter », son coupé pendant l'écoute, textes `mic.*` dans les 8 langues, tests sur signaux synthétiques). Reste à faire :
+
+1. **Essais sur le vrai piano droit** avec le moteur A (protocole plus bas). Les seuils ont été réglés sur des signaux synthétiques seulement : ils devront sans doute bouger (`MIN_FUNDAMENTAL`, `GHOST_RATIO`, `MATCH_CENTS` dans `micChroma.js` ; `onSalience`, `offSalience`, `enterDb`, `gateDb` dans `micTracker.js`).
+2. **Enregistrements WAV** du piano droit, à ajouter aux tests dès qu'il y en a.
+3. **Moteur B** (Basic Pitch) derrière la même interface, chargé à la demande, puis le réglage A / B dans les paramètres.
+4. **Accords peu fiables** (9, 11, 13, altérés) : décision reportée après les essais (rien de filtré pour l'instant).
+
+Écart avec le plan ci-dessous : le moteur A ne fait pas un simple chroma. Il estime des notes (somme des harmoniques, puis retrait de ceux de chaque note retenue), et c'est le suivi qui replie en classes de hauteur et garde la note la plus grave comme basse. Le grave est analysé sur environ 340 ms, le reste sur les 170 ms les plus récentes.
 
 ### Objectif
 

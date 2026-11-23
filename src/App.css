@@ -825,7 +825,7 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 14px;
+  gap: clamp(6px, calc(var(--connect-round) * 0.09), 14px);
   width: var(--connect-round);
   aspect-ratio: 1;
   border-radius: 50%;
@@ -872,10 +872,10 @@
   color: var(--txt-secondary);
 }
 
-/* Icône Bluetooth SVG */
+/* Icône Bluetooth SVG (plus petite dans un petit rond) */
 .bt-connect-icon {
-  width: 40px;
-  height: 40px;
+  width: clamp(28px, calc(var(--connect-round) * 0.3), 40px);
+  height: clamp(28px, calc(var(--connect-round) * 0.3), 40px);
   flex-shrink: 0;
   color: var(--accent);
   position: relative;
@@ -891,7 +891,7 @@
   text-transform: uppercase;
   text-align: center;
   line-height: 1.4;
-  padding: 0 12px;
+  padding: 0 8px;
   position: relative;
   z-index: 1;
 }
@@ -1249,8 +1249,12 @@
    ÉCRAN DE CONNEXION (piano non connecté)
    ───────────────────────────────────────────── */
 .connect-screen {
-  /* Diamètre des ronds Bluetooth et USB (le bouton Piano virtuel couvre les deux) */
-  --connect-round: clamp(124px, 38vw, 168px);
+  /* Diamètre des ronds Bluetooth, USB et Micro, et écart entre eux
+     (le bouton Piano virtuel couvre les trois) */
+  /* Trois ronds dans la largeur, marges de l'écran (2 × 20 px) et écarts déduits */
+  --connect-round: clamp(80px, calc((100vw - 76px) / 3), 150px);
+  --connect-gap: 12px;
+  --connect-row: calc(var(--connect-round) * 3 + var(--connect-gap) * 2);
   flex: 1;
   min-height: 0;
   position: relative;
@@ -1290,7 +1294,7 @@
 }
 
 .no-piano__label {
-  max-width: calc(var(--connect-round) * 2 + 16px);
+  max-width: var(--connect-row);
   font-family: var(--font-mono);
   font-size: 0.58rem;
   letter-spacing: 0.15em;
@@ -1317,7 +1321,7 @@
 
 @media (orientation: landscape) and (max-height: 560px) {
   .connect-screen {
-    --connect-round: clamp(104px, 28vmin, 136px);
+    --connect-round: clamp(96px, 26vmin, 124px);
     gap: 8px;
     padding-bottom: 0;
   }
@@ -2033,14 +2037,15 @@
 }
 
 /* ─────────────────────────────────────────────
-   ÉCRAN DE CONNEXION : bouton USB à côté du rond Bluetooth
+   ÉCRAN DE CONNEXION : ronds USB et Micro à côté du rond Bluetooth
+   (le style .usb-btn sert aux deux)
    ───────────────────────────────────────────── */
 .bt-connect-row {
   position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 16px;
+  gap: var(--connect-gap, 12px);
 }
 
 .usb-btn {
@@ -2063,8 +2068,8 @@
 }
 
 .usb-btn__icon {
-  width: 40px;
-  height: 40px;
+  width: clamp(28px, calc(var(--connect-round) * 0.3), 40px);
+  height: clamp(28px, calc(var(--connect-round) * 0.3), 40px);
   flex-shrink: 0;
   color: var(--accent);
 }
@@ -2103,7 +2108,39 @@
   .usb-btn--warn:hover { border-color: var(--warn); box-shadow: 0 0 20px #ffb93055; }
 }
 
-.usb-btn:active { transform: scale(0.96); }
+.usb-btn:active:not(:disabled) { transform: scale(0.96); }
+
+.usb-btn:disabled {
+  cursor: not-allowed;
+}
+
+/* Micro en cours de démarrage (demande d'autorisation) */
+.mic-btn--starting {
+  color: var(--txt-secondary);
+  border-color: var(--txt-secondary);
+  animation: bt-pulse 1.5s ease-in-out infinite;
+}
+.mic-btn--starting .usb-btn__icon { color: inherit; }
+
+/* Vumètre du micro, dans la ligne d'état */
+.mic-level {
+  width: 40px;
+  height: 6px;
+  flex-shrink: 0;
+  border-radius: 3px;
+  background: var(--border-mid);
+  overflow: hidden;
+}
+
+.mic-level__bar {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--ok);
+  transform-origin: left;
+  transform: scaleX(var(--mic-level, 0));
+  transition: transform 0.08s linear;
+}
 
 .usb-btn:focus-visible,
 .bt-connect-btn:focus-visible {
@@ -2137,7 +2174,7 @@
    ÉCRAN DE CONNEXION : bouton « Piano virtuel »
    ───────────────────────────────────────────── */
 .vpiano-btn {
-  width: calc(var(--connect-round) * 2 + 16px);
+  width: var(--connect-row);
   display: flex;
   flex-direction: column;
   padding: 0;

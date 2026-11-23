@@ -18,6 +18,7 @@ L’application comporte deux écrans, accessibles par les onglets en haut : **P
 - **Écran Piano**, pour jouer sur un vrai clavier MIDI ou sur le clavier à l’écran :
   - **USB / câble** via Web MIDI : toutes les entrées MIDI du système sont écoutées automatiquement.
   - **Bluetooth MIDI (BLE)** via Web Bluetooth : tant qu’aucun instrument n’est connecté, un grand bouton « Connexion Bluetooth MIDI » est proposé. Si la liaison se coupe, l’application se reconnecte toute seule, et le dernier piano est proposé directement à l’ouverture suivante.
+  - **Micro** (expérimental), pour un piano acoustique sans MIDI : le micro de l’appareil écoute le piano et l’accord est déduit du son. La détection est approximative : fiable surtout pour les triades et les accords de 7ᵉ dans le médium, plus fragile pour la basse et les renversements. Le son de l’application est coupé pendant l’écoute, et l’audio est analysé sur l’appareil, jamais envoyé. Le micro marche aussi dans Safari et Firefox.
   - Une ligne d’état indique le nom du piano connecté.
   - **Clavier à l’écran** (88 touches) : il apparaît dès qu’un piano est connecté et allume les touches jouées, en défilant tout seul vers elles. Sans piano, le bouton « Clavier virtuel » l’affiche : chaque clic enfonce une touche et fait entendre sa note, un second clic la relâche, « Effacer » relâche tout. En portrait, 2 octaves sont visibles à la fois, 3 en paysage et sur ordinateur ; le reste s’atteint en faisant défiler.
 - **Écran Accords** (dictionnaire) : le sens inverse. Choisissez une fondamentale et un type d’accord, et ses notes s’allument sur le clavier. Les extensions (9e, 11e, 13e) sont placées au-dessus de l’octave, comme on les joue. « Renverser » passe d’un renversement à l’autre, et le clavier défile tout seul si une note sort de l’écran. Chaque choix fait entendre l’accord en arpège.
@@ -32,7 +33,7 @@ Symboles d’accords au format anglais usuel (C, Dm, Fmaj7, C♯m7♭5, etc.), s
 
 - Un clavier MIDI, filaire ou Bluetooth LE MIDI (facultatif grâce au clavier virtuel et au dictionnaire).
 - **Chrome** ou **Edge** sur ordinateur ou Android (recommandé). Web MIDI fonctionne aussi dans d’autres navigateurs, mais Firefox et Safari (donc tous les navigateurs iOS) ne prennent pas en charge Web Bluetooth.
-- **HTTPS** ou `localhost` (obligatoire pour Web MIDI et Web Bluetooth).
+- **HTTPS** ou `localhost` (obligatoire pour Web MIDI, Web Bluetooth et le micro).
 
 ## Développement
 
@@ -66,7 +67,7 @@ En production, `vite.config.js` fixe `base` à `/chord-finder-midi/`. Pour hébe
 
 The app has two screens, picked from the tabs at the top. It always opens on **Piano**.
 
-- **Piano**: connect by cable (Web MIDI, all inputs are picked up automatically) or over Bluetooth LE MIDI (Web Bluetooth). Until an instrument is connected, a large Bluetooth button is shown. Once a piano is connected, an 88-key on-screen keyboard lights up the keys you play and scrolls to them. No piano? The “Clavier virtuel” button shows the same keyboard: click keys to hold them down (click again to release) and hear each note; the chord is detected the same way.
+- **Piano**: connect by cable (Web MIDI, all inputs are picked up automatically) or over Bluetooth LE MIDI (Web Bluetooth). Until an instrument is connected, a large Bluetooth button is shown. Once a piano is connected, an 88-key on-screen keyboard lights up the keys you play and scrolls to them. No piano? The “Clavier virtuel” button shows the same keyboard: click keys to hold them down (click again to release) and hear each note; the chord is detected the same way. **Microphone** (experimental): for an acoustic piano without MIDI, the device's microphone listens and the chord is worked out from the sound, most reliably for triads and 7th chords in the middle range. Audio is analyzed on the device and never sent anywhere; it also works in Safari and Firefox.
 - **Accords** (chord dictionary): pick a root and a chord type to see its keys light up on the keyboard, and step through its inversions. Each choice plays the chord as an arpeggio; tapping it again plays it as a block chord.
 - **Settings** (gear icon): pick the language (English by default, French, German, Spanish, Portuguese, Chinese, Japanese or Korean), show accidentals as sharps (♯) or flats (♭) throughout the app, turn the sound on or off, and choose whether chords played without optional notes (such as the fifth) are recognized. These choices are remembered. The app version is shown here too.
 - **Browser**: Chrome or Edge on desktop or Android. Firefox and Safari (including every iOS browser) don’t support Web Bluetooth.

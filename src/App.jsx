@@ -2,6 +2,7 @@ import { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo, use
 import { createPortal } from "react-dom";
 import './App.css';
 import useBluetoothMIDI from "./useBluetoothMIDI";
+import useMicrophone from "./useMicrophone";
 import { dispatchMidiMessage } from "./midiMessages";
 import {
   playPianoNote,
@@ -473,6 +474,63 @@ function VirtualPianoButton({ onClick, describedBy }) {
   );
 }
 
+/** Micro (capsule sur pied). */
+function MicIcon({ className }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="9" y="2.5" width="6" height="11.5" rx="3" fill="currentColor" />
+      <path d="M5.5 11a6.5 6.5 0 0 0 13 0" />
+      <line x1="12" y1="17.5" x2="12" y2="21.5" />
+      <line x1="8.5" y1="21.5" x2="15.5" y2="21.5" />
+    </svg>
+  );
+}
+
+/**
+ * Rond « Micro » de l'écran de connexion : démarre l'écoute d'un piano acoustique
+ * (la demande d'autorisation du navigateur arrive sur ce geste). Un ⓘ posé dessus
+ * explique le mode et ses limites.
+ */
+function MicButton({ status, onStart }) {
+  const { t } = useI18n();
+  const starting = status === "starting";
+  const warn = status === "unsupported" || status === "error";
+  return (
+    <div className="bt-connect-btn-wrap">
+      <button
+        type="button"
+        className={`usb-btn mic-btn${warn ? " usb-btn--warn" : ""}${starting ? " mic-btn--starting" : ""}`}
+        onClick={onStart}
+        disabled={starting || status === "unsupported"}
+        aria-label={starting ? undefined : t("mic.aria")}
+      >
+        <MicIcon className="usb-btn__icon" />
+        <span className="usb-btn__label">{starting ? t("mic.starting") : t("mic.title")}</span>
+      </button>
+      <span className="bt-connect-hint">
+        <PopupInfoButton title={t("mic.title")}>{t("mic.help")}</PopupInfoButton>
+      </span>
+    </div>
+  );
+}
+
+/** Vumètre du micro : mis à jour hors de React, à chaque analyse (environ 20 fois par seconde). */
+function MicLevel({ subscribe }) {
+  const { t } = useI18n();
+  const barRef = useRef(null);
+  useEffect(() => subscribe((db) => {
+    // −70 dB (silence d'une pièce) à −10 dB (piano fort tout près)
+    const level = Number.isFinite(db) ? Math.min(1, Math.max(0, (db + 70) / 60)) : 0;
+    barRef.current?.style.setProperty("--mic-level", level.toFixed(3));
+  }), [subscribe]);
+  return (
+    <span className="mic-level" role="img" aria-label={t("mic.level")}>
+      <span className="mic-level__bar" ref={barRef} />
+    </span>
+  );
+}
+
 /**
  * Bouton USB : ouvre ou ferme l'explication du branchement par câble. Le câble est
  * détecté tout seul par Web MIDI une fois l'accès accordé ; tant qu'il n'est pas demandé,
@@ -500,7 +558,7 @@ function UsbButton({ midiStatus, open, onToggle, detailsId }) {
  * « Piano virtuel » dessous. Toutes les explications (ⓘ, USB) s'ouvrent dans une zone
  * fixe en haut de l'écran, par-dessus, sans rien décaler ; une seule à la fois.
  */
-function ConnectScreen({ btProps, midi, onUseKeyboard }) {
+function ConnectScreen({ btProps, midi, mic, onUseKeyboard }) {
   const { t } = useI18n();
   const { popup, slotRef } = usePopupZone();
   const usbId = useId();
@@ -508,6 +566,11 @@ function ConnectScreen({ btProps, midi, onUseKeyboard }) {
 
   const usbWarn = midi.status === "denied" || midi.status === "unsupported";
   const usbOpen = popup.openId === usbId;
+
+  // Micro refusé, absent ou indisponible : message court, détail derrière ⓘ
+  const micNotice = mic.micStatus === "unsupported"
+    ? "mic.unsupported"
+    : mic.micStatus === "error" && mic.micError ? `mic.error.${mic.micError}` : null;
 
   return (
     <PopupContext.Provider value={popup}>
@@ -517,14 +580,20 @@ function ConnectScreen({ btProps, midi, onUseKeyboard }) {
         <BluetoothMIDIButton
           {...btProps}
           aside={
-            <UsbButton
-              midiStatus={midi.status}
-              open={usbOpen}
-              onToggle={() => popup.toggle(usbId)}
-              detailsId={usbId}
-            />
+            <>
+              <UsbButton
+                midiStatus={midi.status}
+                open={usbOpen}
+                onToggle={() => popup.toggle(usbId)}
+                detailsId={usbId}
+              />
+              <MicButton status={mic.micStatus} onStart={mic.startMic} />
+            </>
           }
         />
+        {micNotice && (
+          <InfoTip key={micNotice} tone="warn" label={t(micNotice)}>{t(`${micNotice}.help`)}</InfoTip>
+        )}
         {usbOpen && popup.render(
           <Popup id={usbId} tone={usbWarn ? "warn" : undefined} title={t("usb.title")}>
             <p className="popup__text">{t(USB_TEXT_KEYS[midi.status] ?? "usb.hint")}</p>
@@ -550,11 +619,26 @@ function ConnectScreen({ btProps, midi, onUseKeyboard }) {
  * onConnect (clavier virtuel choisi, aucun piano) : bouton qui ramène à l'écran de connexion,
  * pour que la connexion du piano reste toujours proposée.
  */
-function ConnectionStatus({ btStatus, btKnownDevice, midi, onDisconnect, onConnect }) {
+function ConnectionStatus({ btStatus, btKnownDevice, midi, mic, onDisconnect, onConnect }) {
   const { t } = useI18n();
   let status;
   let label;
   let bluetooth = false;
+
+  // Micro à l'écoute : choisi exprès, il passe en premier, avec son vumètre et « Arrêter »
+  if (mic.micStatus === "listening") {
+    return (
+      <div className="midi-status midi-status--connected">
+        <span className="midi-dot" />
+        <MicIcon className="midi-status__icon" />
+        <span className="midi-label">{t("mic.listening")}</span>
+        <MicLevel subscribe={mic.subscribeLevel} />
+        <button className="midi-status__action" onClick={mic.stopMic}>
+          {t("mic.stop")}
+        </button>
+      </div>
+    );
+  }
 
   if (btStatus === "connected") {
     status = "connected";
@@ -1234,6 +1318,7 @@ function SettingsDialog({
 
 const EMPTY_SOURCE_NOTES = { held: new Set(), sustained: new Set(), pedal: false };
 const BLUETOOTH_SOURCE = "bt";
+const MIC_SOURCE = "mic";
 
 export default function ChordIdentifier() {
   // Notes des pianos physiques, par source ("bt" ou "midi:<id du port>") :
@@ -1339,10 +1424,21 @@ export default function ChordIdentifier() {
 
   const midi = useMIDI(midiCallbacks);
 
+  // Micro : piano acoustique écouté, une source de plus (sans pédale : le micro
+  // ne la voit pas, une note tient tant qu'elle sonne)
+  const micCallbacks = useMemo(() => ({
+    onNoteOn: (note) => handleNoteOn(MIC_SOURCE, note),
+    onNoteOff: (note) => handleNoteOff(MIC_SOURCE, note),
+    onRelease: () => releaseSource(MIC_SOURCE),
+  }), [handleNoteOn, handleNoteOff, releaseSource]);
+
+  const mic = useMicrophone(micCallbacks);
+  const micListening = mic.micStatus === "listening";
+
   const pianoConnected = btStatus === "connected" || midi.status === "connected";
   // Coupure Bluetooth en cours de reconnexion automatique : l'écran Piano reste affiché
   // (seule la ligne d'état change), au lieu de basculer sur l'écran de connexion.
-  const pianoLinked = pianoConnected || btStatus === "reconnecting";
+  const pianoLinked = pianoConnected || btStatus === "reconnecting" || micListening;
 
   // Écran affiché : "midi" (onglet Piano : vrai piano et/ou clavier virtuel)
   // ou "explore" (dictionnaire : choisir un accord pour voir ses touches)
@@ -1396,9 +1492,12 @@ export default function ChordIdentifier() {
   const [sound, setSound] = usePersistentSetting(SOUND_STORAGE_KEY, ["on", "off"], "on");
   const [incomplete, setIncomplete] = usePersistentSetting(INCOMPLETE_STORAGE_KEY, ["on", "off"], "on");
 
+  // Pendant l'écoute du micro, l'appli se tait sur l'écran Piano : son propre son
+  // serait capté et pris pour des notes jouées.
+  const micMutes = micListening && mode === "midi";
   useEffect(() => {
-    setPianoSoundEnabled(sound === "on");
-  }, [sound]);
+    setPianoSoundEnabled(sound === "on" && !micMutes);
+  }, [sound, micMutes]);
 
   const i18n = useMemo(() => createI18n(language, accidentals), [language, accidentals]);
   const { t, inversionLabel } = i18n;
@@ -1547,6 +1646,7 @@ export default function ChordIdentifier() {
               btStatus={btStatus}
               btKnownDevice={btKnownDevice}
               midi={midi}
+              mic={mic}
               onDisconnect={disconnectBluetooth}
               onConnect={showKeyboard && !pianoLinked ? showConnectScreen : undefined}
             />
@@ -1572,6 +1672,7 @@ export default function ChordIdentifier() {
                 onReconnect: reconnectBluetooth,
               }}
               midi={midi}
+              mic={mic}
               onUseKeyboard={() => setKeyboardChosen(true)}
             />
           )}
