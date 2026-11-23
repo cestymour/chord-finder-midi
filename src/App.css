@@ -194,13 +194,21 @@
      -webkit-tap-highlight-color: transparent;
    }
 
+   /* « Accueil » : maison et libellé */
+   .midi-status__action--home {
+     display: inline-flex;
+     align-items: center;
+     gap: 5px;
+   }
+
+   .midi-status__home-icon {
+     width: 12px;
+     height: 12px;
+     flex-shrink: 0;
+   }
+
    @media (hover: hover) {
      .midi-status__action:hover {
-       color: var(--err);
-       border-color: var(--err);
-     }
-     /* « Connecter un piano » n'a rien de dangereux : survol vert discret */
-     .midi-status__action--connect:hover {
        color: var(--accent);
        border-color: var(--accent-line);
      }
@@ -1249,12 +1257,12 @@
    ÉCRAN DE CONNEXION (piano non connecté)
    ───────────────────────────────────────────── */
 .connect-screen {
-  /* Diamètre des ronds Bluetooth, USB et Micro, et écart entre eux
-     (le bouton Piano virtuel couvre les trois) */
-  /* Trois ronds dans la largeur, marges de l'écran (2 × 20 px) et écarts déduits */
-  --connect-round: clamp(80px, calc((100vw - 76px) / 3), 150px);
-  --connect-gap: 12px;
-  --connect-row: calc(var(--connect-round) * 3 + var(--connect-gap) * 2);
+  /* Diamètre des ronds (deux par ligne : Bluetooth et USB, Micro A et Micro B) et
+     écart entre eux ; le bouton Piano virtuel est aussi large qu'une ligne. Les
+     trois parties tiennent en hauteur sur un téléphone (19vh). */
+  --connect-round: clamp(96px, min(34vw, 19vh), 148px);
+  --connect-gap: 16px;
+  --connect-row: calc(var(--connect-round) * 2 + var(--connect-gap));
   flex: 1;
   min-height: 0;
   position: relative;
@@ -1262,7 +1270,7 @@
   flex-direction: column;
   align-items: center;
   justify-content: safe center;
-  gap: 16px;
+  gap: clamp(16px, 3.5vh, 32px);
   padding-bottom: max(16px, env(safe-area-inset-bottom));
   /* Petit écran avec un message d'erreur : on fait défiler plutôt que de couper */
   overflow-y: auto;
@@ -1283,25 +1291,16 @@
   animation: fade-in 0.6s ease;
 }
 
-/* « Pas de piano connecté ? 👇 » au-dessus du bouton Piano virtuel */
-.no-piano {
+/* Une partie de l'accueil : titre, puis ses boutons */
+.connect-section {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
-  margin-top: 20px;
-  animation: fade-in 0.6s ease;
+  gap: 12px;
 }
 
-.no-piano__label {
-  max-width: var(--connect-row);
-  font-family: var(--font-mono);
-  font-size: 0.58rem;
-  letter-spacing: 0.15em;
-  line-height: 1.5;
-  text-transform: uppercase;
-  text-align: center;
-  color: var(--txt-dim);
+.connect-section .connect-screen__title {
+  font-size: 0.95rem;
 }
 
 /* « Autoriser le câble USB » : ouvre la demande d'accès MIDI du navigateur */
@@ -1320,15 +1319,25 @@
 }
 
 @media (orientation: landscape) and (max-height: 560px) {
+  /* Peu de hauteur : les trois parties côte à côte */
   .connect-screen {
-    --connect-round: clamp(96px, 26vmin, 124px);
-    gap: 8px;
+    /* 4 ronds + le piano virtuel (1,4 rond) dans la largeur */
+    --connect-round: clamp(84px, min(26vmin, calc((100vw - 120px) / 5.4)), 120px);
+    --connect-row: calc(var(--connect-round) * 1.4);
+    --connect-gap: 10px;
+    flex-direction: row;
+    align-items: center;
+    justify-content: safe center;
+    gap: 24px;
     padding-bottom: 0;
   }
 
-  /* Peu de hauteur : le bouton et les explications suffisent */
-  .connect-screen__title {
-    display: none;
+  .connect-section {
+    gap: 8px;
+  }
+
+  .connect-section .connect-screen__title {
+    font-size: 0.75rem;
   }
 }
 
@@ -2193,34 +2202,20 @@
   display: block;
   width: 100%;
   height: clamp(64px, 18vw, 84px);
-  border-bottom: 2px solid var(--accent-line);
-  transition: border-color 0.2s;
 }
 
 .mini-keys__white { fill: #c9ced8; transition: fill 0.2s; }
 .mini-keys__black { fill: var(--bg-deep); }
 
-.vpiano-btn__label {
-  padding: 14px 12px;
-  font-family: var(--font-mono);
-  font-size: 0.65rem;
-  font-weight: 600;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  text-align: center;
-}
-
 @media (hover: hover) {
   .vpiano-btn:hover { color: var(--accent); border-color: var(--accent); box-shadow: var(--accent-glow); }
-  .vpiano-btn:hover .vpiano-btn__keys { border-color: var(--accent); }
   .vpiano-btn:hover .mini-keys__white { fill: #e8eaf0; }
 }
 .vpiano-btn:active { transform: scale(0.98); }
 .vpiano-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 
 @media (orientation: landscape) and (max-height: 560px) {
-  .vpiano-btn__keys { height: 52px; }
-  .vpiano-btn__label { padding: 8px 12px; }
+  .vpiano-btn__keys { height: var(--connect-round); }
 }
 
 /* ─────────────────────────────────────────────

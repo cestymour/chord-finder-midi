@@ -463,13 +463,12 @@ function MiniKeysIcon({ className }) {
   );
 }
 
-/** Grand bouton « Piano virtuel » : touches en haut, libellé en bas. */
-function VirtualPianoButton({ onClick, describedBy }) {
+/** Grand bouton « Piano virtuel » : des touches qui occupent tout le bouton (le titre est au-dessus). */
+function VirtualPianoButton({ onClick }) {
   const { t } = useI18n();
   return (
-    <button type="button" className="vpiano-btn" onClick={onClick} aria-describedby={describedBy}>
+    <button type="button" className="vpiano-btn" onClick={onClick} aria-label={t("fallback.keyboard")}>
       <MiniKeysIcon className="vpiano-btn__keys" />
-      <span className="vpiano-btn__label">{t("fallback.keyboard")}</span>
     </button>
   );
 }
@@ -488,12 +487,28 @@ function MicIcon({ className }) {
 }
 
 /**
- * Rond « Micro » de l'écran de connexion : démarre l'écoute d'un piano acoustique
- * (la demande d'autorisation du navigateur arrive sur ce geste). Un ⓘ posé dessus
- * explique le mode et ses limites.
+ * Rond « Micro A » ou « Micro B » de l'écran d'accueil (un par moteur d'analyse, le temps
+ * de les comparer). Le A démarre l'écoute d'un piano acoustique (la demande
+ * d'autorisation du navigateur arrive sur ce geste), avec un ⓘ qui explique le mode et
+ * ses limites. Le B n'est pas encore fait : il ouvre seulement un message.
  */
-function MicButton({ status, onStart }) {
+function MicButton({ engine, status, onStart, open, detailsId }) {
   const { t } = useI18n();
+  const label = `${t("mic.title")} ${engine}`;
+  if (engine !== "A") {
+    return (
+      <button
+        type="button"
+        className={`usb-btn mic-btn${open ? " usb-btn--open" : ""}`}
+        onClick={onStart}
+        aria-expanded={open}
+        aria-controls={detailsId}
+      >
+        <MicIcon className="usb-btn__icon" />
+        <span className="usb-btn__label">{label}</span>
+      </button>
+    );
+  }
   const starting = status === "starting";
   const warn = status === "unsupported" || status === "error";
   return (
@@ -503,13 +518,13 @@ function MicButton({ status, onStart }) {
         className={`usb-btn mic-btn${warn ? " usb-btn--warn" : ""}${starting ? " mic-btn--starting" : ""}`}
         onClick={onStart}
         disabled={starting || status === "unsupported"}
-        aria-label={starting ? undefined : t("mic.aria")}
+        aria-label={starting ? undefined : `${label} : ${t("mic.aria")}`}
       >
         <MicIcon className="usb-btn__icon" />
-        <span className="usb-btn__label">{starting ? t("mic.starting") : t("mic.title")}</span>
+        <span className="usb-btn__label">{starting ? t("mic.starting") : label}</span>
       </button>
       <span className="bt-connect-hint">
-        <PopupInfoButton title={t("mic.title")}>{t("mic.help")}</PopupInfoButton>
+        <PopupInfoButton title={label}>{t("mic.help")}</PopupInfoButton>
       </span>
     </div>
   );
@@ -536,9 +551,21 @@ function MicLevel({ subscribe }) {
  * détecté tout seul par Web MIDI une fois l'accès accordé ; tant qu'il n'est pas demandé,
  * l'explication propose « Autoriser le câble USB », qui ouvre la demande du navigateur.
  */
-function UsbButton({ midiStatus, open, onToggle, detailsId }) {
+function UsbButton({ midi, open, onToggle, detailsId, onUsePiano }) {
   const { t } = useI18n();
-  const warn = midiStatus === "denied" || midiStatus === "unsupported";
+  const warn = midi.status === "denied" || midi.status === "unsupported";
+  // Piano déjà branché (retour à l'accueil) : le rond ramène directement à l'écran Piano
+  if (midi.status === "connected") {
+    return (
+      <button type="button" className="usb-btn" onClick={onUsePiano}>
+        <UsbIcon className="usb-btn__icon" />
+        <span className="usb-btn__label">
+          {t("usb.title")}
+          <span className="bt-connect-device">{midi.devices.join(", ")}</span>
+        </span>
+      </button>
+    );
+  }
   return (
     <button
       type="button"
@@ -554,18 +581,20 @@ function UsbButton({ midiStatus, open, onToggle, detailsId }) {
 }
 
 /**
- * Écran de connexion (aucun piano) : ronds Bluetooth et USB côte à côte, grand bouton
- * « Piano virtuel » dessous. Toutes les explications (ⓘ, USB) s'ouvrent dans une zone
- * fixe en haut de l'écran, par-dessus, sans rien décaler ; une seule à la fois.
+ * Écran d'accueil, en trois parties : « Connectez votre piano » (ronds Bluetooth et USB),
+ * « Écoutez votre piano » (ronds Micro A et Micro B, le temps de comparer les deux
+ * moteurs) et « Piano virtuel ». Toutes les explications (ⓘ, USB, Micro B) s'ouvrent dans
+ * une zone fixe en haut de l'écran, par-dessus, sans rien décaler ; une seule à la fois.
  */
-function ConnectScreen({ btProps, midi, mic, onUseKeyboard }) {
+function ConnectScreen({ btProps, midi, mic, onUseKeyboard, onUsePiano }) {
   const { t } = useI18n();
   const { popup, slotRef } = usePopupZone();
   const usbId = useId();
-  const promptId = useId();
+  const micBId = useId();
 
   const usbWarn = midi.status === "denied" || midi.status === "unsupported";
   const usbOpen = popup.openId === usbId;
+  const micBOpen = popup.openId === micBId;
 
   // Micro refusé, absent ou indisponible : message court, détail derrière ⓘ
   const micNotice = mic.micStatus === "unsupported"
@@ -576,77 +605,97 @@ function ConnectScreen({ btProps, midi, mic, onUseKeyboard }) {
     <PopupContext.Provider value={popup}>
       <div className="connect-screen">
         <div className="popup-zone" ref={slotRef} />
-        <h2 className="connect-screen__title">{t("connect.title")}</h2>
-        <BluetoothMIDIButton
-          {...btProps}
-          aside={
-            <>
+
+        <section className="connect-section">
+          <h2 className="connect-screen__title">{t("connect.title")}</h2>
+          <BluetoothMIDIButton
+            {...btProps}
+            aside={
               <UsbButton
-                midiStatus={midi.status}
+                midi={midi}
                 open={usbOpen}
                 onToggle={() => popup.toggle(usbId)}
                 detailsId={usbId}
+                onUsePiano={onUsePiano}
               />
-              <MicButton status={mic.micStatus} onStart={mic.startMic} />
-            </>
-          }
-        />
-        {micNotice && (
-          <InfoTip key={micNotice} tone="warn" label={t(micNotice)}>{t(`${micNotice}.help`)}</InfoTip>
-        )}
-        {usbOpen && popup.render(
-          <Popup id={usbId} tone={usbWarn ? "warn" : undefined} title={t("usb.title")}>
-            <p className="popup__text">{t(USB_TEXT_KEYS[midi.status] ?? "usb.hint")}</p>
-            {midi.status === "prompt" && (
-              <button className="usb-allow" onClick={midi.requestAccess}>{t("usb.allow")}</button>
-            )}
-          </Popup>
-        )}
-        <div className="no-piano">
-          {/* La main 👇 est décorative : le libellé décrit le bouton qui suit */}
-          <span className="no-piano__label" id={promptId}>
-            {t("fallback.prompt")} <span aria-hidden="true">👇</span>
-          </span>
-          <VirtualPianoButton onClick={onUseKeyboard} describedBy={promptId} />
-        </div>
+            }
+          />
+          {usbOpen && popup.render(
+            <Popup id={usbId} tone={usbWarn ? "warn" : undefined} title={t("usb.title")}>
+              <p className="popup__text">{t(USB_TEXT_KEYS[midi.status] ?? "usb.hint")}</p>
+              {midi.status === "prompt" && (
+                <button className="usb-allow" onClick={midi.requestAccess}>{t("usb.allow")}</button>
+              )}
+            </Popup>
+          )}
+        </section>
+
+        <section className="connect-section">
+          <h2 className="connect-screen__title">{t("connect.listen")}</h2>
+          <div className="bt-connect-row">
+            <MicButton engine="A" status={mic.micStatus} onStart={mic.startMic} />
+            <MicButton
+              engine="B"
+              open={micBOpen}
+              onStart={() => popup.toggle(micBId)}
+              detailsId={micBId}
+            />
+          </div>
+          {micNotice && (
+            <InfoTip key={micNotice} tone="warn" label={t(micNotice)}>{t(`${micNotice}.help`)}</InfoTip>
+          )}
+          {micBOpen && popup.render(
+            <Popup id={micBId} title={`${t("mic.title")} B`}>
+              <p className="popup__text">{t("mic.todo")}</p>
+            </Popup>
+          )}
+        </section>
+
+        <section className="connect-section">
+          <h2 className="connect-screen__title">{t("fallback.keyboard")}</h2>
+          <VirtualPianoButton onClick={onUseKeyboard} />
+        </section>
       </div>
     </PopupContext.Provider>
   );
 }
 
+/** Maison (bouton « Accueil » de la ligne d'état). */
+function HomeIcon({ className }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M3.5 11 12 3.5l8.5 7.5" />
+      <path d="M5.5 9.5V20.5h13V9.5" />
+      <path d="M10 20.5v-6h4v6" />
+    </svg>
+  );
+}
+
 /**
- * Ligne d'état sous les onglets (écran Piano) : nom du piano connecté et moyen de connexion.
- * onConnect (clavier virtuel choisi, aucun piano) : bouton qui ramène à l'écran de connexion,
- * pour que la connexion du piano reste toujours proposée.
+ * Ligne d'état sous les onglets (écran Piano) : la source choisie (piano Bluetooth ou
+ * USB, micro, piano virtuel). onHome, dès qu'une source est choisie : bouton « Accueil »,
+ * le même partout, qui la quitte (déconnexion Bluetooth, arrêt du micro) et ramène à
+ * l'écran d'accueil.
  */
-function ConnectionStatus({ btStatus, btKnownDevice, midi, mic, onDisconnect, onConnect }) {
+function ConnectionStatus({ btStatus, btKnownDevice, midi, mic, onHome }) {
   const { t } = useI18n();
   let status;
   let label;
-  let bluetooth = false;
+  let icon = null;
 
-  // Micro à l'écoute : choisi exprès, il passe en premier, avec son vumètre et « Arrêter »
   if (mic.micStatus === "listening") {
-    return (
-      <div className="midi-status midi-status--connected">
-        <span className="midi-dot" />
-        <MicIcon className="midi-status__icon" />
-        <span className="midi-label">{t("mic.listening")}</span>
-        <MicLevel subscribe={mic.subscribeLevel} />
-        <button className="midi-status__action" onClick={mic.stopMic}>
-          {t("mic.stop")}
-        </button>
-      </div>
-    );
-  }
-
-  if (btStatus === "connected") {
+    // Micro à l'écoute : choisi exprès, il passe en premier, avec son vumètre
     status = "connected";
-    bluetooth = true;
+    icon = <MicIcon className="midi-status__icon" />;
+    label = t("mic.listening");
+  } else if (btStatus === "connected") {
+    status = "connected";
+    icon = <BluetoothIcon className="midi-status__icon" />;
     label = btKnownDevice?.name || t("bt.piano");
   } else if (btStatus === "reconnecting") {
     status = "pending";
-    bluetooth = true;
+    icon = <BluetoothIcon className="midi-status__icon" />;
     label = t("bt.statusReconnecting");
   } else if (btStatus === "scanning" || btStatus === "connecting") {
     status = "pending";
@@ -655,7 +704,7 @@ function ConnectionStatus({ btStatus, btKnownDevice, midi, mic, onDisconnect, on
     // Web MIDI ne dit pas si l'instrument est en USB ou jumelé en Bluetooth : icône neutre
     status = "connected";
     label = `🎹 ${midi.devices.join(", ")}`;
-  } else if (onConnect) {
+  } else if (onHome) {
     // Clavier virtuel choisi sans piano : état neutre (l'absence de MIDI n'est pas une erreur ici)
     status = "virtual";
     label = t("status.virtual");
@@ -670,16 +719,13 @@ function ConnectionStatus({ btStatus, btKnownDevice, midi, mic, onDisconnect, on
   return (
     <div className={`midi-status midi-status--${status}`}>
       <span className="midi-dot" />
-      {bluetooth && <BluetoothIcon className="midi-status__icon" />}
+      {icon}
       <span className="midi-label">{label}</span>
-      {bluetooth && (
-        <button className="midi-status__action" onClick={onDisconnect}>
-          {t("bt.disconnect")}
-        </button>
-      )}
-      {!bluetooth && status !== "connected" && onConnect && (
-        <button className="midi-status__action midi-status__action--connect" onClick={onConnect}>
-          {t("status.connect")}
+      {mic.micStatus === "listening" && <MicLevel subscribe={mic.subscribeLevel} />}
+      {onHome && (
+        <button className="midi-status__action midi-status__action--home" onClick={onHome}>
+          <HomeIcon className="midi-status__home-icon" />
+          {t("status.home")}
         </button>
       )}
     </div>
@@ -1361,7 +1407,12 @@ export default function ChordIdentifier() {
     setVirtualNotes(virtualNotesRef.current);
   }, []);
 
+  // Retour à l'accueil demandé alors qu'un piano USB reste branché (on ne peut pas le
+  // déconnecter) : l'accueil reste affiché jusqu'à ce qu'on rejoue sur ce piano.
+  const [homeRequested, setHomeRequested] = useState(false);
+
   const handleNoteOn = useCallback((source, note) => {
+    if (source.startsWith("midi:")) setHomeRequested(false);
     // Jouer sur le vrai piano efface les touches cliquées : pas de mélange des deux sources.
     if (virtualNotesRef.current.size > 0) clearVirtualNotes();
     updateSource(source, prev => {
@@ -1451,7 +1502,7 @@ export default function ChordIdentifier() {
   // Sans piano, le clavier virtuel n'apparaît que si l'utilisateur le demande
   // (la connexion du piano reste la proposition principale).
   const [keyboardChosen, setKeyboardChosen] = useState(false);
-  const showKeyboard = mode === "midi" && (pianoLinked || keyboardChosen);
+  const showKeyboard = mode === "midi" && ((pianoLinked && !homeRequested) || keyboardChosen);
 
   // Clavier masqué (piano déconnecté sans clavier choisi) : ses touches cliquées
   // ne doivent ni rester sonores ni compter pour l'accord.
@@ -1461,7 +1512,11 @@ export default function ChordIdentifier() {
 
   // Une touche enfoncée joue sa note ; relâchée, elle est étouffée.
   // (Le son est déclenché hors du updater de setState, que StrictMode exécute deux fois.)
+  const suppressMic = mic.suppress;
   const toggleVirtualNote = useCallback((note) => {
+    // Comme avec un piano : toucher l'écran éteint les notes entendues par le micro
+    // (elles ne reviennent qu'avec un nouvel accord joué)
+    suppressMic();
     const next = new Set(virtualNotesRef.current);
     if (next.has(note)) {
       next.delete(note);
@@ -1472,7 +1527,7 @@ export default function ChordIdentifier() {
     }
     virtualNotesRef.current = next;
     setVirtualNotes(next);
-  }, []);
+  }, [suppressMic]);
 
   const changeMode = (target) => {
     if (target === mode) return; // onglet déjà actif : garder les touches cliquées
@@ -1480,9 +1535,19 @@ export default function ChordIdentifier() {
     clearVirtualNotes();
   };
 
-  const showConnectScreen = () => {
+  // Bouton « Accueil » : quitte la source choisie et revient à l'écran d'accueil
+  const goHome = () => {
+    if (mic.micStatus === "listening" || mic.micStatus === "starting") mic.stopMic();
+    if (["connected", "reconnecting", "connecting", "scanning"].includes(btStatus)) disconnectBluetooth();
     setKeyboardChosen(false);
+    setHomeRequested(true);
     clearVirtualNotes();
+  };
+
+  // Choisir une source à l'accueil annule le retour à l'accueil
+  const choose = (action) => (...args) => {
+    setHomeRequested(false);
+    return action(...args);
   };
 
   // Paramètres (mémorisés pour les ouvertures suivantes)
@@ -1647,8 +1712,7 @@ export default function ChordIdentifier() {
               btKnownDevice={btKnownDevice}
               midi={midi}
               mic={mic}
-              onDisconnect={disconnectBluetooth}
-              onConnect={showKeyboard && !pianoLinked ? showConnectScreen : undefined}
+              onHome={showKeyboard ? goHome : undefined}
             />
           )}
         </div>
@@ -1668,12 +1732,13 @@ export default function ChordIdentifier() {
                 btStatus,
                 btError,
                 knownDevice: btKnownDevice,
-                onConnect: requestBluetoothMIDI,
-                onReconnect: reconnectBluetooth,
+                onConnect: choose(requestBluetoothMIDI),
+                onReconnect: choose(reconnectBluetooth),
               }}
               midi={midi}
-              mic={mic}
-              onUseKeyboard={() => setKeyboardChosen(true)}
+              mic={{ ...mic, startMic: choose(mic.startMic) }}
+              onUseKeyboard={choose(() => setKeyboardChosen(true))}
+              onUsePiano={() => setHomeRequested(false)}
             />
           )}
 

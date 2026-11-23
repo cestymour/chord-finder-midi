@@ -33,12 +33,14 @@ function errorCode(error) {
  * callbacks : { onNoteOn(note), onNoteOff(note), onRelease() } (onRelease quand
  * l'écoute s'arrête : les notes tenues sont relâchées).
  *
- * Retourne { micStatus, micError, startMic, stopMic, subscribeLevel } :
+ * Retourne { micStatus, micError, startMic, stopMic, suppress, subscribeLevel } :
  * - micStatus : "idle" | "starting" | "listening" | "error" | "unsupported"
  * - micError : "denied" | "noDevice" | "failed" | null (avec le statut "error" ;
  *   "denied" aussi d'avance, quand l'autorisation du site est déjà refusée)
  * - startMic() : à appeler sur un geste de l'utilisateur (demande d'autorisation,
  *   démarrage du son sur iPhone)
+ * - suppress() : éteint les notes entendues (toucher du clavier à l'écran), jusqu'au
+ *   prochain accord différent ou au silence
  * - subscribeLevel(fn) : fn(dB) à chaque analyse, pour le vumètre (sans rendu React)
  */
 export default function useMicrophone(callbacks) {
@@ -128,13 +130,21 @@ export default function useMicrophone(callbacks) {
     source.connect(analyser).connect(mute).connect(context.destination);
 
     const buffer = new Float32Array(analyser.fftSize);
-    const session = { stream, context, timer: 0, notes: new Set() };
+    // suppressed : classes de hauteur éteintes par un toucher de l'écran (voir suppress)
+    const session = { stream, context, timer: 0, notes: new Set(), suppressed: null };
 
     const tick = () => {
       analyser.getFloatTimeDomainData(buffer);
       const frame = engine.analyze(buffer);
       levelListeners.current.forEach((listener) => listener(frame.level));
-      const next = new Set(tracker.update(frame));
+      let next = new Set(tracker.update(frame));
+      if (session.suppressed) {
+        // Tant que le micro n'entend que (ce qui reste de) l'accord éteint, rien ne
+        // s'affiche ; une note nouvelle ou le silence lève la mise en sourdine.
+        const onlyOld = [...next].every((note) => session.suppressed.has(note % 12));
+        if (next.size === 0 || !onlyOld) session.suppressed = null;
+        else next = new Set();
+      }
       const { onNoteOn, onNoteOff } = callbacksRef.current;
       session.notes.forEach((note) => { if (!next.has(note)) onNoteOff(note); });
       next.forEach((note) => { if (!session.notes.has(note)) onNoteOn(note); });
@@ -155,6 +165,17 @@ export default function useMicrophone(callbacks) {
     sessionRef.current = session;
     setState({ micStatus: "listening", micError: null });
   }, [teardown]);
+
+  // L'utilisateur touche le clavier à l'écran : les notes entendues s'éteignent, et
+  // restent éteintes tant que le micro n'entend que leur résonance.
+  const suppress = useCallback(() => {
+    const session = sessionRef.current;
+    if (!session || session.notes.size === 0) return;
+    session.suppressed = new Set([...session.notes].map((note) => note % 12));
+    const { onNoteOff } = callbacksRef.current;
+    session.notes.forEach((note) => onNoteOff(note));
+    session.notes = new Set();
+  }, []);
 
   // Autorisation déjà refusée dans les paramètres du site : on le dit d'avance.
   // Une autorisation accordée ne démarre pas l'écoute toute seule.
@@ -190,5 +211,5 @@ export default function useMicrophone(callbacks) {
     teardown();
   }, [teardown]);
 
-  return { ...state, startMic, stopMic, subscribeLevel };
+  return { ...state, startMic, stopMic, suppress, subscribeLevel };
 }

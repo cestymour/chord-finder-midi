@@ -8,7 +8,12 @@ Le format s’inspire de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/
 
 ### Ajouté
 
-- **Micro (expérimental)** : un 3ᵉ rond « Micro » à côté de Bluetooth et USB, pour un piano acoustique sans MIDI. Le micro de l'appareil écoute le piano et l'accord s'affiche comme avec un piano connecté (carte, portée, touches allumées sur le clavier). La ligne d'état indique « Micro · écoute », avec un petit vumètre et un bouton « Arrêter ». La détection est approximative : fiable surtout pour les triades et les accords de 7ᵉ dans le médium, plus fragile pour la basse et les renversements. Le son de l'appli est coupé pendant l'écoute (sur l'écran « Notes → Accord »), pour ne pas être capté. L'audio est analysé sur l'appareil et n'est jamais envoyé. Fonctionne aussi dans Safari (iPhone, iPad) et Firefox, qui n'ont ni Web Bluetooth ni, pour Safari, Web MIDI.
+- **Micro (expérimental)** : nouvelle partie « Écoutez votre piano » sur l'accueil, pour un piano acoustique sans MIDI. Le micro de l'appareil écoute le piano et l'accord s'affiche comme avec un piano connecté (carte, portée, touches allumées sur le clavier). La ligne d'état indique « Micro · écoute », avec un petit vumètre. Pendant la phase d'essai, deux ronds « Micro A » et « Micro B » (deux méthodes de détection à comparer ; le B n'est pas encore disponible). Toucher une touche du clavier à l'écran éteint les notes entendues par le micro, jusqu'au prochain accord joué. La détection est approximative : fiable surtout pour les triades et les accords de 7ᵉ dans le médium, plus fragile pour la basse et les renversements. Le son de l'appli est coupé pendant l'écoute (sur l'écran « Notes → Accord »), pour ne pas être capté. L'audio est analysé sur l'appareil et n'est jamais envoyé. Fonctionne aussi dans Safari (iPhone, iPad) et Firefox, qui n'ont ni Web Bluetooth ni, pour Safari, Web MIDI.
+
+### Modifié
+
+- **Accueil en trois parties** : « Connectez votre piano » (Bluetooth, câble USB), « Écoutez votre piano » (micro) et « Piano virtuel ». Le titre « Piano virtuel » remplace « Pas de piano connecté ? 👇 », et ses touches occupent tout le bouton. Sur un téléphone couché, les trois parties sont côte à côte.
+- **Bouton « Accueil »** dans la ligne d'état, le même quelle que soit la source : il remplace « Déconnecter » (Bluetooth) et « Connecter un piano » (piano virtuel), arrête le micro, et ramène à l'accueil. Avec un piano branché en USB, on revient à l'écran Piano en touchant le rond « Câble USB » (qui affiche le nom du piano) ou en jouant une note.
 
 ## [1.0.0] — 2026-11-05
 

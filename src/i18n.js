@@ -68,10 +68,11 @@ export const MESSAGES = {
     "midi.disconnected": "Aucun piano connecté",
     "midi.denied": "MIDI non autorisé",
     "midi.unsupported": "MIDI non disponible",
-    "status.connect": "Connecter un piano",
     "status.virtual": "Piano virtuel",
+    "status.home": "Accueil",
 
     "connect.title": "Connectez votre piano",
+    "connect.listen": "Écoutez votre piano",
 
     "bt.connect": "Connexion Bluetooth MIDI",
     "bt.connectAria": "Connecter un instrument MIDI via Bluetooth",
@@ -80,7 +81,6 @@ export const MESSAGES = {
     "bt.reconnecting": "Reconnexion…",
     "bt.reconnect": "Reconnecter",
     "bt.other": "Connecter un autre piano",
-    "bt.disconnect": "Déconnecter",
     "bt.piano": "Piano Bluetooth",
     "bt.statusReconnecting": "Connexion perdue · reconnexion…",
     "bt.lost": "Connexion perdue",
@@ -106,9 +106,9 @@ export const MESSAGES = {
     "mic.title": "Micro",
     "mic.aria": "Écouter un piano acoustique avec le micro",
     "mic.starting": "Démarrage…",
+    "mic.todo": "Fonctionnalité à développer.",
     "mic.help": "Pour un piano sans MIDI : posez l'appareil près du piano et jouez. La détection est approximative, fiable surtout pour les accords simples (triades, 7ᵉ) dans le médium ; la basse et les renversements sont plus fragiles. Le son de l'appli est coupé pendant l'écoute. L'audio est analysé sur l'appareil et n'est jamais envoyé.",
     "mic.listening": "Micro · écoute",
-    "mic.stop": "Arrêter",
     "mic.level": "Niveau du micro",
     "mic.unsupported": "Micro non disponible",
     "mic.unsupported.help": "Ce navigateur ne permet pas d'utiliser le micro ici. Ouvrez l'appli en HTTPS dans un navigateur récent (Chrome, Edge, Safari, Firefox).",
@@ -120,7 +120,6 @@ export const MESSAGES = {
     "mic.error.failed.help": "Impossible d'utiliser le micro. Vérifiez qu'aucune autre application ne s'en sert, puis réessayez.",
 
     "fallback.keyboard": "Piano virtuel",
-    "fallback.prompt": "Pas de piano connecté ?",
 
     "idle.play": "Jouez un accord…",
     "idle.touch": "Jouez un accord au piano…",
@@ -168,10 +167,11 @@ export const MESSAGES = {
     "midi.disconnected": "No piano connected",
     "midi.denied": "MIDI not allowed",
     "midi.unsupported": "MIDI unavailable",
-    "status.connect": "Connect a piano",
     "status.virtual": "Virtual piano",
+    "status.home": "Home",
 
     "connect.title": "Connect your piano",
+    "connect.listen": "Listen to your piano",
 
     "bt.connect": "Connect Bluetooth MIDI",
     "bt.connectAria": "Connect a MIDI instrument over Bluetooth",
@@ -180,7 +180,6 @@ export const MESSAGES = {
     "bt.reconnecting": "Reconnecting…",
     "bt.reconnect": "Reconnect",
     "bt.other": "Connect another piano",
-    "bt.disconnect": "Disconnect",
     "bt.piano": "Bluetooth piano",
     "bt.statusReconnecting": "Connection lost · reconnecting…",
     "bt.lost": "Connection lost",
@@ -206,9 +205,9 @@ export const MESSAGES = {
     "mic.title": "Microphone",
     "mic.aria": "Listen to an acoustic piano with the microphone",
     "mic.starting": "Starting…",
+    "mic.todo": "Feature still to be developed.",
     "mic.help": "For a piano without MIDI: put the device near the piano and play. Detection is approximate, most reliable for simple chords (triads, 7ths) in the middle range; the bass and inversions are less reliable. The app's sound is muted while listening. Audio is analyzed on the device and never sent anywhere.",
     "mic.listening": "Microphone · listening",
-    "mic.stop": "Stop",
     "mic.level": "Microphone level",
     "mic.unsupported": "Microphone unavailable",
     "mic.unsupported.help": "This browser can't use the microphone here. Open the app over HTTPS in a recent browser (Chrome, Edge, Safari, Firefox).",
@@ -220,7 +219,6 @@ export const MESSAGES = {
     "mic.error.failed.help": "Couldn't use the microphone. Check that no other app is using it, then try again.",
 
     "fallback.keyboard": "Virtual piano",
-    "fallback.prompt": "No piano connected?",
 
     "idle.play": "Play a chord…",
     "idle.touch": "Play a chord on the piano…",
@@ -268,10 +266,11 @@ export const MESSAGES = {
     "midi.disconnected": "Kein Klavier verbunden",
     "midi.denied": "MIDI nicht erlaubt",
     "midi.unsupported": "MIDI nicht verfügbar",
-    "status.connect": "Klavier verbinden",
     "status.virtual": "Virtuelles Klavier",
+    "status.home": "Start",
 
     "connect.title": "Verbinde dein Klavier",
+    "connect.listen": "Hör dein Klavier ab",
 
     "bt.connect": "Bluetooth-MIDI verbinden",
     "bt.connectAria": "MIDI-Instrument über Bluetooth verbinden",
@@ -280,7 +279,6 @@ export const MESSAGES = {
     "bt.reconnecting": "Neu verbinden…",
     "bt.reconnect": "Neu verbinden",
     "bt.other": "Anderes Klavier verbinden",
-    "bt.disconnect": "Trennen",
     "bt.piano": "Bluetooth-Klavier",
     "bt.statusReconnecting": "Verbindung verloren · neu verbinden…",
     "bt.lost": "Verbindung abgebrochen",
@@ -306,9 +304,9 @@ export const MESSAGES = {
     "mic.title": "Mikrofon",
     "mic.aria": "Ein akustisches Klavier über das Mikrofon hören",
     "mic.starting": "Starte…",
+    "mic.todo": "Funktion in Entwicklung.",
     "mic.help": "Für ein Klavier ohne MIDI: Stell das Gerät in die Nähe des Klaviers und spiel. Die Erkennung ist ungefähr, am zuverlässigsten bei einfachen Akkorden (Dreiklänge, Septakkorde) in der Mittellage; Bass und Umkehrungen sind unsicherer. Der Ton der App ist beim Zuhören stumm. Das Audio wird auf dem Gerät ausgewertet und nie gesendet.",
     "mic.listening": "Mikrofon · hört zu",
-    "mic.stop": "Stopp",
     "mic.level": "Mikrofonpegel",
     "mic.unsupported": "Mikrofon nicht verfügbar",
     "mic.unsupported.help": "Dieser Browser kann das Mikrofon hier nicht nutzen. Öffne die App über HTTPS in einem aktuellen Browser (Chrome, Edge, Safari, Firefox).",
@@ -320,7 +318,6 @@ export const MESSAGES = {
     "mic.error.failed.help": "Das Mikrofon kann nicht genutzt werden. Prüfe, dass keine andere App es verwendet, und versuch es erneut.",
 
     "fallback.keyboard": "Virtuelles Klavier",
-    "fallback.prompt": "Kein Klavier verbunden?",
 
     "idle.play": "Spiel einen Akkord…",
     "idle.touch": "Spiel einen Akkord auf dem Klavier…",
@@ -368,10 +365,11 @@ export const MESSAGES = {
     "midi.disconnected": "Ningún piano conectado",
     "midi.denied": "MIDI no autorizado",
     "midi.unsupported": "MIDI no disponible",
-    "status.connect": "Conectar un piano",
     "status.virtual": "Piano virtual",
+    "status.home": "Inicio",
 
     "connect.title": "Conecta tu piano",
+    "connect.listen": "Escucha tu piano",
 
     "bt.connect": "Conectar MIDI Bluetooth",
     "bt.connectAria": "Conectar un instrumento MIDI por Bluetooth",
@@ -380,7 +378,6 @@ export const MESSAGES = {
     "bt.reconnecting": "Reconectando…",
     "bt.reconnect": "Reconectar",
     "bt.other": "Conectar otro piano",
-    "bt.disconnect": "Desconectar",
     "bt.piano": "Piano Bluetooth",
     "bt.statusReconnecting": "Conexión perdida · reconectando…",
     "bt.lost": "Conexión perdida",
@@ -406,9 +403,9 @@ export const MESSAGES = {
     "mic.title": "Micrófono",
     "mic.aria": "Escuchar un piano acústico con el micrófono",
     "mic.starting": "Iniciando…",
+    "mic.todo": "Función por desarrollar.",
     "mic.help": "Para un piano sin MIDI: coloca el dispositivo cerca del piano y toca. La detección es aproximada, más fiable con acordes sencillos (tríadas, séptimas) en el registro medio; el bajo y las inversiones son menos fiables. El sonido de la app se silencia mientras escucha. El audio se analiza en el dispositivo y nunca se envía.",
     "mic.listening": "Micrófono · escuchando",
-    "mic.stop": "Detener",
     "mic.level": "Nivel del micrófono",
     "mic.unsupported": "Micrófono no disponible",
     "mic.unsupported.help": "Este navegador no puede usar el micrófono aquí. Abre la app por HTTPS en un navegador reciente (Chrome, Edge, Safari, Firefox).",
@@ -420,7 +417,6 @@ export const MESSAGES = {
     "mic.error.failed.help": "No se pudo usar el micrófono. Comprueba que ninguna otra app lo esté usando y vuelve a intentarlo.",
 
     "fallback.keyboard": "Piano virtual",
-    "fallback.prompt": "¿No hay ningún piano conectado?",
 
     "idle.play": "Toca un acorde…",
     "idle.touch": "Toca un acorde en el piano…",
@@ -468,10 +464,11 @@ export const MESSAGES = {
     "midi.disconnected": "Nenhum piano conectado",
     "midi.denied": "MIDI não autorizado",
     "midi.unsupported": "MIDI indisponível",
-    "status.connect": "Conectar um piano",
     "status.virtual": "Piano virtual",
+    "status.home": "Início",
 
     "connect.title": "Conecte o seu piano",
+    "connect.listen": "Ouça o seu piano",
 
     "bt.connect": "Conectar MIDI Bluetooth",
     "bt.connectAria": "Conectar um instrumento MIDI por Bluetooth",
@@ -480,7 +477,6 @@ export const MESSAGES = {
     "bt.reconnecting": "Reconectando…",
     "bt.reconnect": "Reconectar",
     "bt.other": "Conectar outro piano",
-    "bt.disconnect": "Desconectar",
     "bt.piano": "Piano Bluetooth",
     "bt.statusReconnecting": "Conexão perdida · reconectando…",
     "bt.lost": "Conexão perdida",
@@ -506,9 +502,9 @@ export const MESSAGES = {
     "mic.title": "Microfone",
     "mic.aria": "Ouvir um piano acústico com o microfone",
     "mic.starting": "Iniciando…",
+    "mic.todo": "Funcionalidade a desenvolver.",
     "mic.help": "Para um piano sem MIDI: coloque o aparelho perto do piano e toque. A detecção é aproximada, mais confiável com acordes simples (tríades, sétimas) no registro médio; o baixo e as inversões são menos confiáveis. O som do app fica mudo durante a escuta. O áudio é analisado no aparelho e nunca é enviado.",
     "mic.listening": "Microfone · ouvindo",
-    "mic.stop": "Parar",
     "mic.level": "Nível do microfone",
     "mic.unsupported": "Microfone indisponível",
     "mic.unsupported.help": "Este navegador não pode usar o microfone aqui. Abra o app por HTTPS em um navegador recente (Chrome, Edge, Safari, Firefox).",
@@ -520,7 +516,6 @@ export const MESSAGES = {
     "mic.error.failed.help": "Não foi possível usar o microfone. Verifique se nenhum outro app o está usando e tente de novo.",
 
     "fallback.keyboard": "Piano virtual",
-    "fallback.prompt": "Nenhum piano conectado?",
 
     "idle.play": "Toque um acorde…",
     "idle.touch": "Toque um acorde no piano…",
@@ -568,10 +563,11 @@ export const MESSAGES = {
     "midi.disconnected": "未连接钢琴",
     "midi.denied": "MIDI 未获授权",
     "midi.unsupported": "MIDI 不可用",
-    "status.connect": "连接钢琴",
     "status.virtual": "虚拟钢琴",
+    "status.home": "首页",
 
     "connect.title": "连接你的钢琴",
+    "connect.listen": "聆听你的钢琴",
 
     "bt.connect": "连接蓝牙 MIDI",
     "bt.connectAria": "通过蓝牙连接 MIDI 乐器",
@@ -580,7 +576,6 @@ export const MESSAGES = {
     "bt.reconnecting": "正在重新连接…",
     "bt.reconnect": "重新连接",
     "bt.other": "连接其他钢琴",
-    "bt.disconnect": "断开连接",
     "bt.piano": "蓝牙钢琴",
     "bt.statusReconnecting": "连接已断开 · 正在重新连接…",
     "bt.lost": "连接已断开",
@@ -606,9 +601,9 @@ export const MESSAGES = {
     "mic.title": "麦克风",
     "mic.aria": "用麦克风聆听原声钢琴",
     "mic.starting": "正在启动…",
+    "mic.todo": "功能开发中。",
     "mic.help": "适用于没有 MIDI 的钢琴：把设备放在钢琴旁边，然后弹奏。识别结果是近似的，中音区的简单和弦（三和弦、七和弦）最可靠；低音和转位不太可靠。聆听时应用的声音会静音。音频只在本设备上分析，绝不会发送出去。",
     "mic.listening": "麦克风 · 聆听中",
-    "mic.stop": "停止",
     "mic.level": "麦克风音量",
     "mic.unsupported": "麦克风不可用",
     "mic.unsupported.help": "此浏览器无法在这里使用麦克风。请在较新的浏览器（Chrome、Edge、Safari、Firefox）中通过 HTTPS 打开应用。",
@@ -620,7 +615,6 @@ export const MESSAGES = {
     "mic.error.failed.help": "无法使用麦克风。请确认没有其他应用正在使用它，然后重试。",
 
     "fallback.keyboard": "虚拟钢琴",
-    "fallback.prompt": "没有连接钢琴？",
 
     "idle.play": "弹一个和弦…",
     "idle.touch": "在钢琴上弹一个和弦…",
@@ -668,10 +662,11 @@ export const MESSAGES = {
     "midi.disconnected": "ピアノ未接続",
     "midi.denied": "MIDI が許可されていません",
     "midi.unsupported": "MIDI は使用できません",
-    "status.connect": "ピアノを接続",
     "status.virtual": "バーチャルピアノ",
+    "status.home": "ホーム",
 
     "connect.title": "ピアノを接続しましょう",
+    "connect.listen": "ピアノの音を聴きましょう",
 
     "bt.connect": "Bluetooth MIDI で接続",
     "bt.connectAria": "Bluetooth で MIDI 楽器を接続",
@@ -680,7 +675,6 @@ export const MESSAGES = {
     "bt.reconnecting": "再接続中…",
     "bt.reconnect": "再接続",
     "bt.other": "別のピアノを接続",
-    "bt.disconnect": "切断",
     "bt.piano": "Bluetooth ピアノ",
     "bt.statusReconnecting": "接続が切れました · 再接続中…",
     "bt.lost": "接続が切れました",
@@ -706,9 +700,9 @@ export const MESSAGES = {
     "mic.title": "マイク",
     "mic.aria": "マイクでアコースティックピアノを聴く",
     "mic.starting": "起動中…",
+    "mic.todo": "開発予定の機能です。",
     "mic.help": "MIDI のないピアノ向けです。端末をピアノの近くに置いて弾いてください。認識はおおよそで、中音域のシンプルなコード（三和音、セブンス）が最も確実です。ベースと転回形は不安定になりがちです。聴いている間はアプリの音を消します。音声は端末内で解析され、外部に送信されることはありません。",
     "mic.listening": "マイク · 聴いています",
-    "mic.stop": "停止",
     "mic.level": "マイクの音量",
     "mic.unsupported": "マイクを使用できません",
     "mic.unsupported.help": "このブラウザではここでマイクを使用できません。最新のブラウザ（Chrome、Edge、Safari、Firefox）で HTTPS でアプリを開いてください。",
@@ -720,7 +714,6 @@ export const MESSAGES = {
     "mic.error.failed.help": "マイクを使用できませんでした。ほかのアプリが使用していないか確認してから、もう一度お試しください。",
 
     "fallback.keyboard": "バーチャルピアノ",
-    "fallback.prompt": "ピアノが接続されていませんか？",
 
     "idle.play": "コードを弾いてください…",
     "idle.touch": "ピアノでコードを弾いてください…",
@@ -768,10 +761,11 @@ export const MESSAGES = {
     "midi.disconnected": "연결된 피아노 없음",
     "midi.denied": "MIDI 허용 안 됨",
     "midi.unsupported": "MIDI 사용 불가",
-    "status.connect": "피아노 연결",
     "status.virtual": "가상 피아노",
+    "status.home": "홈",
 
     "connect.title": "피아노를 연결하세요",
+    "connect.listen": "피아노 소리를 들어 보세요",
 
     "bt.connect": "블루투스 MIDI 연결",
     "bt.connectAria": "블루투스로 MIDI 악기 연결",
@@ -780,7 +774,6 @@ export const MESSAGES = {
     "bt.reconnecting": "다시 연결 중…",
     "bt.reconnect": "다시 연결",
     "bt.other": "다른 피아노 연결",
-    "bt.disconnect": "연결 해제",
     "bt.piano": "블루투스 피아노",
     "bt.statusReconnecting": "연결 끊김 · 다시 연결 중…",
     "bt.lost": "연결 끊김",
@@ -806,9 +799,9 @@ export const MESSAGES = {
     "mic.title": "마이크",
     "mic.aria": "마이크로 어쿠스틱 피아노 듣기",
     "mic.starting": "시작하는 중…",
+    "mic.todo": "개발 예정인 기능입니다.",
     "mic.help": "MIDI가 없는 피아노용입니다. 기기를 피아노 가까이에 두고 연주하세요. 인식은 대략적이며, 중음역의 간단한 코드(3화음, 7화음)에서 가장 정확합니다. 베이스와 자리바꿈은 덜 정확합니다. 듣는 동안 앱 소리는 꺼집니다. 오디오는 기기에서만 분석되며 어디에도 전송되지 않습니다.",
     "mic.listening": "마이크 · 듣는 중",
-    "mic.stop": "중지",
     "mic.level": "마이크 음량",
     "mic.unsupported": "마이크를 사용할 수 없음",
     "mic.unsupported.help": "이 브라우저에서는 여기서 마이크를 사용할 수 없습니다. 최신 브라우저(Chrome, Edge, Safari, Firefox)에서 HTTPS로 앱을 여세요.",
@@ -820,7 +813,6 @@ export const MESSAGES = {
     "mic.error.failed.help": "마이크를 사용할 수 없습니다. 다른 앱이 사용 중이 아닌지 확인한 다음 다시 시도하세요.",
 
     "fallback.keyboard": "가상 피아노",
-    "fallback.prompt": "연결된 피아노가 없나요?",
 
     "idle.play": "코드를 연주하세요…",
     "idle.touch": "피아노로 코드를 연주하세요…",

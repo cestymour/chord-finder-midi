@@ -6,10 +6,15 @@
 
 1. **Essais sur le vrai piano droit** avec le moteur A (protocole plus bas). Les seuils ont été réglés sur des signaux synthétiques seulement : ils devront sans doute bouger (`MIN_FUNDAMENTAL`, `GHOST_RATIO`, `MATCH_CENTS` dans `micChroma.js` ; `onSalience`, `offSalience`, `enterDb`, `gateDb` dans `micTracker.js`).
 2. **Enregistrements WAV** du piano droit, à ajouter aux tests dès qu'il y en a.
-3. **Moteur B** (Basic Pitch) derrière la même interface, chargé à la demande, puis le réglage A / B dans les paramètres.
+3. **Moteur B** (Basic Pitch) derrière la même interface, chargé à la demande. Pour l'instant, l'accueil a deux ronds « Micro A » et « Micro B » côte à côte (le B n'affiche que « Fonctionnalité à développer ») : c'est par eux qu'on choisit le moteur pendant les essais, pas par un réglage.
 4. **Accords peu fiables** (9, 11, 13, altérés) : décision reportée après les essais (rien de filtré pour l'instant).
+5. **Une fois le moteur choisi** : un seul rond « Micro » sous « Écoutez votre piano » (supprimer l'autre moteur, le libellé « A » / « B » et `MicButton engine`), puis publier en **1.1.0** (nouvelle source de notes, sans rien casser de l'existant : version mineure).
 
 Écart avec le plan ci-dessous : le moteur A ne fait pas un simple chroma. Il estime des notes (somme des harmoniques, puis retrait de ceux de chaque note retenue), et c'est le suivi qui replie en classes de hauteur et garde la note la plus grave comme basse. Le grave est analysé sur environ 340 ms, le reste sur les 170 ms les plus récentes.
+
+### Idée à étudier plus tard : étalonnage sur le piano de l'utilisateur
+
+Pas décidé, ne pas développer pour l'instant. Proposer, micro allumé, de jouer quelques notes demandées une à une (par exemple La1, Do3, Mi4… en notation française), et mesurer pour chacune la fréquence réelle de la fondamentale et de ses harmoniques. On en déduirait les réglages propres à cet instrument : écart d'accord (au lieu du recalage automatique), inharmonicité des cordes selon le registre (où chercher chaque harmonique), timbre (force relative des harmoniques, utile pour le retrait des harmoniques et les fantômes), niveau du micro (seuils de silence). Résultat enregistré dans `localStorage`, avec un bouton pour refaire l'étalonnage. À évaluer après les essais : le gain doit justifier une étape de plus pour l'utilisateur.
 
 ### Objectif
 
