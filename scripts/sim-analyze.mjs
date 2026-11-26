@@ -1,7 +1,7 @@
 // Essais du mode micro : analyse d'un enregistrement de simulation (logs/sim-*.json
 // et son .wav, voir src/simRecorder.js).
 //
-//   node scripts/sim-analyze.mjs [logs/sim-….json] [--engines A1,A2,A3] [--detail]
+//   node scripts/sim-analyze.mjs [logs/sim-….json] [--engines A1,A2,A3,A4] [--detail]
 //
 // La vérité : les touches du piano MIDI (et la pédale). Pour chaque accord joué,
 // on compare les notes affichées par le micro :
@@ -28,7 +28,10 @@ if (!journalPath) {
   const files = readdirSync("logs").filter((f) => f.startsWith("sim-") && f.endsWith(".json")).sort();
   journalPath = `logs/${files.at(-1)}`;
 }
-const engines = option("--engines", "A1,A2,A3").split(",").filter(Boolean);
+const engines = option("--engines", "A1,A2,A3,A4").split(",").filter(Boolean);
+// Réglages du suivi à essayer, ajoutés à ceux du moteur : --tracker '{"attackFrames":10}'
+const trackerOverride = JSON.parse(option("--tracker", "{}"));
+const rulesOverride = JSON.parse(option("--rules", "{}")); // ex. '{"lowSupport":false}'
 
 const journal = JSON.parse(readFileSync(journalPath, "utf8"));
 const wavPath = journalPath.replace(/[^/\\]*$/, journal.audioFile ?? "");
@@ -135,8 +138,8 @@ function liveTimeline() {
 
 /** Rejoue le son à travers un moteur, aux instants d'analyse de l'enregistrement. */
 function replayTimeline(id) {
-  const engine = createChromaEngine({ sampleRate, attackGate: id !== "A1", octaveFix: id === "A3" });
-  const tracker = createNoteTracker();
+  const engine = createChromaEngine({ sampleRate, version: Number(id.slice(1)), rules: rulesOverride });
+  const tracker = createNoteTracker({ ...engine.tracker, ...trackerOverride });
   const frame = new Float32Array(engine.frameSize);
   const changes = [];
   let previous = null;
@@ -201,11 +204,17 @@ function evaluate(timeline, segments) {
     const mode = [...seen.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "";
     // Après le relâchement : notes encore affichées 300 ms plus tard
     const after = at(timeline, seg.end + 300);
+    // Extinction : délai entre le relâchement et la fin de la lecture de cet accord
+    let release = null;
+    for (let t = seg.end; t < seg.end + 3000; t += 10) {
+      if (readingKey(at(timeline, t)) !== truth) { release = t - seg.end; break; }
+    }
     return {
       latency,
       share: total ? ok / total : null,
       mode: mode ? mode.split(",").map(Number) : [],
       after,
+      release,
     };
   });
 }
@@ -227,7 +236,9 @@ const summary = (key, filter) => {
   const lat = rows.map((r) => r.latency).filter((l) => l !== null).sort((a, b) => a - b);
   const median = lat.length ? lat[Math.floor(lat.length / 2)] : null;
   const ghosts = rows.filter((r) => r.after.length > 0).length;
-  return `${key.padEnd(5)} justes ${String(correct).padStart(2)}/${rows.length}  temps juste ${(100 * share).toFixed(0).padStart(3)} %  délai médian ${median === null ? "—" : `${median} ms`}  encore affiché 300 ms après relâchement : ${ghosts}`;
+  const rel = rows.filter((r) => r.share !== null && r.share >= 0.5).map((r) => r.release ?? 3000).sort((a, b) => a - b);
+  const relMedian = rel.length ? rel[Math.floor(rel.length / 2)] : null;
+  return `${key.padEnd(5)} justes ${String(correct).padStart(2)}/${rows.length}  temps juste ${(100 * share).toFixed(0).padStart(3)} %  délai médian ${median === null ? "—" : `${median} ms`}  extinction médiane ${relMedian === null ? "—" : `${relMedian} ms`}  encore affiché à +300 ms : ${ghosts}`;
 };
 console.log("Dans la plage du moteur A :");
 for (const key of Object.keys(results)) console.log("  " + summary(key, inRange));

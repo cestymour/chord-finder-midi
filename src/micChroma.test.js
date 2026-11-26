@@ -37,7 +37,7 @@ function heard(notes, options = {}) {
 /** Accord affiché après quelques trames du même son (moteur, suivi, identifyChords). */
 function chordFor(notes, options = {}) {
   const engine = createChromaEngine({ sampleRate: SAMPLE_RATE });
-  const tracker = createNoteTracker();
+  const tracker = createNoteTracker(engine.tracker);
   // Deux trames différentes (timbre, bruit), en alternance : de quoi stabiliser le suivi
   const frames = [1, 2].map((seed) => synthChord(notes, { length: engine.frameSize, seed, ...options }));
   let held = [];
@@ -151,7 +151,7 @@ describe("moteur A : notes entendues", () => {
 
   test("silence et bruit seul : aucune note gardée par le suivi", () => {
     const engine = createChromaEngine({ sampleRate: SAMPLE_RATE });
-    const tracker = createNoteTracker();
+    const tracker = createNoteTracker(engine.tracker);
     for (let frame = 0; frame < 5; frame++) {
       const noise = synthChord([], { length: engine.frameSize, noise: 0.001, seed: frame + 1 });
       expect(tracker.update(engine.analyze(noise))).toEqual([]);
@@ -211,7 +211,7 @@ describe("moteur A + suivi : accord reconnu", () => {
  */
 function displayedOverTime({ before = [], notes, attack = 0.5, decay = 0.4, background = [], backgroundGain = 0.02, seconds = 3.5 }) {
   const engine = createChromaEngine({ sampleRate: SAMPLE_RATE });
-  const tracker = createNoteTracker();
+  const tracker = createNoteTracker(engine.tracker);
   const total = Math.round(seconds * SAMPLE_RATE);
   const signal = new Float32Array(total);
   const add = (midis, gain, start, tau, seed) => {
@@ -242,9 +242,9 @@ function displayedOverTime({ before = [], notes, attack = 0.5, decay = 0.4, back
  * Notes affichées 0,3 à 1,3 s après l'attaque d'un accord (chaque note avec son timbre
  * et son volume), avec une résonance faible (sinusoïde) à `resonanceHz`.
  */
-function heldWithResonance(notes, resonanceHz, { seed = 1, gain = 0.1, octaveFix = true } = {}) {
-  const engine = createChromaEngine({ sampleRate: SAMPLE_RATE, octaveFix });
-  const tracker = createNoteTracker();
+function heldWithResonance(notes, resonanceHz, { seed = 1, gain = 0.1, version } = {}) {
+  const engine = createChromaEngine({ sampleRate: SAMPLE_RATE, version });
+  const tracker = createNoteTracker(engine.tracker);
   const total = Math.round(1.6 * SAMPLE_RATE);
   const from = Math.round(0.2 * SAMPLE_RATE);
   const signal = new Float32Array(total);
@@ -270,6 +270,50 @@ function heldWithResonance(notes, resonanceHz, { seed = 1, gain = 0.1, octaveFix
   return [...shown];
 }
 
+describe("moteur A, version 4", () => {
+  // Résonance du meuble ou des haut-parleurs vers 73 Hz (relevée dans un
+  // enregistrement) : un pic grave isolé s'affichait comme un Ré1, en ramassant les
+  // notes jouées comme ses harmoniques. Ce test synthétique est un garde-fou ; le
+  // défaut réel se vérifie sur l'enregistrement (scripts/sim-analyze.mjs).
+  test.each([1, 2, 3])("La3-Do4-Mi4 et un pic isolé à 73 Hz : pas de Ré1 (%i)", (seed) => {
+    expect(heldWithResonance([57, 60, 64], 72.8, { seed, gain: 0.12 })).toEqual(["57,60,64"]);
+  });
+
+  test.each([89, 91, 93, 95, 98, 100])("note suraiguë %i entendue (plage étendue)", (midi) => {
+    const engine = createChromaEngine({ sampleRate: SAMPLE_RATE });
+    const notes = engine.analyze(synthChord([midi], { length: engine.frameSize, seed: midi })).notes;
+    expect(notes[0].midi).toBe(midi);
+    const old = createChromaEngine({ sampleRate: SAMPLE_RATE, version: 3 });
+    expect(old.analyze(synthChord([midi], { length: old.frameSize, seed: midi })).notes.some((n) => n.midi === midi)).toBe(false);
+  });
+
+  test("accord lâché (étouffoirs) : effacé en moins de 300 ms", () => {
+    const engine = createChromaEngine({ sampleRate: SAMPLE_RATE });
+    const tracker = createNoteTracker(engine.tracker);
+    const total = Math.round(2 * SAMPLE_RATE);
+    const start = Math.round(0.2 * SAMPLE_RATE);
+    const release = Math.round(1.2 * SAMPLE_RATE);
+    const tone = synthChord([60, 64, 67], { length: total, noise: 0, seed: 3 });
+    const noise = synthChord([], { length: total, noise: 0.0003, seed: 4 });
+    const signal = tone.map((v, k) => {
+      if (k < start) return noise[k];
+      const t = (k - start) / SAMPLE_RATE;
+      const damper = k < release ? 1 : Math.exp(-(k - release) / SAMPLE_RATE / 0.03);
+      return v * Math.exp(-t / 2) * damper + noise[k];
+    });
+    let cleared = null;
+    let shown = false;
+    for (let end = engine.frameSize; end <= total; end += 2400) {
+      const held = tracker.update(engine.analyze(signal.subarray(end - engine.frameSize, end)), 50);
+      if (held.join(",") === "60,64,67") shown = true;
+      if (end > release && held.length === 0 && cleared === null) cleared = (end - release) / SAMPLE_RATE;
+    }
+    expect(shown).toBe(true);
+    expect(cleared).not.toBeNull();
+    expect(cleared).toBeLessThan(0.3);
+  });
+});
+
 describe("moteur A : erreurs d'octave dans le médium et l'aigu", () => {
   // Ré4-Fa4-La4 (français) avec un peu de résonance à Ré3 : le Ré restait affiché
   // une octave trop bas (Ré3 ramasse Ré4 et La4 comme ses harmoniques 2 et 3)
@@ -279,7 +323,7 @@ describe("moteur A : erreurs d'octave dans le médium et l'aigu", () => {
 
   test("le défaut existait sans la correction", () => {
     const shown = [1, 2, 3, 4].flatMap((seed) =>
-      heldWithResonance([74, 77, 81], midiToHz(62), { seed, gain: 0.12, octaveFix: false }));
+      heldWithResonance([74, 77, 81], midiToHz(62), { seed, gain: 0.12, version: 2 }));
     expect(shown).toContain("62,77,81");
   });
 

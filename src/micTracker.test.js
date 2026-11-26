@@ -134,6 +134,38 @@ describe("suivi des notes du micro", () => {
     });
   });
 
+  describe("relâchement : chute brusque du niveau récent (releaseDb)", () => {
+    const energy = (values) => Array.from({ length: 12 }, (_, pc) => values[pc] ?? 0);
+    const at = (notes, values, recentLevel) => ({ ...frame(notes), classEnergy: energy(values), recentLevel });
+
+    test("l'accord lâché disparaît dès la chute, sans attendre le silence", () => {
+      const tracker = createNoteTracker({ releaseDb: 12 });
+      for (let i = 0; i < 8; i++) tracker.update(at([60, 64, 67], { 0: 1, 4: 1, 7: 1 }, -25));
+      // Étouffoirs : −15 dB en une trame ; le moteur entend encore la fin de l'accord
+      tracker.update(at([60, 64, 67], { 0: 0.3, 4: 0.3, 7: 0.3 }, -40));
+      expect(tracker.update(at([60, 64, 67], { 0: 0.2, 4: 0.2, 7: 0.2 }, -42))).toEqual([]);
+    });
+
+    test("une décroissance lente ne relâche rien", () => {
+      const tracker = createNoteTracker({ releaseDb: 12 });
+      let held;
+      for (let i = 0; i < 20; i++) held = tracker.update(at([60, 64, 67], { 0: 1, 4: 1, 7: 1 }, -25 - i));
+      expect(held).toEqual([60, 64, 67]);
+    });
+
+    test("après un relâchement, la même note revient seulement si on la refrappe", () => {
+      const tracker = createNoteTracker({ releaseDb: 12 });
+      for (let i = 0; i < 8; i++) tracker.update(at([60], { 0: 1 }, -25));
+      tracker.update(at([60], { 0: 0.2 }, -40));
+      tracker.update(at([60], { 0: 0.2 }, -41));
+      // Ce qui reste du son ne la fait pas revenir…
+      for (let i = 0; i < 4; i++) expect(tracker.update(at([60], { 0: 0.2 }, -41))).toEqual([]);
+      // … une nouvelle frappe, si
+      tracker.update(at([60], { 0: 1 }, -25));
+      expect(tracker.update(at([60], { 0: 1 }, -25))).toEqual([60]);
+    });
+  });
+
   test("reset", () => {
     const tracker = createNoteTracker();
     tracker.update(frame([60]));

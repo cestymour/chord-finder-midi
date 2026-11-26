@@ -31,6 +31,8 @@ const A4_HZ = 440;
 
 export const MIC_MIN_MIDI = 36; // Do2 (C2) : un peu sous le registre visé (Mi1/E2)
 export const MIC_MAX_MIDI = 88; // Mi5 (E6)
+// À partir de la version 4 : jusqu'au dernier Do du clavier (Do7 en français, C8)
+export const MIC_MAX_MIDI_HIGH = 108;
 
 const MIN_PEAK_HZ = 55;
 const MAX_PEAK_HZ = 5000;
@@ -296,8 +298,27 @@ function harmonicPeaks(peaks, residual, f0) {
 // Poids des harmoniques : la fondamentale compte le plus
 const HARMONIC_WEIGHTS = Array.from({ length: MAX_HARMONICS }, (_, i) => 1 / (i + 1) ** 0.6);
 
-/** Poids d'une note candidate et amplitudes de ses harmoniques (0 si absent). */
-function salience(peaks, residual, f0, octaveFix = true) {
+// Sous LOW_SUPPORT_HZ, une note doit avoir au moins un de ses harmoniques 2 à 4, à
+// au moins LOW_SUPPORT_RATIO du plus fort de ses harmoniques : une corde grave de
+// piano en a toujours. (Rapporté à la fondamentale, le seuil écarte de vraies
+// notes : une résonance du meuble peut gonfler une fondamentale grave.) Sinon, un
+// pic isolé dans le grave (ronflement, résonance du meuble ou des haut-parleurs)
+// devient une note en « ramassant » comme harmoniques 3, 6, 7… les notes jouées plus
+// haut, et prend la place de la basse. Quand l'appui ne vient que de fondamentales
+// de notes déjà retenues (Ré1 « appuyé » sur un La3 joué), la note grave doit avoir
+// sa propre fondamentale nette (LOW_CLAIMED_FUNDAMENTAL du plus fort harmonique) :
+// c'est le cas d'une vraie basse doublée à l'octave ou à la quinte, pas d'un pic
+// de résonance.
+const LOW_SUPPORT_HZ = 300;
+const LOW_SUPPORT_RATIO = 0.05;
+const LOW_CLAIMED_FUNDAMENTAL = 0.25;
+
+/**
+ * Poids d'une note candidate et amplitudes de ses harmoniques (0 si absent).
+ * rules : { octaveFix, lowSupport } (voir detectNotes) ; claimed : pics qui sont la
+ * fondamentale d'une note déjà retenue.
+ */
+function salience(peaks, residual, f0, { octaveFix = true, lowSupport = true } = {}, claimed = new Set()) {
   const found = harmonicPeaks(peaks, residual, f0);
   // Un même pic ne compte qu'une fois par candidate (fenêtres voisines dans l'aigu)
   const used = new Set();
@@ -310,6 +331,13 @@ function salience(peaks, residual, f0, octaveFix = true) {
   // Fondamentale absente : écho des harmoniques d'une autre note, pas une note
   const required = octaveFix ? minFundamental(f0) : MIN_FUNDAMENTAL_LOW;
   if (strongest <= 0 || amps[0] < strongest * required) return { value: 0, found, amps };
+  if (lowSupport && f0 < LOW_SUPPORT_HZ) {
+    const support = [1, 2, 3].filter((h) => amps[h] >= strongest * LOW_SUPPORT_RATIO);
+    const ownSupport = support.some((h) => !claimed.has(found[h]));
+    if (support.length === 0 || (!ownSupport && amps[0] < strongest * LOW_CLAIMED_FUNDAMENTAL)) {
+      return { value: 0, found, amps };
+    }
+  }
   let value = 0;
   amps.forEach((a, h) => { value += a * HARMONIC_WEIGHTS[h]; });
   return { value, found, amps };
@@ -318,25 +346,32 @@ function salience(peaks, residual, f0, octaveFix = true) {
 /**
  * Notes entendues dans une liste de pics : [{ midi, salience }] (salience relative
  * à la plus forte, 1 pour elle), de la plus forte à la plus faible.
- * octaveFix false : fondamentale exigée constante et sans retrait des échos à
- * l'octave inférieure (moteur A d'avant, gardé le temps des essais).
+ * Règles ajoutées au fil des versions (les précédentes restent disponibles le temps
+ * des essais) : octaveFix false : fondamentale exigée constante et sans retrait des
+ * échos à l'octave inférieure ; lowSupport false : note grave acceptée sans ses
+ * harmoniques 2 à 4.
  */
-export function detectNotes(peaks, tuningCents = 0, { octaveFix = true } = {}) {
+export function detectNotes(peaks, tuningCents = 0, {
+  octaveFix = true, lowSupport = true, lowOctaveGhost = lowSupport, maxMidi = MIC_MAX_MIDI,
+} = {}) {
+  const rules = { octaveFix, lowSupport };
   if (peaks.length === 0) return [];
   const residual = peaks.map((p) => p.mag);
   const notes = [];
+  const claimed = new Set(); // fondamentales des notes retenues
   let first = 0;
   for (let n = 0; n < MAX_NOTES; n++) {
     let best = null;
-    for (let midi = MIC_MIN_MIDI; midi <= MIC_MAX_MIDI; midi++) {
+    for (let midi = MIC_MIN_MIDI; midi <= maxMidi; midi++) {
       if (notes.some((note) => note.midi === midi)) continue;
-      const s = salience(peaks, residual, midiToHz(midi, tuningCents), octaveFix);
+      const s = salience(peaks, residual, midiToHz(midi, tuningCents), rules, claimed);
       if (s.value > 0 && (!best || s.value > best.value)) best = { midi, ...s };
     }
     if (!best) break;
     if (n === 0) first = best.value;
     else if (best.value < first * MIN_RELATIVE_SALIENCE) break;
     notes.push({ midi: best.midi, salience: best.value / first });
+    if (best.found[0] >= 0) claimed.add(best.found[0]);
 
     // Retrait de ses harmoniques : au plus le niveau lissé de ses voisins, pour
     // qu'un pic partagé avec une autre note (Sol de Do et Sol joué) en garde une part.
@@ -347,7 +382,7 @@ export function detectNotes(peaks, tuningCents = 0, { octaveFix = true } = {}) {
       residual[i] = Math.max(0, residual[i] - Math.max(smooth, best.amps[h] * 0.7));
     });
   }
-  return pruneHarmonicGhosts(notes, { octaveFix });
+  return pruneHarmonicGhosts(notes, { octaveFix, lowOctaveGhost });
 }
 
 // Écarts en demi-tons des harmoniques 3, 5, 6 et 7 (quinte, tierce majeure, quinte
@@ -364,17 +399,22 @@ const GHOST_RATIO = 0.3;
 // courante, et sa fondamentale est souvent faible au micro. Le nom de l'accord ne
 // change pas (même classe de hauteur), seule l'octave affichée de la note.
 const OCTAVE_GHOST_MIN_MIDI = 48; // Do2 en français (C3)
+// lowOctaveGhost : plus bas aussi, mais seulement très faible (une basse doublée
+// réellement jouée pèse davantage)
+const LOW_OCTAVE_GHOST_RATIO = 0.15;
 
 /**
  * Retire les notes faibles placées exactement sur un harmonique d'une note plus grave,
  * et celles une ou deux octaves sous une note plus forte de même nom.
  */
-export function pruneHarmonicGhosts(notes, { octaveFix = true } = {}) {
+export function pruneHarmonicGhosts(notes, { octaveFix = true, lowOctaveGhost = false } = {}) {
   return notes.filter((note) => !notes.some((other) => {
     const interval = note.midi - other.midi;
     if (note.salience >= other.salience * GHOST_RATIO) return false;
     if (GHOST_INTERVALS.includes(interval)) return true;
-    return octaveFix && note.midi >= OCTAVE_GHOST_MIN_MIDI && (interval === -12 || interval === -24);
+    if (!octaveFix || (interval !== -12 && interval !== -24)) return false;
+    if (note.midi >= OCTAVE_GHOST_MIN_MIDI) return true;
+    return lowOctaveGhost && note.salience < other.salience * LOW_OCTAVE_GHOST_RATIO;
   }));
 }
 
@@ -397,11 +437,11 @@ function maxBetween(mags, binHz, lowHz, highHz) {
  * la plus forte de ses notes. Ce n'est pas une détection : le suivi (micTracker.js)
  * compare cette énergie d'une trame à l'autre pour reconnaître une attaque.
  */
-export function classEnergy(spectra, sampleRate, tuningCents = 0) {
+export function classEnergy(spectra, sampleRate, tuningCents = 0, maxMidi = MIC_MAX_MIDI) {
   const energy = new Array(12).fill(0);
   const lowBin = sampleRate / (spectra.low.length * 2);
   const highBin = sampleRate / (spectra.high.length * 2);
-  for (let midi = MIC_MIN_MIDI; midi <= MIC_MAX_MIDI; midi++) {
+  for (let midi = MIC_MIN_MIDI; midi <= maxMidi; midi++) {
     const f0 = midiToHz(midi, tuningCents);
     let value = 0;
     for (let h = 1; h <= MAX_HARMONICS; h++) {
@@ -429,18 +469,35 @@ export function classEnergy(spectra, sampleRate, tuningCents = 0) {
  * Moteur A. analyze(samples) prend une trame de frameSize échantillons et renvoie
  * { notes: [{ midi, salience }], level (dB pleine échelle), tuning (cents),
  * classEnergy (12 valeurs, pour reconnaître les attaques dans le suivi) }.
- * Le recalage du La est lissé d'une trame à l'autre (état du moteur).
+ * Le recalage du La est lissé d'une trame à l'autre (état du moteur). `tracker` :
+ * réglages du suivi (micTracker.js) propres à cette version.
+ *
+ * version (le temps des essais, les précédentes restent disponibles : A1, A2…) :
+ * 1 : moteur d'origine ;
+ * 2 : + classEnergy, pour la règle « pas de nouvelle note sans attaque » du suivi ;
+ * 3 : + correction des erreurs d'octave dans le médium et l'aigu ;
+ * 4 : + note grave sans ses harmoniques 2 à 4 écartée ; fenêtre d'attaque plus
+ *     longue (500 ms).
  */
-export function createChromaEngine({ sampleRate, attackGate = true, octaveFix = true }) {
-  // Le temps des essais, les versions précédentes restent disponibles :
-  // attackGate false : sans classEnergy, donc sans la règle « pas de nouvelle note
-  // sans attaque » du suivi (A1) ; octaveFix false : sans la correction des erreurs
-  // d'octave dans le médium et l'aigu (A1, A2)
+export const CHROMA_LATEST = 4;
+
+export function createChromaEngine({ sampleRate, version = CHROMA_LATEST, rules = {} }) {
+  const attackGate = version >= 2;
+  const octaveFix = version >= 3;
+  const detection = {
+    octaveFix,
+    lowSupport: version >= 4,
+    maxMidi: version >= 4 ? MIC_MAX_MIDI_HIGH : MIC_MAX_MIDI,
+    ...rules,
+  };
   const frameSize = frameSizeFor(sampleRate, 0.34);
   let tuning = 0;
   return {
     id: "chroma",
+    maxMidi: detection.maxMidi,
+    version,
     frameSize,
+    tracker: version >= 4 ? { attackFrames: 10, releaseDb: 12 } : {},
     analyze(samples) {
       const level = levelDb(samples);
       const spectra = frameSpectra(samples);
@@ -456,10 +513,12 @@ export function createChromaEngine({ sampleRate, attackGate = true, octaveFix = 
         if (tuning < -50) tuning += 100;
       }
       return {
-        notes: detectNotes(peaks, tuning, { octaveFix }),
+        notes: detectNotes(peaks, tuning, detection),
         level,
+        // Niveau des 2048 derniers échantillons (~45 ms) : chute brusque = relâchement
+        recentLevel: levelDb(samples.subarray(samples.length - 2048)),
         tuning,
-        classEnergy: attackGate ? classEnergy(spectra, sampleRate, tuning) : undefined,
+        classEnergy: attackGate ? classEnergy(spectra, sampleRate, tuning, detection.maxMidi) : undefined,
       };
     },
   };

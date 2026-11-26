@@ -516,6 +516,7 @@ function MicButton({ engine, mic, onStart }) {
           {engine === "A1" && "Version d'origine du moteur A. "}
           {engine === "A2" && "Moteur A avec « pas de nouvelle note sans attaque ». "}
           {engine === "A3" && "A2 + correction des erreurs d'octave dans le médium et l'aigu. "}
+          {engine === "A4" && "A3 + notes graves parasites écartées, extinction plus rapide au relâchement, plage étendue jusqu'au dernier Do. "}
           {t(`mic.engine${engine[0]}`)} {t("mic.help")}
         </PopupInfoButton>
       </span>

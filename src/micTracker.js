@@ -25,6 +25,16 @@
 //   pièce) devient « le plus fort » et passerait les seuils relatifs : des notes
 //   fantômes s'allumeraient. Les notes déjà tenues, elles, restent ou partent
 //   comme avant.
+// - Relâchement (releaseDrop, avec classEnergy) : une classe tenue dont l'énergie
+//   tombe sous releaseDrop fois celle d'il y a releaseFrames trames est relâchée
+//   tout de suite. Quand on lâche un accord, les étouffoirs coupent toutes ses notes
+//   ensemble : leurs poids relatifs ne changent pas, et sans cela elles resteraient
+//   affichées jusqu'au silence. Une note tenue décroît bien plus lentement.
+//   releaseDb (avec recentLevel, le niveau des ~45 dernières ms) : même idée, plus
+//   réactive, sur le niveau global : s'il chute d'au moins releaseDb sous le plus
+//   haut de ses releaseFrames trames précédentes, tout est relâché. Une classe
+//   relâchée ne revient qu'avec une nouvelle attaque (énergie au moins attackRatio
+//   fois celle du relâchement).
 
 const DEFAULTS = {
   onSalience: 0.15,
@@ -35,17 +45,21 @@ const DEFAULTS = {
   gateDb: -58,
   attackRatio: 2, // +6 dB
   attackFrames: 6, // environ 300 ms à une analyse toutes les 50 ms
+  releaseDrop: null, // fraction (null : sans)
+  releaseDb: null, // dB (null : sans)
+  releaseFrames: 3, // environ 150 ms
 };
 
 /**
  * Lecture d'une trame : classe de hauteur → note MIDI la plus grave, et basse.
- * attacking : classes qui peuvent entrer (null : toutes).
+ * attacking : classes qui peuvent entrer (null : toutes) ; released : classes
+ * tenues qui viennent d'être relâchées (null : aucune).
  */
-function readFrame(notes, held, { onSalience, offSalience }, attacking = null) {
+function readFrame(notes, held, { onSalience, offSalience }, attacking = null, released = null) {
   const byPc = new Map();
   for (const { midi, salience } of notes) {
     const pc = midi % 12;
-    const isHeld = held.has(pc);
+    const isHeld = held.has(pc) && !released?.[pc];
     if (!isHeld && attacking && !attacking[pc]) continue;
     const threshold = isHeld ? offSalience : onSalience;
     if (salience < threshold) continue;
@@ -73,6 +87,8 @@ export function createNoteTracker(options = {}) {
   let pendingCount = 0;
   let sounding = false; // au-dessus du seuil de silence
   let energyHistory = []; // classEnergy des trames précédentes, la plus récente à la fin
+  let levelHistory = []; // recentLevel des trames précédentes
+  let blocked = new Map(); // classe relâchée → énergie au relâchement
 
   const notesOf = () => [...output.values()].sort((a, b) => a - b);
 
@@ -84,20 +100,48 @@ export function createNoteTracker(options = {}) {
     return energy.map((value, pc) => {
       let floor = full ? Infinity : 0;
       for (const past of energyHistory) if (past[pc] < floor) floor = past[pc];
+      if (blocked.has(pc)) {
+        // Relâchée : il faut une nouvelle attaque, au-dessus du niveau du relâchement
+        if (value < blocked.get(pc) * opts.attackRatio) return false;
+        blocked.delete(pc);
+      }
       return value > 0 && value >= floor * opts.attackRatio;
     });
   };
 
+  /** Classes tenues qui viennent d'être relâchées (null : aucune). */
+  const releasedClasses = (energy, recentLevel) => {
+    if (!energy) return null;
+    let all = false;
+    if (opts.releaseDb !== null && Number.isFinite(recentLevel) && levelHistory.length >= opts.releaseFrames) {
+      const loudest = Math.max(...levelHistory.slice(-opts.releaseFrames));
+      all = recentLevel < loudest - opts.releaseDb;
+    }
+    const before = opts.releaseDrop !== null && energyHistory.length >= opts.releaseFrames
+      ? energyHistory[energyHistory.length - opts.releaseFrames]
+      : null;
+    const released = energy.map((value, pc) =>
+      output.has(pc) && (all || (before !== null && before[pc] > 0 && value < before[pc] * opts.releaseDrop)));
+    released.forEach((r, pc) => { if (r) blocked.set(pc, energy[pc]); });
+    return released.some(Boolean) ? released : null;
+  };
+
   return {
-    update({ notes, level, classEnergy }, elapsedMs = 0) {
+    update({ notes, level, classEnergy, recentLevel }, elapsedMs = 0) {
       sounding = sounding ? level >= opts.gateDb : level >= opts.enterDb;
+      const released = releasedClasses(classEnergy, recentLevel);
       const attacking = attackingClasses(classEnergy);
       if (classEnergy) {
         energyHistory.push(classEnergy);
-        if (energyHistory.length > opts.attackFrames) energyHistory.shift();
+        const keep = Math.max(opts.attackFrames, opts.releaseFrames);
+        if (energyHistory.length > keep) energyHistory.shift();
+      }
+      if (Number.isFinite(recentLevel)) {
+        levelHistory.push(recentLevel);
+        if (levelHistory.length > opts.releaseFrames) levelHistory.shift();
       }
       const frame = sounding
-        ? readFrame(notes, output, opts, attacking)
+        ? readFrame(notes, output, opts, attacking, released)
         : { byPc: new Map(), key: "" };
 
       if (frame.key === outputKey) {
@@ -127,6 +171,8 @@ export function createNoteTracker(options = {}) {
       pendingCount = 0;
       sounding = false;
       energyHistory = [];
+      levelHistory = [];
+      blocked = new Map();
     },
   };
 }
