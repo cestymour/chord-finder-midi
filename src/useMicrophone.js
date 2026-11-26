@@ -20,8 +20,9 @@ const CAPTURE_SECONDS = 2.5;
 const METER_SAMPLES = 2048;
 
 // Moteurs proposés, le temps des essais : A1 (moteur A d'origine), A2 (moteur A
-// avec « pas de nouvelle note sans attaque »), B1 (moteur B)
-export const MIC_ENGINES = ["A1", "A2", "B1"];
+// avec « pas de nouvelle note sans attaque »), A3 (A2 + correction des erreurs
+// d'octave dans le médium et l'aigu), B1 (moteur B)
+export const MIC_ENGINES = ["A1", "A2", "A3", "B1"];
 
 /** Prépare le moteur demandé (le B charge TensorFlow.js et son modèle à la demande). */
 async function createEngine(id, sampleRate) {
@@ -30,7 +31,7 @@ async function createEngine(id, sampleRate) {
     const model = await loadBasicPitchModel();
     return createBasicPitchEngine({ sampleRate, model });
   }
-  return createChromaEngine({ sampleRate, attackGate: id !== "A1" });
+  return createChromaEngine({ sampleRate, attackGate: id !== "A1", octaveFix: id === "A3" });
 }
 
 function audioContextClass() {
@@ -51,8 +52,9 @@ function errorCode(error) {
 }
 
 /**
- * callbacks : { onNoteOn(note), onNoteOff(note), onRelease() } (onRelease quand
- * l'écoute s'arrête : les notes tenues sont relâchées).
+ * callbacks : { onNoteOn(note), onNoteOff(note), onRelease(), onFrame?(résultat) }
+ * (onRelease quand l'écoute s'arrête : les notes tenues sont relâchées ; onFrame,
+ * pour les essais, reçoit la sortie du moteur à chaque analyse).
  *
  * Retourne { micStatus, micEngine, micError, startMic, stopMic, suppress, subscribeLevel } :
  * - micStatus : "idle" | "starting" | "listening" | "error" | "unsupported"
@@ -93,6 +95,8 @@ export default function useMicrophone(callbacks) {
     sessionRef.current = null;
     if (!session) return;
     clearInterval(session.timer);
+    // Enregistrement des essais en cours : prévenu de la fin du son
+    session.audioListeners.forEach((fn) => fn(null));
     session.capture?.stop();
     session.stream.getTracks().forEach((track) => {
       track.onended = null;
@@ -109,7 +113,7 @@ export default function useMicrophone(callbacks) {
     setState((prev) => (prev.micStatus === "unsupported" ? prev : { micStatus: "idle", micEngine: null, micError: null }));
   }, [teardown]);
 
-  const startMic = useCallback(async (engineId = "A2") => {
+  const startMic = useCallback(async (engineId = "A3") => {
     if (!microphoneSupported()) return;
     const attempt = ++attemptRef.current;
     const stale = () => attempt !== attemptRef.current;
@@ -172,13 +176,17 @@ export default function useMicrophone(callbacks) {
     const frame = new Float32Array(engine.frameSize);
     const meter = new Float32Array(METER_SAMPLES);
     // suppressed : classes de hauteur éteintes par un toucher de l'écran (voir suppress)
-    const session = { stream, context, capture, timer: 0, notes: new Set(), suppressed: null };
+    const session = {
+      stream, context, capture, timer: 0, notes: new Set(), suppressed: null,
+      audioListeners: new Set(), // enregistrement des essais (voir listenAudio)
+    };
     let busy = false;
     let lastRun = 0;
     let lastResult = 0; // fin de l'analyse précédente
 
     const apply = (result) => {
       const now = performance.now();
+      callbacksRef.current.onFrame?.(result);
       let next = new Set(tracker.update(result, lastResult ? now - lastResult : 0));
       lastResult = now;
       if (session.suppressed) {
@@ -277,5 +285,21 @@ export default function useMicrophone(callbacks) {
     teardown();
   }, [teardown]);
 
-  return { ...state, startMic, stopMic, suppress, subscribeLevel };
+  // Essais : fn(bloc) reçoit le son du micro au fil de l'eau, puis fn(null) quand
+  // l'écoute s'arrête. Renvoie { sampleRate, stop() }, ou null sans écoute en cours.
+  const listenAudio = useCallback((fn) => {
+    const session = sessionRef.current;
+    if (!session) return null;
+    const off = session.capture.listen(fn);
+    session.audioListeners.add(fn);
+    return {
+      sampleRate: session.context.sampleRate,
+      stop: () => {
+        off();
+        session.audioListeners.delete(fn);
+      },
+    };
+  }, []);
+
+  return { ...state, startMic, stopMic, suppress, subscribeLevel, listenAudio };
 }

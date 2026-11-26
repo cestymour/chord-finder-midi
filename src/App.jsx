@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import './App.css';
 import useBluetoothMIDI from "./useBluetoothMIDI";
 import useMicrophone, { MIC_ENGINES } from "./useMicrophone";
+import { createSimRecording, saveSimFile, simFileBase } from "./simRecorder";
 import { dispatchMidiMessage } from "./midiMessages";
 import {
   playPianoNote,
@@ -89,7 +90,7 @@ function useMIDI(callbacks) {
       const source = `midi:${event.currentTarget?.id ?? event.target?.id}`;
       const { onNoteOn, onNoteOff, onSustain } = callbacksRef.current;
       dispatchMidiMessage(status, data1, data2, {
-        onNoteOn: (note) => onNoteOn(source, note),
+        onNoteOn: (note, velocity) => onNoteOn(source, note, velocity),
         onNoteOff: (note) => onNoteOff(source, note),
         onSustain: (down) => onSustain(source, down),
       });
@@ -514,6 +515,7 @@ function MicButton({ engine, mic, onStart }) {
         <PopupInfoButton title={label}>
           {engine === "A1" && "Version d'origine du moteur A. "}
           {engine === "A2" && "Moteur A avec « pas de nouvelle note sans attaque ». "}
+          {engine === "A3" && "A2 + correction des erreurs d'octave dans le médium et l'aigu. "}
           {t(`mic.engine${engine[0]}`)} {t("mic.help")}
         </PopupInfoButton>
       </span>
@@ -630,7 +632,7 @@ function ConnectScreen({ btProps, midi, mic, onUseKeyboard, onUsePiano }) {
 
         <section className="connect-section">
           <h2 className="connect-screen__title">{t("connect.listen")}</h2>
-          <div className="bt-connect-row bt-connect-row--three">
+          <div className="bt-connect-row bt-connect-row--many">
             {MIC_ENGINES.map((engine) => (
               <MicButton key={engine} engine={engine} mic={mic} onStart={mic.startMic} />
             ))}
@@ -667,7 +669,7 @@ function HomeIcon({ className }) {
  * le même partout, qui la quitte (déconnexion Bluetooth, arrêt du micro) et ramène à
  * l'écran d'accueil.
  */
-function ConnectionStatus({ btStatus, btKnownDevice, midi, mic, onHome, onSwitchMic }) {
+function ConnectionStatus({ btStatus, btKnownDevice, midi, mic, onHome, onSwitchMic, sim }) {
   const { t } = useI18n();
   let status;
   let label;
@@ -711,6 +713,19 @@ function ConnectionStatus({ btStatus, btKnownDevice, midi, mic, onHome, onSwitch
       {icon}
       <span className="midi-label">{label}</span>
       {mic.micStatus === "listening" && <MicLevel subscribe={mic.subscribeLevel} />}
+      {/* Essais : simulation (micro + piano MIDI), enregistrement dans logs/ */}
+      {sim && (
+        <span className="sim-controls">
+          {sim.active && <span className="sim-badge">SIM</span>}
+          {sim.active && !sim.recording && (
+            <button type="button" className="midi-status__action sim-rec" onClick={sim.onStart}>● Enregistrer</button>
+          )}
+          {sim.recording && (
+            <button type="button" className="midi-status__action sim-stop" onClick={sim.onStop}>■ Stop</button>
+          )}
+          {sim.message && <span className="sim-message" title={sim.message}>{sim.message}</span>}
+        </span>
+      )}
       {/* Essais : passer d'un moteur micro à l'autre en un clic (à retirer ensuite) */}
       {onSwitchMic && mic.micStatus !== "unsupported" && (
         <span className="mic-switch">
@@ -1447,19 +1462,23 @@ export default function ChordIdentifier() {
     });
   }, [updateSource]);
 
-  const pressedNotes = useMemo(() => {
-    const notes = new Set();
-    pianoSources.forEach(({ held, sustained }) => {
-      held.forEach(n => notes.add(n));
-      sustained.forEach(n => notes.add(n));
-    });
-    return notes;
-  }, [pianoSources]);
+  // Essais : enregistrement de simulation en cours (simRecorder.js), ou null.
+  // Chaque événement MIDI et micro y est noté avec son instant.
+  const simRef = useRef(null);
 
   const bluetoothCallbacks = useMemo(() => ({
-    onNoteOn: (note) => handleNoteOn(BLUETOOTH_SOURCE, note),
-    onNoteOff: (note) => handleNoteOff(BLUETOOTH_SOURCE, note),
-    onSustain: (down) => handleSustain(BLUETOOTH_SOURCE, down),
+    onNoteOn: (note, velocity) => {
+      simRef.current?.log("midiOn", { note, velocity, source: BLUETOOTH_SOURCE });
+      handleNoteOn(BLUETOOTH_SOURCE, note);
+    },
+    onNoteOff: (note) => {
+      simRef.current?.log("midiOff", { note, source: BLUETOOTH_SOURCE });
+      handleNoteOff(BLUETOOTH_SOURCE, note);
+    },
+    onSustain: (down) => {
+      simRef.current?.log("pedal", { down, source: BLUETOOTH_SOURCE });
+      handleSustain(BLUETOOTH_SOURCE, down);
+    },
     onRelease: () => releaseSource(BLUETOOTH_SOURCE),
   }), [handleNoteOn, handleNoteOff, handleSustain, releaseSource]);
 
@@ -1473,9 +1492,18 @@ export default function ChordIdentifier() {
   } = useBluetoothMIDI(bluetoothCallbacks);
 
   const midiCallbacks = useMemo(() => ({
-    onNoteOn: handleNoteOn,
-    onNoteOff: handleNoteOff,
-    onSustain: handleSustain,
+    onNoteOn: (source, note, velocity) => {
+      simRef.current?.log("midiOn", { note, velocity, source });
+      handleNoteOn(source, note);
+    },
+    onNoteOff: (source, note) => {
+      simRef.current?.log("midiOff", { note, source });
+      handleNoteOff(source, note);
+    },
+    onSustain: (source, down) => {
+      simRef.current?.log("pedal", { down, source });
+      handleSustain(source, down);
+    },
     onRelease: releaseSource,
   }), [handleNoteOn, handleNoteOff, handleSustain, releaseSource]);
 
@@ -1484,9 +1512,20 @@ export default function ChordIdentifier() {
   // Micro : piano acoustique écouté, une source de plus (sans pédale : le micro
   // ne la voit pas, une note tient tant qu'elle sonne)
   const micCallbacks = useMemo(() => ({
-    onNoteOn: (note) => handleNoteOn(MIC_SOURCE, note),
-    onNoteOff: (note) => handleNoteOff(MIC_SOURCE, note),
+    onNoteOn: (note) => {
+      simRef.current?.log("micOn", { note });
+      handleNoteOn(MIC_SOURCE, note);
+    },
+    onNoteOff: (note) => {
+      simRef.current?.log("micOff", { note });
+      handleNoteOff(MIC_SOURCE, note);
+    },
     onRelease: () => releaseSource(MIC_SOURCE),
+    // Sortie du moteur à chaque analyse (avant le suivi)
+    onFrame: ({ notes, level }) => simRef.current?.log("frame", {
+      level: Number.isFinite(level) ? Math.round(level * 10) / 10 : null,
+      notes: notes.map(({ midi, salience }) => [midi, Math.round(salience * 1000) / 1000]),
+    }),
   }), [handleNoteOn, handleNoteOff, releaseSource]);
 
   const mic = useMicrophone(micCallbacks);
@@ -1504,6 +1543,64 @@ export default function ChordIdentifier() {
   };
   const pianoLinked = pianoConnected || btStatus === "reconnecting" || micListening
     || (micSwitching && mic.micStatus === "starting");
+
+  // Essais, serveur de développement seulement : simulation = micro à l'écoute et
+  // piano MIDI branché. Seules les notes du micro s'affichent ; celles du piano
+  // servent de référence dans les enregistrements.
+  const simActive = import.meta.env.DEV && micListening && pianoConnected;
+
+  const pressedNotes = useMemo(() => {
+    const notes = new Set();
+    pianoSources.forEach(({ held, sustained }, source) => {
+      if (simActive && source !== MIC_SOURCE) return;
+      held.forEach(n => notes.add(n));
+      sustained.forEach(n => notes.add(n));
+    });
+    return notes;
+  }, [pianoSources, simActive]);
+
+  // Enregistrement de simulation : { recording, message } pour la ligne d'état
+  const [simState, setSimState] = useState({ recording: false, message: "" });
+  const simAudioRef = useRef(null); // abonnement au son du micro
+
+  const stopSimRecording = useCallback(async () => {
+    const recording = simRef.current;
+    if (!recording) return;
+    simRef.current = null;
+    simAudioRef.current?.stop();
+    simAudioRef.current = null;
+    const base = simFileBase(recording.startedAt, recording.engine);
+    setSimState({ recording: false, message: "Enregistrement…" });
+    try {
+      const { wav, journal } = recording.finish();
+      await saveSimFile(`${base}.wav`, wav);
+      await saveSimFile(`${base}.json`, JSON.stringify({ ...journal, audioFile: `${base}.wav` }));
+      setSimState({ recording: false, message: `Enregistré : ${base}` });
+    } catch (error) {
+      setSimState({ recording: false, message: `Échec : ${error.message}` });
+    }
+  }, []);
+
+  const startSimRecording = () => {
+    if (simRef.current) return;
+    let recording = null;
+    const audio = mic.listenAudio((block) => {
+      if (block) recording?.addAudio(block);
+      else stopSimRecording(); // micro arrêté ou moteur changé : on garde ce qui est pris
+    });
+    if (!audio) return;
+    recording = createSimRecording({ engine: mic.micEngine, sampleRate: audio.sampleRate });
+    // État du piano au départ (touches déjà enfoncées, pédale)
+    pianoSources.forEach(({ held, sustained, pedal }, source) => {
+      if (source === MIC_SOURCE) return;
+      recording.log("midiState", { source, held: [...held], sustained: [...sustained], pedal });
+    });
+    recording.log("micState", { notes: [...(pianoSources.get(MIC_SOURCE)?.held ?? [])] });
+    simRef.current = recording;
+    simAudioRef.current = audio;
+    setSimState({ recording: true, message: "" });
+  };
+
 
   // Écran affiché : "midi" (onglet Piano : vrai piano et/ou clavier virtuel)
   // ou "explore" (dictionnaire : choisir un accord pour voir ses touches)
@@ -1730,6 +1827,12 @@ export default function ChordIdentifier() {
               mic={mic}
               onHome={showKeyboard ? goHome : undefined}
               onSwitchMic={showKeyboard ? switchMic : undefined}
+              sim={simActive || simState.recording || simState.message ? {
+                active: simActive,
+                ...simState,
+                onStart: startSimRecording,
+                onStop: stopSimRecording,
+              } : undefined}
             />
           )}
         </div>

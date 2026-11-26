@@ -7,7 +7,7 @@ describe("dispatchMidiMessage", () => {
   test("0x90 avec vélocité > 0 : note on", () => {
     const h = handlers();
     dispatchMidiMessage(0x90, 60, 100, h);
-    expect(h.onNoteOn).toHaveBeenCalledWith(60);
+    expect(h.onNoteOn).toHaveBeenCalledWith(60, 100);
     expect(h.onNoteOff).not.toHaveBeenCalled();
   });
 
@@ -28,7 +28,7 @@ describe("dispatchMidiMessage", () => {
     const h = handlers();
     dispatchMidiMessage(0x9f, 61, 1, h);
     dispatchMidiMessage(0x83, 61, 0, h);
-    expect(h.onNoteOn).toHaveBeenCalledWith(61);
+    expect(h.onNoteOn).toHaveBeenCalledWith(61, 1);
     expect(h.onNoteOff).toHaveBeenCalledWith(61);
   });
 

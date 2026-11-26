@@ -9,19 +9,19 @@ describe("decodeNotification (paquets BLE MIDI)", () => {
   test("note on : en-tête, horodatage, puis le message MIDI", () => {
     const h = handlers();
     decodeNotification(packet(0x80, 0x80, 0x90, 60, 100), h);
-    expect(h.onNoteOn).toHaveBeenCalledWith(60);
+    expect(h.onNoteOn).toHaveBeenCalledWith(60, 100);
   });
 
   test("plusieurs notes dans un paquet (running status)", () => {
     const h = handlers();
     decodeNotification(packet(0x80, 0x80, 0x90, 60, 100, 64, 90), h);
-    expect(h.onNoteOn.mock.calls).toEqual([[60], [64]]);
+    expect(h.onNoteOn.mock.calls).toEqual([[60, 100], [64, 90]]);
   });
 
   test("messages différents dans un paquet, chacun avec son horodatage", () => {
     const h = handlers();
     decodeNotification(packet(0x80, 0x80, 0x90, 60, 100, 0x81, 0x80, 67, 0, 0x82, 0xb0, 64, 127), h);
-    expect(h.onNoteOn).toHaveBeenCalledWith(60);
+    expect(h.onNoteOn).toHaveBeenCalledWith(60, 100);
     expect(h.onNoteOff).toHaveBeenCalledWith(67);
     expect(h.onSustain).toHaveBeenCalledWith(true);
   });
@@ -30,7 +30,7 @@ describe("decodeNotification (paquets BLE MIDI)", () => {
     const h = handlers();
     const buffer = new Uint8Array([0xff, 0xff, 0x80, 0x80, 0x90, 62, 100, 0xff]).buffer;
     decodeNotification(new DataView(buffer, 2, 5), h);
-    expect(h.onNoteOn.mock.calls).toEqual([[62]]);
+    expect(h.onNoteOn.mock.calls).toEqual([[62, 100]]);
   });
 
   test("paquet vide, absent ou invalide : rien, sans erreur", () => {

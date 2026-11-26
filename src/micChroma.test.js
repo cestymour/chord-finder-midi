@@ -12,6 +12,7 @@ import {
   levelDb,
   magnitudeSpectrum,
   midiToHz,
+  minFundamental,
   pruneHarmonicGhosts,
 } from "./micChroma.js";
 import { createNoteTracker } from "./micTracker.js";
@@ -111,6 +112,28 @@ describe("outils", () => {
     expect(pruneHarmonicGhosts(notes).map((n) => n.midi)).toEqual([48, 64]);
     const played = [{ midi: 48, salience: 1 }, { midi: 67, salience: 0.6 }];
     expect(pruneHarmonicGhosts(played)).toEqual(played);
+  });
+
+  test("écho à l'octave inférieure : écarté s'il est faible, sauf dans le grave", () => {
+    const notes = [{ midi: 74, salience: 1 }, { midi: 62, salience: 0.2 }, { midi: 50, salience: 0.2 }];
+    expect(pruneHarmonicGhosts(notes).map((n) => n.midi)).toEqual([74]);
+    // Basse doublée sous Do2 (MIDI 48) : gardée
+    const bass = [{ midi: 55, salience: 1 }, { midi: 43, salience: 0.2 }];
+    expect(pruneHarmonicGhosts(bass)).toEqual(bass);
+    // Octave jouée assez fort : gardée
+    const octave = [{ midi: 74, salience: 1 }, { midi: 62, salience: 0.5 }];
+    expect(pruneHarmonicGhosts(octave)).toEqual(octave);
+    // Ancien comportement (A1, A2)
+    expect(pruneHarmonicGhosts(notes, { octaveFix: false })).toEqual(notes);
+  });
+
+  test("fondamentale exigée : peu dans le grave, davantage au-dessus de Do3", () => {
+    expect(minFundamental(65)).toBeCloseTo(0.05);
+    expect(minFundamental(130.8)).toBeCloseTo(0.05);
+    expect(minFundamental(185)).toBeGreaterThan(0.1);
+    expect(minFundamental(185)).toBeLessThan(0.2);
+    expect(minFundamental(261.6)).toBeCloseTo(0.25);
+    expect(minFundamental(1000)).toBeCloseTo(0.25);
   });
 });
 
@@ -214,6 +237,58 @@ function displayedOverTime({ before = [], notes, attack = 0.5, decay = 0.4, back
   }
   return shown;
 }
+
+/**
+ * Notes affichées 0,3 à 1,3 s après l'attaque d'un accord (chaque note avec son timbre
+ * et son volume), avec une résonance faible (sinusoïde) à `resonanceHz`.
+ */
+function heldWithResonance(notes, resonanceHz, { seed = 1, gain = 0.1, octaveFix = true } = {}) {
+  const engine = createChromaEngine({ sampleRate: SAMPLE_RATE, octaveFix });
+  const tracker = createNoteTracker();
+  const total = Math.round(1.6 * SAMPLE_RATE);
+  const from = Math.round(0.2 * SAMPLE_RATE);
+  const signal = new Float32Array(total);
+  const envelope = (k) => Math.exp(-(k - from) / SAMPLE_RATE / 0.8);
+  notes.forEach((midi, i) => {
+    const tone = synthChord([midi], { length: total, noise: 0, seed: seed * 31 + i, spread: 10 });
+    const volume = 0.6 + 0.2 * ((seed + i) % 3);
+    for (let k = from; k < total; k++) signal[k] += volume * tone[k] * envelope(k);
+  });
+  for (let k = from; k < total; k++) {
+    signal[k] += 0.15 * gain * Math.sin((2 * Math.PI * resonanceHz * k) / SAMPLE_RATE) * envelope(k);
+  }
+  const noise = synthChord([], { length: total, noise: 0.0003, seed: seed + 5 });
+  for (let k = 0; k < total; k++) signal[k] += noise[k];
+
+  const hop = Math.round(0.05 * SAMPLE_RATE);
+  const shown = new Set();
+  for (let end = engine.frameSize; end <= total; end += hop) {
+    const held = tracker.update(engine.analyze(signal.subarray(end - engine.frameSize, end)), 50);
+    const time = end / SAMPLE_RATE - 0.2;
+    if (time >= 0.3 && time <= 1.3) shown.add(held.join(","));
+  }
+  return [...shown];
+}
+
+describe("moteur A : erreurs d'octave dans le médium et l'aigu", () => {
+  // Ré4-Fa4-La4 (français) avec un peu de résonance à Ré3 : le Ré restait affiché
+  // une octave trop bas (Ré3 ramasse Ré4 et La4 comme ses harmoniques 2 et 3)
+  test.each([1, 2, 3, 4])("Ré4-Fa4-La4 et résonance à Ré3 (%i)", (seed) => {
+    expect(heldWithResonance([74, 77, 81], midiToHz(62), { seed, gain: 0.12 })).toEqual(["74,77,81"]);
+  });
+
+  test("le défaut existait sans la correction", () => {
+    const shown = [1, 2, 3, 4].flatMap((seed) =>
+      heldWithResonance([74, 77, 81], midiToHz(62), { seed, gain: 0.12, octaveFix: false }));
+    expect(shown).toContain("62,77,81");
+  });
+
+  // Accords en position serrée, de Mi3 à Sol♯4 : résonance une octave sous la basse
+  test.each([64, 66, 69, 71, 74, 76, 78, 80])("accord majeur sur %i, résonance à l'octave inférieure", (root) => {
+    const notes = [root, root + 4, root + 7];
+    expect(heldWithResonance(notes, midiToHz(root - 12), { seed: 2 })).toEqual([notes.join(",")]);
+  });
+});
 
 describe("moteur A + suivi : notes qui s'éteignent", () => {
   test("une note aiguë qui s'éteint ne laisse pas entrer la résonance des cordes graves", () => {

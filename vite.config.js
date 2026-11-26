@@ -2,7 +2,35 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
-import { readFileSync } from 'node:fs'
+import { readFileSync, mkdirSync, createWriteStream } from 'node:fs'
+
+// Essais du mode micro (serveur de développement seulement) : l'appli envoie ici
+// les enregistrements de simulation (son du micro et journal des notes), écrits
+// dans logs/ (non suivi par git) pour être analysés ensuite.
+function simulationLogs() {
+  return {
+    name: 'simulation-logs',
+    configureServer(server) {
+      server.middlewares.use('/__sim/save', (req, res) => {
+        const name = new URL(req.url, 'http://localhost').searchParams.get('name') ?? ''
+        if (req.method !== 'POST' || !/^[\w.-]+\.(wav|json)$/.test(name)) {
+          res.statusCode = 400
+          res.end('bad request')
+          return
+        }
+        const dir = new URL('./logs/', import.meta.url)
+        mkdirSync(dir, { recursive: true })
+        const file = createWriteStream(new URL(name, dir))
+        req.pipe(file)
+        file.on('finish', () => res.end('ok'))
+        file.on('error', (error) => {
+          res.statusCode = 500
+          res.end(String(error))
+        })
+      })
+    },
+  }
+}
 
 // Version affichée dans les paramètres de l'appli (champ "version" de package.json)
 const { version } = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf-8'))
@@ -21,6 +49,7 @@ export default defineConfig({
   },
   plugins: [
     react(),
+    simulationLogs(),
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png'],

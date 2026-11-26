@@ -61,11 +61,30 @@ registerProcessor("instantchord-capture", InstantChordCapture);
 
 /**
  * Branche la capture sur `source` (MediaStreamAudioSourceNode). Renvoie
- * { ring, stop() }. La sortie passe par un gain nul vers les haut-parleurs :
- * certains navigateurs ne font tourner que les nœuds reliés à la sortie.
+ * { ring, listen(fn), stop() } ; listen(fn) appelle fn(bloc) pour chaque bloc reçu
+ * (enregistrement des essais) et renvoie de quoi se désabonner. La sortie passe par
+ * un gain nul vers les haut-parleurs : certains navigateurs ne font tourner que les
+ * nœuds reliés à la sortie.
  */
 export async function startCapture(context, source, seconds) {
-  const ring = createRingBuffer(Math.ceil(context.sampleRate * seconds));
+  const ringBuffer = createRingBuffer(Math.ceil(context.sampleRate * seconds));
+  const listeners = new Set();
+  const listen = (fn) => {
+    listeners.add(fn);
+    return () => listeners.delete(fn);
+  };
+  // Le tampon reçoit les blocs, et les abonnés une copie (le ScriptProcessorNode
+  // réutilise le sien)
+  const ring = {
+    ...ringBuffer,
+    push(block) {
+      ringBuffer.push(block);
+      if (listeners.size > 0) {
+        const copy = Float32Array.from(block);
+        listeners.forEach((fn) => fn(copy));
+      }
+    },
+  };
   const mute = context.createGain();
   mute.gain.value = 0;
   mute.connect(context.destination);
@@ -84,6 +103,7 @@ export async function startCapture(context, source, seconds) {
       source.connect(node).connect(mute);
       return {
         ring,
+        listen,
         stop() {
           node.port.onmessage = null;
           source.disconnect();
@@ -103,6 +123,7 @@ export async function startCapture(context, source, seconds) {
   source.connect(processor).connect(mute);
   return {
     ring,
+    listen,
     stop() {
       processor.onaudioprocess = null;
       source.disconnect();

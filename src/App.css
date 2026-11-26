@@ -2131,9 +2131,46 @@
 }
 .mic-btn--starting .usb-btn__icon { color: inherit; }
 
-/* Essais : trois ronds micro (A1, A2, B1) dans la largeur de deux */
-.bt-connect-row--three {
-  --connect-round: calc((var(--connect-row) - 2 * var(--connect-gap)) / 3);
+/* Essais : quatre ronds micro (A1, A2, A3, B1) dans la largeur de deux */
+.bt-connect-row--many {
+  --connect-gap: 8px;
+  --connect-round: calc((var(--connect-row) - 3 * 8px) / 4);
+}
+.bt-connect-row--many .usb-btn__label { font-size: 0.55rem; letter-spacing: 0.04em; }
+
+/* Essais : simulation (micro + piano MIDI) et enregistrement */
+.sim-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.sim-badge {
+  font-family: var(--font-mono);
+  font-size: 0.55rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--pending);
+  border: 1px solid var(--pending);
+  border-radius: var(--radius-sm);
+  padding: 1px 4px;
+}
+.sim-controls .midi-status__action { margin-left: 0; }
+.sim-rec { color: var(--err); border-color: var(--err); }
+.sim-stop {
+  color: var(--err);
+  border-color: var(--err);
+  animation: pulse-dot 1.2s ease-in-out infinite;
+}
+.sim-message {
+  font-family: var(--font-mono);
+  font-size: 0.55rem;
+  color: var(--txt-secondary);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 22ch;
 }
 
 /* Essais : changement de moteur micro depuis la ligne d'état de l'écran Piano */

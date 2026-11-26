@@ -41,8 +41,21 @@ const PEAK_FLOOR = 10 ** (-50 / 20);
 const MATCH_CENTS = 40;
 // Inharmonicité maximale prise en compte (cordes de piano : harmoniques trop hauts)
 const MAX_INHARMONICITY = 0.0008;
-// Fondamentale exigée : au moins cette fraction du plus fort de ses harmoniques
-const MIN_FUNDAMENTAL = 0.05;
+// Fondamentale exigée : au moins cette fraction du plus fort de ses harmoniques.
+// Peu dans le grave (le petit micro d'un téléphone capte mal les fondamentales
+// graves), davantage au-dessus : un piano y a toujours une fondamentale nette. Sans
+// cela, un peu de résonance une octave sous une note jouée (Ré3 sous Ré4-Fa4-La4)
+// suffit à faire de la note grave un candidat qui ramasse les notes jouées comme
+// ses harmoniques 2 et 3 : le Ré s'afficherait une octave trop bas.
+const MIN_FUNDAMENTAL_LOW = 0.05; // jusqu'à FUNDAMENTAL_LOW_HZ
+const MIN_FUNDAMENTAL_HIGH = 0.25; // à partir d'une octave plus haut
+const FUNDAMENTAL_LOW_HZ = 130.8; // Do2 en français (C3)
+
+/** Fondamentale exigée pour une note de fréquence f0 (fraction du plus fort harmonique). */
+export function minFundamental(f0) {
+  const octaves = Math.min(1, Math.max(0, Math.log2(f0 / FUNDAMENTAL_LOW_HZ)));
+  return MIN_FUNDAMENTAL_LOW + octaves * (MIN_FUNDAMENTAL_HIGH - MIN_FUNDAMENTAL_LOW);
+}
 // Arrêt : une note doit peser au moins cette fraction de la plus forte (le suivi,
 // micTracker.js, n'en garde une nouvelle qu'à partir de 0,15)
 const MIN_RELATIVE_SALIENCE = 0.08;
@@ -284,7 +297,7 @@ function harmonicPeaks(peaks, residual, f0) {
 const HARMONIC_WEIGHTS = Array.from({ length: MAX_HARMONICS }, (_, i) => 1 / (i + 1) ** 0.6);
 
 /** Poids d'une note candidate et amplitudes de ses harmoniques (0 si absent). */
-function salience(peaks, residual, f0) {
+function salience(peaks, residual, f0, octaveFix = true) {
   const found = harmonicPeaks(peaks, residual, f0);
   // Un même pic ne compte qu'une fois par candidate (fenêtres voisines dans l'aigu)
   const used = new Set();
@@ -295,7 +308,8 @@ function salience(peaks, residual, f0) {
   });
   const strongest = Math.max(...amps);
   // Fondamentale absente : écho des harmoniques d'une autre note, pas une note
-  if (strongest <= 0 || amps[0] < strongest * MIN_FUNDAMENTAL) return { value: 0, found, amps };
+  const required = octaveFix ? minFundamental(f0) : MIN_FUNDAMENTAL_LOW;
+  if (strongest <= 0 || amps[0] < strongest * required) return { value: 0, found, amps };
   let value = 0;
   amps.forEach((a, h) => { value += a * HARMONIC_WEIGHTS[h]; });
   return { value, found, amps };
@@ -304,8 +318,10 @@ function salience(peaks, residual, f0) {
 /**
  * Notes entendues dans une liste de pics : [{ midi, salience }] (salience relative
  * à la plus forte, 1 pour elle), de la plus forte à la plus faible.
+ * octaveFix false : fondamentale exigée constante et sans retrait des échos à
+ * l'octave inférieure (moteur A d'avant, gardé le temps des essais).
  */
-export function detectNotes(peaks, tuningCents = 0) {
+export function detectNotes(peaks, tuningCents = 0, { octaveFix = true } = {}) {
   if (peaks.length === 0) return [];
   const residual = peaks.map((p) => p.mag);
   const notes = [];
@@ -314,7 +330,7 @@ export function detectNotes(peaks, tuningCents = 0) {
     let best = null;
     for (let midi = MIC_MIN_MIDI; midi <= MIC_MAX_MIDI; midi++) {
       if (notes.some((note) => note.midi === midi)) continue;
-      const s = salience(peaks, residual, midiToHz(midi, tuningCents));
+      const s = salience(peaks, residual, midiToHz(midi, tuningCents), octaveFix);
       if (s.value > 0 && (!best || s.value > best.value)) best = { midi, ...s };
     }
     if (!best) break;
@@ -331,7 +347,7 @@ export function detectNotes(peaks, tuningCents = 0) {
       residual[i] = Math.max(0, residual[i] - Math.max(smooth, best.amps[h] * 0.7));
     });
   }
-  return pruneHarmonicGhosts(notes);
+  return pruneHarmonicGhosts(notes, { octaveFix });
 }
 
 // Écarts en demi-tons des harmoniques 3, 5, 6 et 7 (quinte, tierce majeure, quinte
@@ -342,10 +358,24 @@ const GHOST_INTERVALS = [19, 28, 31, 34];
 // elle pèse au moins cette fraction de celle-ci : sinon, c'est un reste de son timbre.
 const GHOST_RATIO = 0.3;
 
-/** Retire les notes faibles placées exactement sur un harmonique d'une note plus grave. */
-export function pruneHarmonicGhosts(notes) {
-  return notes.filter((note) => !notes.some((low) =>
-    GHOST_INTERVALS.includes(note.midi - low.midi) && note.salience < low.salience * GHOST_RATIO));
+// Une note faible une ou deux octaves sous une note forte de même nom est un reste de
+// résonance (corde voisine, caisse, pièce), pas une note jouée : écartée à partir de
+// OCTAVE_GHOST_MIN_MIDI. Plus bas, on la garde : une basse doublée à l'octave est
+// courante, et sa fondamentale est souvent faible au micro. Le nom de l'accord ne
+// change pas (même classe de hauteur), seule l'octave affichée de la note.
+const OCTAVE_GHOST_MIN_MIDI = 48; // Do2 en français (C3)
+
+/**
+ * Retire les notes faibles placées exactement sur un harmonique d'une note plus grave,
+ * et celles une ou deux octaves sous une note plus forte de même nom.
+ */
+export function pruneHarmonicGhosts(notes, { octaveFix = true } = {}) {
+  return notes.filter((note) => !notes.some((other) => {
+    const interval = note.midi - other.midi;
+    if (note.salience >= other.salience * GHOST_RATIO) return false;
+    if (GHOST_INTERVALS.includes(interval)) return true;
+    return octaveFix && note.midi >= OCTAVE_GHOST_MIN_MIDI && (interval === -12 || interval === -24);
+  }));
 }
 
 // ─────────────────────────────────────────────
@@ -401,9 +431,11 @@ export function classEnergy(spectra, sampleRate, tuningCents = 0) {
  * classEnergy (12 valeurs, pour reconnaître les attaques dans le suivi) }.
  * Le recalage du La est lissé d'une trame à l'autre (état du moteur).
  */
-export function createChromaEngine({ sampleRate, attackGate = true }) {
+export function createChromaEngine({ sampleRate, attackGate = true, octaveFix = true }) {
+  // Le temps des essais, les versions précédentes restent disponibles :
   // attackGate false : sans classEnergy, donc sans la règle « pas de nouvelle note
-  // sans attaque » du suivi (ancien moteur A, gardé le temps de comparer : « A1 »)
+  // sans attaque » du suivi (A1) ; octaveFix false : sans la correction des erreurs
+  // d'octave dans le médium et l'aigu (A1, A2)
   const frameSize = frameSizeFor(sampleRate, 0.34);
   let tuning = 0;
   return {
@@ -424,7 +456,7 @@ export function createChromaEngine({ sampleRate, attackGate = true }) {
         if (tuning < -50) tuning += 100;
       }
       return {
-        notes: detectNotes(peaks, tuning),
+        notes: detectNotes(peaks, tuning, { octaveFix }),
         level,
         tuning,
         classEnergy: attackGate ? classEnergy(spectra, sampleRate, tuning) : undefined,
