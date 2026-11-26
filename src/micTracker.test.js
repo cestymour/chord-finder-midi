@@ -164,6 +164,18 @@ describe("suivi des notes du micro", () => {
       tracker.update(at([60], { 0: 1 }, -25));
       expect(tracker.update(at([60], { 0: 1 }, -25))).toEqual([60]);
     });
+    test("le même accord, relâché puis refrappé aussi fort, revient", () => {
+      const tracker = createNoteTracker({ releaseDb: 12 });
+      for (let i = 0; i < 8; i++) tracker.update(at([60, 64, 67], { 0: 1, 4: 1, 7: 1 }, -25));
+      // Au relâchement, la longue trame d'analyse contient encore presque tout l'accord
+      tracker.update(at([60, 64, 67], { 0: 0.9, 4: 0.9, 7: 0.9 }, -40));
+      expect(tracker.update(at([60, 64, 67], { 0: 0.8, 4: 0.8, 7: 0.8 }, -42))).toEqual([]);
+      // Le son s'éteint…
+      for (let i = 0; i < 6; i++) tracker.update(at([60, 64, 67], { 0: 0.05, 4: 0.05, 7: 0.05 }, -50));
+      // … puis la même frappe qu'avant
+      tracker.update(at([60, 64, 67], { 0: 1, 4: 1, 7: 1 }, -25));
+      expect(tracker.update(at([60, 64, 67], { 0: 1, 4: 1, 7: 1 }, -25))).toEqual([60, 64, 67]);
+    });
   });
 
   test("reset", () => {

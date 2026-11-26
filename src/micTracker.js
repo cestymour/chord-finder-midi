@@ -34,7 +34,7 @@
 //   réactive, sur le niveau global : s'il chute d'au moins releaseDb sous le plus
 //   haut de ses releaseFrames trames précédentes, tout est relâché. Une classe
 //   relâchée ne revient qu'avec une nouvelle attaque (énergie au moins attackRatio
-//   fois celle du relâchement).
+//   fois la plus basse atteinte depuis le relâchement).
 
 const DEFAULTS = {
   onSalience: 0.15,
@@ -101,8 +101,15 @@ export function createNoteTracker(options = {}) {
       let floor = full ? Infinity : 0;
       for (const past of energyHistory) if (past[pc] < floor) floor = past[pc];
       if (blocked.has(pc)) {
-        // Relâchée : il faut une nouvelle attaque, au-dessus du niveau du relâchement
-        if (value < blocked.get(pc) * opts.attackRatio) return false;
+        // Relâchée : il faut une nouvelle attaque, au-dessus du plus bas niveau atteint
+        // depuis le relâchement. (Au moment du relâchement, la trame d'analyse, longue,
+        // contient encore presque tout l'accord : rapportée à ce niveau-là, une
+        // nouvelle frappe aussi forte que la précédente ne passerait jamais.)
+        const lowest = Math.min(blocked.get(pc), value);
+        if (value < lowest * opts.attackRatio) {
+          blocked.set(pc, lowest);
+          return false;
+        }
         blocked.delete(pc);
       }
       return value > 0 && value >= floor * opts.attackRatio;

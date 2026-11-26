@@ -6,6 +6,10 @@ Le format s’inspire de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/
 
 ## [Non publié]
 
+### Corrigé
+
+- **Micro** : un accord relâché puis rejoué aussi fort (le même accord, ou un autre qui partage des notes avec lui) ne s'affichait plus, ou seulement en partie.
+
 ## [1.1.0] — 2026-11-26
 
 ### Ajouté
