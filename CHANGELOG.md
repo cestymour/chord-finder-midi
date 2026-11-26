@@ -6,9 +6,11 @@ Le format s’inspire de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/
 
 ## [Non publié]
 
+## [1.1.0] — 2026-11-26
+
 ### Ajouté
 
-- **Micro (expérimental)** : nouvelle partie « Écoutez votre piano » sur l'accueil, pour un piano acoustique sans MIDI. Le micro de l'appareil écoute le piano et l'accord s'affiche comme avec un piano connecté (carte, portée, touches allumées sur le clavier). La ligne d'état indique « Micro · écoute », avec un petit vumètre. La détection analyse le spectre du son (légère et rapide). Toucher une touche du clavier à l'écran éteint les notes entendues par le micro, jusqu'au prochain accord joué. La détection est approximative : fiable surtout pour les triades et les accords de 7ᵉ dans le médium, plus fragile pour la basse et les renversements. Le son de l'appli est coupé pendant l'écoute (sur l'écran « Notes → Accord »), pour ne pas être capté. L'audio est analysé sur l'appareil et n'est jamais envoyé. Fonctionne aussi dans Safari (iPhone, iPad) et Firefox, qui n'ont ni Web Bluetooth ni, pour Safari, Web MIDI.
+- **Micro (expérimental)** : nouvelle partie « Écoutez votre piano » sur l'accueil, pour un piano acoustique sans MIDI. Le micro de l'appareil écoute le piano et l'accord s'affiche comme avec un piano connecté (carte, portée, touches allumées sur le clavier). La ligne d'état indique « Micro », avec un petit vumètre. La détection analyse le spectre du son (légère et rapide). Toucher une touche du clavier à l'écran éteint les notes entendues par le micro, jusqu'au prochain accord joué. La détection est approximative : fiable surtout pour les triades et les accords de 7ᵉ dans le médium, plus fragile pour la basse et les renversements. Le son de l'appli est coupé pendant l'écoute (sur l'écran « Notes → Accord »), pour ne pas être capté. L'audio est analysé sur l'appareil et n'est jamais envoyé. Fonctionne aussi dans Safari (iPhone, iPad) et Firefox, qui n'ont ni Web Bluetooth ni, pour Safari, Web MIDI.
 
 ### Modifié
 
@@ -244,7 +246,8 @@ Première version numérotée. Elle regroupe tout ce qui a été développé dep
 - Application installable (PWA).
 - Déploiement automatique sur GitHub Pages à chaque mise à jour de la branche `main`.
 
-[Non publié]: https://github.com/cestymour/chord-finder-midi/compare/v1.0.0...HEAD
+[Non publié]: https://github.com/cestymour/chord-finder-midi/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/cestymour/chord-finder-midi/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/cestymour/chord-finder-midi/compare/v0.11.1...v1.0.0
 [0.11.1]: https://github.com/cestymour/chord-finder-midi/compare/v0.11.0...v0.11.1
 [0.11.0]: https://github.com/cestymour/chord-finder-midi/compare/v0.10.0...v0.11.0
