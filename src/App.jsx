@@ -519,9 +519,8 @@ function MicButton({ mic, onStart }) {
 }
 
 /**
- * Vumètre du micro, mis à jour hors de React (20 fois par seconde), suivi de la durée
- * de la dernière analyse du moteur : utile pour comparer les moteurs A et B pendant
- * les essais (à retirer ensuite).
+ * Vumètre du micro, mis à jour hors de React (20 fois par seconde), suivi (avec
+ * npm run dev seulement) de la durée de la dernière analyse, pour comparer les moteurs.
  */
 function MicLevel({ subscribe }) {
   const { t } = useI18n();
@@ -538,7 +537,7 @@ function MicLevel({ subscribe }) {
       <span className="mic-level" role="img" aria-label={t("mic.level")}>
         <span className="mic-level__bar" ref={barRef} />
       </span>
-      <span className="mic-time" ref={timeRef} title={t("mic.computeTime")} />
+      {import.meta.env.DEV && <span className="mic-time" ref={timeRef} title={t("mic.computeTime")} />}
     </>
   );
 }
@@ -718,8 +717,8 @@ function ConnectionStatus({ btStatus, btKnownDevice, midi, mic, onHome, onSwitch
           {sim.message && <span className="sim-message" title={sim.message}>{sim.message}</span>}
         </span>
       )}
-      {/* Essais : passer du moteur A au moteur B en un clic (à retirer ensuite) */}
-      {onSwitchMic && mic.micStatus !== "unsupported" && (
+      {/* Essais (npm run dev) : passer d'un moteur micro à l'autre en un clic */}
+      {onSwitchMic && MIC_ENGINES.length > 1 && mic.micStatus !== "unsupported" && (
         <span className="mic-switch">
           {MIC_ENGINES.map((engine) => (
             <button
@@ -731,7 +730,7 @@ function ConnectionStatus({ btStatus, btKnownDevice, midi, mic, onHome, onSwitch
               disabled={mic.micStatus === "starting"}
               onClick={() => onSwitchMic(engine)}
             >
-              {mic.micStatus === "starting" && mic.micEngine === engine ? "…" : import.meta.env.DEV ? engine : engine[0]}
+              {mic.micStatus === "starting" && mic.micEngine === engine ? "…" : engine}
             </button>
           ))}
         </span>

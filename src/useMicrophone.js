@@ -20,11 +20,11 @@ const CAPTURE_SECONDS = 2.5;
 const METER_SAMPLES = 2048;
 
 // Moteurs : A1 à A5 (versions du moteur A, voir createChromaEngine dans micChroma.js)
-// et B1 (moteur B). L'accueil démarre MIC_DEFAULT_ENGINE ; la ligne d'état permet de
-// passer au moteur B le temps de les comparer sur un vrai piano (et, avec
-// npm run dev, à toutes les versions).
+// et B1 (moteur B). L'accueil démarre MIC_DEFAULT_ENGINE, seul moteur en production ;
+// avec npm run dev, la ligne d'état permet de passer à toutes les versions, pour les
+// comparer (mode simulation).
 export const MIC_DEFAULT_ENGINE = "A5";
-export const MIC_ENGINES = import.meta.env.DEV ? ["A1", "A2", "A3", "A4", "A5", "B1"] : ["A5", "B1"];
+export const MIC_ENGINES = import.meta.env.DEV ? ["A1", "A2", "A3", "A4", "A5", "B1"] : [MIC_DEFAULT_ENGINE];
 
 /** Prépare le moteur demandé (le B charge TensorFlow.js et son modèle à la demande). */
 async function createEngine(id, sampleRate) {
