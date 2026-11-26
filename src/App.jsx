@@ -2,7 +2,7 @@ import { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo, use
 import { createPortal } from "react-dom";
 import './App.css';
 import useBluetoothMIDI from "./useBluetoothMIDI";
-import useMicrophone, { MIC_ENGINES } from "./useMicrophone";
+import useMicrophone, { MIC_DEFAULT_ENGINE, MIC_ENGINES } from "./useMicrophone";
 import { createSimRecording, saveSimFile, simFileBase } from "./simRecorder";
 import { dispatchMidiMessage } from "./midiMessages";
 import {
@@ -488,37 +488,30 @@ function MicIcon({ className }) {
 }
 
 /**
- * Rond « Micro A » ou « Micro B » de l'écran d'accueil : un par moteur d'analyse, le
- * temps de les comparer sur un vrai piano. Il démarre l'écoute (la demande
- * d'autorisation du navigateur arrive sur ce geste) ; un ⓘ explique le moteur et les
+ * Rond « Micro » de l'écran d'accueil. Il démarre l'écoute avec le moteur par défaut
+ * (la demande d'autorisation du navigateur arrive sur ce geste) ; un ⓘ explique les
  * limites du mode.
  */
-function MicButton({ engine, mic, onStart }) {
+function MicButton({ mic, onStart }) {
   const { t } = useI18n();
-  const label = `${t("mic.title")} ${engine}`;
+  const label = t("mic.title");
   const starting = mic.micStatus === "starting";
-  const mine = mic.micEngine === engine;
   const warn = mic.micStatus === "unsupported" || mic.micStatus === "error";
   return (
     <div className="bt-connect-btn-wrap">
       <button
         type="button"
-        className={`usb-btn mic-btn${warn ? " usb-btn--warn" : ""}${starting && mine ? " mic-btn--starting" : ""}`}
-        onClick={() => onStart(engine)}
+        className={`usb-btn mic-btn${warn ? " usb-btn--warn" : ""}${starting ? " mic-btn--starting" : ""}`}
+        onClick={() => onStart(MIC_DEFAULT_ENGINE)}
         disabled={starting || mic.micStatus === "unsupported"}
-        aria-label={starting && mine ? undefined : `${label} : ${t("mic.aria")}`}
+        aria-label={starting ? undefined : `${label} : ${t("mic.aria")}`}
       >
         <MicIcon className="usb-btn__icon" />
-        <span className="usb-btn__label">{starting && mine ? t("mic.starting") : label}</span>
+        <span className="usb-btn__label">{starting ? t("mic.starting") : label}</span>
       </button>
       <span className="bt-connect-hint">
         <PopupInfoButton title={label}>
-          {engine === "A1" && "Version d'origine du moteur A. "}
-          {engine === "A2" && "Moteur A avec « pas de nouvelle note sans attaque ». "}
-          {engine === "A3" && "A2 + correction des erreurs d'octave dans le médium et l'aigu. "}
-          {engine === "A4" && "A3 + notes graves parasites écartées, extinction plus rapide au relâchement, plage étendue jusqu'au dernier Do. "}
-          {engine === "A5" && "A4 + résonances graves fixes (meuble, haut-parleurs) écartées : une note grave sans son octave n'est pas une corde. "}
-          {t(`mic.engine${engine[0]}`)} {t("mic.help")}
+          {t("mic.help")}
         </PopupInfoButton>
       </span>
     </div>
@@ -586,8 +579,7 @@ function UsbButton({ midi, open, onToggle, detailsId, onUsePiano }) {
 
 /**
  * Écran d'accueil, en trois parties : « Connectez votre piano » (ronds Bluetooth et USB),
- * « Écoutez votre piano » (ronds Micro A et Micro B, le temps de comparer les deux
- * moteurs) et « Piano virtuel ». Toutes les explications (ⓘ, USB) s'ouvrent dans
+ * « Écoutez votre piano » (rond Micro) et « Piano virtuel ». Toutes les explications (ⓘ, USB) s'ouvrent dans
  * une zone fixe en haut de l'écran, par-dessus, sans rien décaler ; une seule à la fois.
  */
 function ConnectScreen({ btProps, midi, mic, onUseKeyboard, onUsePiano }) {
@@ -634,10 +626,8 @@ function ConnectScreen({ btProps, midi, mic, onUseKeyboard, onUsePiano }) {
 
         <section className="connect-section">
           <h2 className="connect-screen__title">{t("connect.listen")}</h2>
-          <div className="bt-connect-row bt-connect-row--many">
-            {MIC_ENGINES.map((engine) => (
-              <MicButton key={engine} engine={engine} mic={mic} onStart={mic.startMic} />
-            ))}
+          <div className="bt-connect-row">
+            <MicButton mic={mic} onStart={mic.startMic} />
           </div>
           {micNotice && (
             <InfoTip key={micNotice} tone="warn" label={t(micNotice)}>{t(`${micNotice}.help`)}</InfoTip>
@@ -681,7 +671,7 @@ function ConnectionStatus({ btStatus, btKnownDevice, midi, mic, onHome, onSwitch
     // Micro à l'écoute : choisi exprès, il passe en premier, avec son vumètre
     status = "connected";
     icon = <MicIcon className="midi-status__icon" />;
-    label = `${t("mic.title")} ${mic.micEngine}`;
+    label = t("mic.title");
   } else if (btStatus === "connected") {
     status = "connected";
     icon = <BluetoothIcon className="midi-status__icon" />;
@@ -728,7 +718,7 @@ function ConnectionStatus({ btStatus, btKnownDevice, midi, mic, onHome, onSwitch
           {sim.message && <span className="sim-message" title={sim.message}>{sim.message}</span>}
         </span>
       )}
-      {/* Essais : passer d'un moteur micro à l'autre en un clic (à retirer ensuite) */}
+      {/* Essais : passer du moteur A au moteur B en un clic (à retirer ensuite) */}
       {onSwitchMic && mic.micStatus !== "unsupported" && (
         <span className="mic-switch">
           {MIC_ENGINES.map((engine) => (
@@ -737,10 +727,11 @@ function ConnectionStatus({ btStatus, btKnownDevice, midi, mic, onHome, onSwitch
               type="button"
               className="midi-status__action"
               aria-pressed={mic.micEngine === engine}
+              title={t(`mic.engine${engine[0]}`)}
               disabled={mic.micStatus === "starting"}
               onClick={() => onSwitchMic(engine)}
             >
-              {mic.micStatus === "starting" && mic.micEngine === engine ? "…" : engine}
+              {mic.micStatus === "starting" && mic.micEngine === engine ? "…" : import.meta.env.DEV ? engine : engine[0]}
             </button>
           ))}
         </span>
