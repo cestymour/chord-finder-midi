@@ -1,7 +1,7 @@
 // Essais du mode micro : analyse d'un enregistrement de simulation (logs/sim-*.json
 // et son .wav, voir src/simRecorder.js).
 //
-//   node scripts/sim-analyze.mjs [logs/sim-….json] [--engines A1,A2,A3,A4] [--detail]
+//   node scripts/sim-analyze.mjs [logs/sim-….json] [--engines A1,A2,A3,A4,A5] [--detail]
 //
 // La vérité : les touches du piano MIDI (et la pédale). Pour chaque accord joué,
 // on compare les notes affichées par le micro :
@@ -9,11 +9,12 @@
 // - A1, A2, A3… : le son enregistré rejoué hors ligne à travers ces moteurs, aux
 //   mêmes instants d'analyse que pendant l'enregistrement.
 // Critère : mêmes classes de hauteur et même basse (donc même accord et même
-// renversement). Les notes hors de la plage du moteur A (MIDI 36 à 88) sont
+// renversement). Les notes hors de la plage de la dernière version du moteur A
+// (MIDI 36 à 108 depuis A4 ; A1 à A3 s'arrêtent à 88) sont
 // comptées à part.
 
 import { readFileSync, readdirSync } from "node:fs";
-import { createChromaEngine, MIC_MIN_MIDI, MIC_MAX_MIDI } from "../src/micChroma.js";
+import { CHROMA_LATEST, createChromaEngine, MIC_MIN_MIDI } from "../src/micChroma.js";
 import { createNoteTracker } from "../src/micTracker.js";
 import { identifyChords } from "../src/chords.js";
 
@@ -28,7 +29,7 @@ if (!journalPath) {
   const files = readdirSync("logs").filter((f) => f.startsWith("sim-") && f.endsWith(".json")).sort();
   journalPath = `logs/${files.at(-1)}`;
 }
-const engines = option("--engines", "A1,A2,A3,A4").split(",").filter(Boolean);
+const engines = option("--engines", "A1,A2,A3,A4,A5").split(",").filter(Boolean);
 // Réglages du suivi à essayer, ajoutés à ceux du moteur : --tracker '{"attackFrames":10}'
 const trackerOverride = JSON.parse(option("--tracker", "{}"));
 const rulesOverride = JSON.parse(option("--rules", "{}")); // ex. '{"lowSupport":false}'
@@ -235,6 +236,8 @@ function evaluate(timeline, segments) {
 // tenues d'avant, notes prolongées par la pédale), pas seulement les touches frappées
 const midiChanges = midiTimeline();
 const segments = chordSegments().map((seg) => ({ ...seg, sounding: at(midiChanges, seg.start + 100) }));
+// Plage de référence : celle de la dernière version du moteur A
+const MIC_MAX_MIDI = createChromaEngine({ sampleRate, version: CHROMA_LATEST }).maxMidi;
 const inRange = (seg) => seg.sounding.every((n) => n >= MIC_MIN_MIDI && n <= MIC_MAX_MIDI);
 const timelines = { live: liveTimeline() };
 for (const id of engines) timelines[id] = replayTimeline(id);
@@ -255,7 +258,7 @@ const summary = (key, filter) => {
 };
 console.log("Dans la plage du moteur A :");
 for (const key of Object.keys(results)) console.log("  " + summary(key, inRange));
-console.log("Hors plage (au moins une note sous MIDI 36 ou au-dessus de 88) :");
+console.log(`Hors plage (au moins une note sous MIDI ${MIC_MIN_MIDI} ou au-dessus de ${MIC_MAX_MIDI}) :`);
 for (const key of Object.keys(results)) console.log("  " + summary(key, (s) => !inRange(s)));
 
 console.log("\nAccord par accord (lecture la plus fréquente ; ✓ si juste au moins la moitié du temps) :");
