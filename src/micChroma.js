@@ -69,16 +69,20 @@ export function frameSizeFor(sampleRate, seconds = 0.17) {
 const SPLIT_HZ = 300;
 
 /**
- * Pics d'une trame : le grave (jusqu'à SPLIT_HZ) sur toute la trame, le reste
- * sur sa moitié la plus récente. Les deux spectres sont à la même échelle
- * (une sinusoïde d'amplitude 1 donne un pic de 1 dans les deux).
+ * Spectres d'une trame : `low` sur toute la trame (pour le grave, jusqu'à
+ * SPLIT_HZ), `high` sur sa moitié la plus récente (pour le reste). Les deux sont à
+ * la même échelle (une sinusoïde d'amplitude 1 donne un pic de 1 dans les deux).
  */
-export function framePeaks(samples, sampleRate) {
+export function frameSpectra(samples) {
   const recent = samples.subarray
     ? samples.subarray(samples.length / 2)
     : samples.slice(samples.length / 2);
-  const lowMags = magnitudeSpectrum(samples);
-  const highMags = magnitudeSpectrum(recent);
+  return { low: magnitudeSpectrum(samples), high: magnitudeSpectrum(recent) };
+}
+
+/** Pics d'une trame : le grave pris dans le spectre `low`, le reste dans `high`. */
+export function framePeaks(samples, sampleRate, spectra = frameSpectra(samples)) {
+  const { low: lowMags, high: highMags } = spectra;
   // Seuil commun : le pic le plus fort des deux bandes (sinon, une bande sans note
   // garderait les fuites de la fenêtre comme des pics)
   const strongest = (mags, fromHz, toHz) => {
@@ -345,15 +349,61 @@ export function pruneHarmonicGhosts(notes) {
 }
 
 // ─────────────────────────────────────────────
+// ÉNERGIE PAR CLASSE DE HAUTEUR (attaques)
+// ─────────────────────────────────────────────
+
+/** Plus forte amplitude du spectre entre lowHz et highHz (bins voisins compris). */
+function maxBetween(mags, binHz, lowHz, highHz) {
+  let max = 0;
+  const last = Math.min(mags.length - 1, Math.ceil(highHz / binHz));
+  for (let k = Math.max(0, Math.floor(lowHz / binHz)); k <= last; k++) if (mags[k] > max) max = mags[k];
+  return max;
+}
+
+/**
+ * Énergie de chacune des 12 classes de hauteur : pour chaque note candidate, somme
+ * pondérée du spectre à ses harmoniques (lu directement dans le spectre, pas dans
+ * les pics : un son stable donne une valeur stable, même faible) ; une classe prend
+ * la plus forte de ses notes. Ce n'est pas une détection : le suivi (micTracker.js)
+ * compare cette énergie d'une trame à l'autre pour reconnaître une attaque.
+ */
+export function classEnergy(spectra, sampleRate, tuningCents = 0) {
+  const energy = new Array(12).fill(0);
+  const lowBin = sampleRate / (spectra.low.length * 2);
+  const highBin = sampleRate / (spectra.high.length * 2);
+  for (let midi = MIC_MIN_MIDI; midi <= MIC_MAX_MIDI; midi++) {
+    const f0 = midiToHz(midi, tuningCents);
+    let value = 0;
+    for (let h = 1; h <= MAX_HARMONICS; h++) {
+      const target = h * f0;
+      if (target > MAX_PEAK_HZ) break;
+      const stretch = Math.sqrt(1 + MAX_INHARMONICITY * h * h);
+      const lowHz = target * CENT ** -MATCH_CENTS;
+      const highHz = target * stretch * CENT ** MATCH_CENTS;
+      const amp = target <= SPLIT_HZ
+        ? maxBetween(spectra.low, lowBin, lowHz, highHz)
+        : maxBetween(spectra.high, highBin, lowHz, highHz);
+      value += amp * HARMONIC_WEIGHTS[h - 1];
+    }
+    const pc = midi % 12;
+    if (value > energy[pc]) energy[pc] = value;
+  }
+  return energy;
+}
+
+// ─────────────────────────────────────────────
 // MOTEUR
 // ─────────────────────────────────────────────
 
 /**
  * Moteur A. analyze(samples) prend une trame de frameSize échantillons et renvoie
- * { notes: [{ midi, salience }], level (dB pleine échelle), tuning (cents) }.
+ * { notes: [{ midi, salience }], level (dB pleine échelle), tuning (cents),
+ * classEnergy (12 valeurs, pour reconnaître les attaques dans le suivi) }.
  * Le recalage du La est lissé d'une trame à l'autre (état du moteur).
  */
-export function createChromaEngine({ sampleRate }) {
+export function createChromaEngine({ sampleRate, attackGate = true }) {
+  // attackGate false : sans classEnergy, donc sans la règle « pas de nouvelle note
+  // sans attaque » du suivi (ancien moteur A, gardé le temps de comparer : « A1 »)
   const frameSize = frameSizeFor(sampleRate, 0.34);
   let tuning = 0;
   return {
@@ -361,7 +411,8 @@ export function createChromaEngine({ sampleRate }) {
     frameSize,
     analyze(samples) {
       const level = levelDb(samples);
-      const peaks = framePeaks(samples, sampleRate);
+      const spectra = frameSpectra(samples);
+      const peaks = framePeaks(samples, sampleRate, spectra);
       const measured = estimateTuning(peaks);
       if (measured !== null) {
         // Moyenne glissante, en tenant compte du passage de +50 à −50 cents
@@ -372,7 +423,12 @@ export function createChromaEngine({ sampleRate }) {
         if (tuning > 50) tuning -= 100;
         if (tuning < -50) tuning += 100;
       }
-      return { notes: detectNotes(peaks, tuning), level, tuning };
+      return {
+        notes: detectNotes(peaks, tuning),
+        level,
+        tuning,
+        classEnergy: attackGate ? classEnergy(spectra, sampleRate, tuning) : undefined,
+      };
     },
   };
 }

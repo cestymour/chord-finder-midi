@@ -17,6 +17,14 @@
 //   quand deux analyses sont espacées de plus de slowFrameMs, une seule suffit :
 //   attendre la suivante retarderait trop l'affichage.
 // - Silence : sous gateDb (avec hystérésis, enterDb pour commencer), plus de note.
+// - Pas de nouvelle note sans attaque (si le moteur donne classEnergy, l'énergie de
+//   chaque classe de hauteur) : sur un piano, une note commence toujours par un coup
+//   de marteau. Une classe non tenue n'entre que si son énergie dépasse d'au moins
+//   attackRatio la plus faible de ses attackFrames trames précédentes. Sans cela,
+//   quand une note s'éteint, ce qui reste (résonance d'autres cordes, bruit de la
+//   pièce) devient « le plus fort » et passerait les seuils relatifs : des notes
+//   fantômes s'allumeraient. Les notes déjà tenues, elles, restent ou partent
+//   comme avant.
 
 const DEFAULTS = {
   onSalience: 0.15,
@@ -25,14 +33,21 @@ const DEFAULTS = {
   slowFrameMs: 300,
   enterDb: -50,
   gateDb: -58,
+  attackRatio: 2, // +6 dB
+  attackFrames: 6, // environ 300 ms à une analyse toutes les 50 ms
 };
 
-/** Lecture d'une trame : classe de hauteur → note MIDI la plus grave, et basse. */
-function readFrame(notes, held, { onSalience, offSalience }) {
+/**
+ * Lecture d'une trame : classe de hauteur → note MIDI la plus grave, et basse.
+ * attacking : classes qui peuvent entrer (null : toutes).
+ */
+function readFrame(notes, held, { onSalience, offSalience }, attacking = null) {
   const byPc = new Map();
   for (const { midi, salience } of notes) {
     const pc = midi % 12;
-    const threshold = held.has(pc) ? offSalience : onSalience;
+    const isHeld = held.has(pc);
+    if (!isHeld && attacking && !attacking[pc]) continue;
+    const threshold = isHeld ? offSalience : onSalience;
     if (salience < threshold) continue;
     const prev = byPc.get(pc);
     if (prev === undefined || midi < prev) byPc.set(pc, midi);
@@ -57,14 +72,32 @@ export function createNoteTracker(options = {}) {
   let pendingKey = null;
   let pendingCount = 0;
   let sounding = false; // au-dessus du seuil de silence
+  let energyHistory = []; // classEnergy des trames précédentes, la plus récente à la fin
 
   const notesOf = () => [...output.values()].sort((a, b) => a - b);
 
+  /** Classes en train d'attaquer (null si le moteur ne donne pas d'énergie). */
+  const attackingClasses = (energy) => {
+    if (!energy) return null;
+    // Moins de attackFrames trames connues (début de l'écoute) : avant, rien
+    const full = energyHistory.length >= opts.attackFrames;
+    return energy.map((value, pc) => {
+      let floor = full ? Infinity : 0;
+      for (const past of energyHistory) if (past[pc] < floor) floor = past[pc];
+      return value > 0 && value >= floor * opts.attackRatio;
+    });
+  };
+
   return {
-    update({ notes, level }, elapsedMs = 0) {
+    update({ notes, level, classEnergy }, elapsedMs = 0) {
       sounding = sounding ? level >= opts.gateDb : level >= opts.enterDb;
+      const attacking = attackingClasses(classEnergy);
+      if (classEnergy) {
+        energyHistory.push(classEnergy);
+        if (energyHistory.length > opts.attackFrames) energyHistory.shift();
+      }
       const frame = sounding
-        ? readFrame(notes, output, opts)
+        ? readFrame(notes, output, opts, attacking)
         : { byPc: new Map(), key: "" };
 
       if (frame.key === outputKey) {
@@ -93,6 +126,7 @@ export function createNoteTracker(options = {}) {
       pendingKey = null;
       pendingCount = 0;
       sounding = false;
+      energyHistory = [];
     },
   };
 }

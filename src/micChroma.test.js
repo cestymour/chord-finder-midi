@@ -178,3 +178,65 @@ describe("moteur A + suivi : accord reconnu", () => {
     expect(chordFor([48, 52, 55, 60], { gains: [1, 0.5, 0.6, 1] })).toBe("C");
   });
 });
+
+/**
+ * Notes affichées trame après trame (toutes les 50 ms) sur un son qui évolue :
+ * `notes` frappées à l'instant `attack` (secondes) puis s'éteignant (constante de
+ * temps `decay`), avec un fond `background` : résonance d'autres cordes, à
+ * `backgroundGain` du niveau des notes, excitée par la première frappe et qui
+ * s'éteint lentement. `before` : notes frappées à 0 s.
+ */
+function displayedOverTime({ before = [], notes, attack = 0.5, decay = 0.4, background = [], backgroundGain = 0.02, seconds = 3.5 }) {
+  const engine = createChromaEngine({ sampleRate: SAMPLE_RATE });
+  const tracker = createNoteTracker();
+  const total = Math.round(seconds * SAMPLE_RATE);
+  const signal = new Float32Array(total);
+  const add = (midis, gain, start, tau, seed) => {
+    if (midis.length === 0) return;
+    const tone = synthChord(midis, { length: total, noise: 0, seed });
+    const from = Math.round(start * SAMPLE_RATE);
+    for (let i = from; i < total; i++) {
+      const t = (i - from) / SAMPLE_RATE;
+      signal[i] += gain * tone[i] * Math.exp(-t / tau);
+    }
+  };
+  add(background, backgroundGain, before.length > 0 ? 0 : attack, 4, 7);
+  add(before, 1, 0, decay, 3);
+  add(notes, 1, attack, decay, 5);
+  const noise = synthChord([], { length: total, noise: 0.0003, seed: 11 });
+  for (let i = 0; i < total; i++) signal[i] += noise[i];
+
+  const hop = Math.round(0.05 * SAMPLE_RATE);
+  const shown = [];
+  for (let end = engine.frameSize; end <= total; end += hop) {
+    const held = tracker.update(engine.analyze(signal.subarray(end - engine.frameSize, end)), 50);
+    shown.push({ time: end / SAMPLE_RATE, held });
+  }
+  return shown;
+}
+
+describe("moteur A + suivi : notes qui s'éteignent", () => {
+  test("une note aiguë qui s'éteint ne laisse pas entrer la résonance des cordes graves", () => {
+    const shown = displayedOverTime({ notes: [76], background: [45, 50, 53] }); // Mi5 ; La2, Ré3, Fa3
+    // Le Mi est bien affiché après l'attaque
+    expect(shown.some(({ held }) => held.includes(76))).toBe(true);
+    // Aucune autre classe de hauteur n'apparaît pendant qu'il s'éteint
+    const others = shown.flatMap(({ time, held }) => held.filter((m) => m % 12 !== 4).map((m) => `${m}@${time.toFixed(2)}`));
+    expect(others).toEqual([]);
+  });
+
+  test("une note frappée pendant qu'une autre s'éteint entre bien", () => {
+    // Do4 frappé à 0 s ; Sol4 frappé à 1,2 s, alors que le Do s'éteint encore
+    const shown = displayedOverTime({ before: [60], notes: [67], attack: 1.2, decay: 0.8, background: [45, 50] });
+    const after = shown.filter(({ time }) => time > 1.2 && time < 1.8);
+    expect(after.some(({ held }) => held.includes(67))).toBe(true);
+  });
+
+  test("la même note frappée une deuxième fois revient", () => {
+    // Mi5 frappé à 0 s puis à 2 s : il réapparaît après la deuxième attaque
+    const shown = displayedOverTime({ before: [76], notes: [76], attack: 2, decay: 0.3, background: [45, 50, 53] });
+    const gone = shown.findIndex(({ time, held }) => time > 0.5 && time < 2 && !held.includes(76));
+    expect(gone).toBeGreaterThan(-1);
+    expect(shown.some(({ time, held }) => time > 2 && held.includes(76))).toBe(true);
+  });
+});

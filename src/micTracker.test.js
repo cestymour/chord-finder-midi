@@ -93,6 +93,47 @@ describe("suivi des notes du micro", () => {
     expect(tracker.update(frame([57, 60, 64]), 100)).toEqual([57, 60, 64]);
   });
 
+  describe("pas de nouvelle note sans attaque (moteur qui donne classEnergy)", () => {
+    // Énergie de chaque classe : 0 partout sauf celles données
+    const energy = (values) => Array.from({ length: 12 }, (_, pc) => values[pc] ?? 0);
+    const withEnergy = (notes, values, level = LOUD) => ({ ...frame(notes, level), classEnergy: energy(values) });
+
+    test("une note fantôme d'énergie stable n'entre pas quand la note jouée s'éteint", () => {
+      const tracker = createNoteTracker();
+      // Mi joué (classe 4), un La faible (classe 9) résonne à niveau constant
+      let held;
+      for (let i = 0; i < 8; i++) held = tracker.update(withEnergy([64, [57, 0.05]], { 4: 1, 9: 0.05 }));
+      expect(held).toEqual([64]);
+      // Le Mi s'éteint : le La devient « le plus fort », mais son énergie ne monte pas
+      for (let i = 0; i < 10; i++) held = tracker.update(withEnergy([57, [64, 0.05]], { 4: 0.02, 9: 0.05 }));
+      expect(held).toEqual([]);
+    });
+
+    test("une note frappée (énergie qui monte) entre, même pendant qu'une autre sonne", () => {
+      const tracker = createNoteTracker();
+      for (let i = 0; i < 8; i++) tracker.update(withEnergy([60], { 0: 1 }));
+      tracker.update(withEnergy([60, 67], { 0: 1, 7: 0.8 }));
+      expect(tracker.update(withEnergy([60, 67], { 0: 1, 7: 0.9 }))).toEqual([60, 67]);
+    });
+
+    test("une note qui s'éteint puis est frappée à nouveau revient", () => {
+      const tracker = createNoteTracker();
+      tracker.update(withEnergy([76], { 4: 1 }));
+      tracker.update(withEnergy([76], { 4: 1 }));
+      for (let i = 0; i < 8; i++) tracker.update(withEnergy([], { 4: 0.01 }));
+      expect(tracker.update(withEnergy([], { 4: 0.01 }))).toEqual([]);
+      tracker.update(withEnergy([76], { 4: 1 }));
+      expect(tracker.update(withEnergy([76], { 4: 1 }))).toEqual([76]);
+    });
+
+    test("sans classEnergy (moteur B), rien ne change", () => {
+      const tracker = createNoteTracker();
+      for (let i = 0; i < 8; i++) tracker.update(frame([60]));
+      tracker.update(frame([60, 67]));
+      expect(tracker.update(frame([60, 67]))).toEqual([60, 67]);
+    });
+  });
+
   test("reset", () => {
     const tracker = createNoteTracker();
     tracker.update(frame([60]));

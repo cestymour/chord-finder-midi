@@ -2,7 +2,7 @@ import { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo, use
 import { createPortal } from "react-dom";
 import './App.css';
 import useBluetoothMIDI from "./useBluetoothMIDI";
-import useMicrophone from "./useMicrophone";
+import useMicrophone, { MIC_ENGINES } from "./useMicrophone";
 import { dispatchMidiMessage } from "./midiMessages";
 import {
   playPianoNote,
@@ -512,7 +512,9 @@ function MicButton({ engine, mic, onStart }) {
       </button>
       <span className="bt-connect-hint">
         <PopupInfoButton title={label}>
-          {t(`mic.engine${engine}`)} {t("mic.help")}
+          {engine === "A1" && "Version d'origine du moteur A. "}
+          {engine === "A2" && "Moteur A avec « pas de nouvelle note sans attaque ». "}
+          {t(`mic.engine${engine[0]}`)} {t("mic.help")}
         </PopupInfoButton>
       </span>
     </div>
@@ -628,9 +630,10 @@ function ConnectScreen({ btProps, midi, mic, onUseKeyboard, onUsePiano }) {
 
         <section className="connect-section">
           <h2 className="connect-screen__title">{t("connect.listen")}</h2>
-          <div className="bt-connect-row">
-            <MicButton engine="A" mic={mic} onStart={mic.startMic} />
-            <MicButton engine="B" mic={mic} onStart={mic.startMic} />
+          <div className="bt-connect-row bt-connect-row--three">
+            {MIC_ENGINES.map((engine) => (
+              <MicButton key={engine} engine={engine} mic={mic} onStart={mic.startMic} />
+            ))}
           </div>
           {micNotice && (
             <InfoTip key={micNotice} tone="warn" label={t(micNotice)}>{t(`${micNotice}.help`)}</InfoTip>
@@ -664,7 +667,7 @@ function HomeIcon({ className }) {
  * le même partout, qui la quitte (déconnexion Bluetooth, arrêt du micro) et ramène à
  * l'écran d'accueil.
  */
-function ConnectionStatus({ btStatus, btKnownDevice, midi, mic, onHome }) {
+function ConnectionStatus({ btStatus, btKnownDevice, midi, mic, onHome, onSwitchMic }) {
   const { t } = useI18n();
   let status;
   let label;
@@ -708,6 +711,23 @@ function ConnectionStatus({ btStatus, btKnownDevice, midi, mic, onHome }) {
       {icon}
       <span className="midi-label">{label}</span>
       {mic.micStatus === "listening" && <MicLevel subscribe={mic.subscribeLevel} />}
+      {/* Essais : passer d'un moteur micro à l'autre en un clic (à retirer ensuite) */}
+      {onSwitchMic && mic.micStatus !== "unsupported" && (
+        <span className="mic-switch">
+          {MIC_ENGINES.map((engine) => (
+            <button
+              key={engine}
+              type="button"
+              className="midi-status__action"
+              aria-pressed={mic.micEngine === engine}
+              disabled={mic.micStatus === "starting"}
+              onClick={() => onSwitchMic(engine)}
+            >
+              {mic.micStatus === "starting" && mic.micEngine === engine ? "…" : engine}
+            </button>
+          ))}
+        </span>
+      )}
       {onHome && (
         <button className="midi-status__action midi-status__action--home" onClick={onHome}>
           <HomeIcon className="midi-status__home-icon" />
@@ -1475,7 +1495,15 @@ export default function ChordIdentifier() {
   const pianoConnected = btStatus === "connected" || midi.status === "connected";
   // Coupure Bluetooth en cours de reconnexion automatique : l'écran Piano reste affiché
   // (seule la ligne d'état change), au lieu de basculer sur l'écran de connexion.
-  const pianoLinked = pianoConnected || btStatus === "reconnecting" || micListening;
+  // Essais : changement de moteur micro depuis l'écran Piano. Pendant le démarrage
+  // du nouveau moteur, l'écran Piano reste affiché (sans retour à l'accueil).
+  const [micSwitching, setMicSwitching] = useState(false);
+  const switchMic = (engine) => {
+    setMicSwitching(true);
+    mic.startMic(engine);
+  };
+  const pianoLinked = pianoConnected || btStatus === "reconnecting" || micListening
+    || (micSwitching && mic.micStatus === "starting");
 
   // Écran affiché : "midi" (onglet Piano : vrai piano et/ou clavier virtuel)
   // ou "explore" (dictionnaire : choisir un accord pour voir ses touches)
@@ -1526,6 +1554,7 @@ export default function ChordIdentifier() {
     if (mic.micStatus === "listening" || mic.micStatus === "starting") mic.stopMic();
     if (["connected", "reconnecting", "connecting", "scanning"].includes(btStatus)) disconnectBluetooth();
     setKeyboardChosen(false);
+    setMicSwitching(false);
     setHomeRequested(true);
     clearVirtualNotes();
   };
@@ -1533,6 +1562,7 @@ export default function ChordIdentifier() {
   // Choisir une source à l'accueil annule le retour à l'accueil
   const choose = (action) => (...args) => {
     setHomeRequested(false);
+    setMicSwitching(false);
     return action(...args);
   };
 
@@ -1699,6 +1729,7 @@ export default function ChordIdentifier() {
               midi={midi}
               mic={mic}
               onHome={showKeyboard ? goHome : undefined}
+              onSwitchMic={showKeyboard ? switchMic : undefined}
             />
           )}
         </div>

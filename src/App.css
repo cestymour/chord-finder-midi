@@ -2131,6 +2131,26 @@
 }
 .mic-btn--starting .usb-btn__icon { color: inherit; }
 
+/* Essais : trois ronds micro (A1, A2, B1) dans la largeur de deux */
+.bt-connect-row--three {
+  --connect-round: calc((var(--connect-row) - 2 * var(--connect-gap)) / 3);
+}
+
+/* Essais : changement de moteur micro depuis la ligne d'état de l'écran Piano */
+.mic-switch {
+  display: inline-flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.mic-switch .midi-status__action {
+  margin-left: 0;
+  padding: 3px 7px;
+}
+.mic-switch .midi-status__action[aria-pressed="true"] {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
 /* Durée de la dernière analyse (phase d'essai des moteurs A et B) */
 .mic-time {
   flex-shrink: 0;

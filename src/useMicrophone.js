@@ -19,16 +19,18 @@ const CAPTURE_SECONDS = 2.5;
 // Vumètre : niveau des 50 dernières ms environ
 const METER_SAMPLES = 2048;
 
-export const MIC_ENGINES = ["A", "B"];
+// Moteurs proposés, le temps des essais : A1 (moteur A d'origine), A2 (moteur A
+// avec « pas de nouvelle note sans attaque »), B1 (moteur B)
+export const MIC_ENGINES = ["A1", "A2", "B1"];
 
 /** Prépare le moteur demandé (le B charge TensorFlow.js et son modèle à la demande). */
 async function createEngine(id, sampleRate) {
-  if (id === "B") {
+  if (id.startsWith("B")) {
     const { loadBasicPitchModel } = await import("./micBasicPitchModel.js");
     const model = await loadBasicPitchModel();
     return createBasicPitchEngine({ sampleRate, model });
   }
-  return createChromaEngine({ sampleRate });
+  return createChromaEngine({ sampleRate, attackGate: id !== "A1" });
 }
 
 function audioContextClass() {
@@ -54,7 +56,7 @@ function errorCode(error) {
  *
  * Retourne { micStatus, micEngine, micError, startMic, stopMic, suppress, subscribeLevel } :
  * - micStatus : "idle" | "starting" | "listening" | "error" | "unsupported"
- * - micEngine : moteur demandé ("A" ou "B") pendant le démarrage et l'écoute, sinon null
+ * - micEngine : moteur demandé (un de MIC_ENGINES) pendant le démarrage et l'écoute, sinon null
  * - micError : "denied" | "noDevice" | "failed" | "model" (moteur B non chargé) | null
  *   (avec le statut "error" ; "denied" aussi d'avance, quand l'autorisation du site
  *   est déjà refusée)
@@ -107,7 +109,7 @@ export default function useMicrophone(callbacks) {
     setState((prev) => (prev.micStatus === "unsupported" ? prev : { micStatus: "idle", micEngine: null, micError: null }));
   }, [teardown]);
 
-  const startMic = useCallback(async (engineId = "A") => {
+  const startMic = useCallback(async (engineId = "A2") => {
     if (!microphoneSupported()) return;
     const attempt = ++attemptRef.current;
     const stale = () => attempt !== attemptRef.current;
