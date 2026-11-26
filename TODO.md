@@ -99,3 +99,17 @@ Sur le vrai piano droit, avec le téléphone et avec l'ordinateur :
 1. Jouer une liste fixe d'accords (triades majeures et mineures sur plusieurs fondamentales, 7ᵉ, quelques renversements, quelques 9ᵉ), dans le registre central puis plus grave.
 2. Pour chaque moteur, noter : **taux d'accords justes**, **latence** ressentie entre l'attaque et l'affichage, **stabilité** (pas de clignotement entre deux accords), comportement avec la pédale, avec du bruit de fond (voix, pièce qui résonne), et charge sur le téléphone (fluidité, chauffe, batterie).
 3. Décider : garder A, garder B, ou garder les deux (par exemple A par défaut et B en option « précis mais plus lourd »). Supprimer ce qui ne marche pas.
+
+## Renommer l'appli en « Piano Chord Finder »
+
+**Statut :** décidé, à faire en même temps que la prochaine version majeure.
+
+Le nom actuel (« InstantChordBT ») vieillit mal : « BT » renvoie au Bluetooth, qui n'est plus qu'une source parmi trois (Bluetooth, USB/MIDI, micro), et « Instant » promet une rapidité que le micro ne tient pas. Nouveau nom affiché : **Piano Chord Finder**. Nouveau nom de dépôt : **`piano-chord-finder`** (pas d'espace possible dans un nom de dépôt).
+
+À faire :
+1. **Dépôt GitHub** : le renommer en `piano-chord-finder`. L'URL GitHub Pages change (`/chord-finder-midi/` → `/piano-chord-finder/`) et GitHub ne redirige pas les pages : l'ancien lien et les PWA déjà installées cessent de marcher. Prévoir une page de redirection sur l'ancienne URL, ou prévenir les utilisateurs.
+2. **`vite.config.js`** : `base` de production, `scope` et `start_url` du manifest PWA, nom et nom court du manifest, version affichée.
+3. **Nom affiché** : `index.html` (`<title>`, métadonnées), `src/App.jsx`, `src/i18n.js` si le nom y apparaît, `README.md`, `CLAUDE.md`, `CHANGELOG.md` (liens de comparaison du bas), `src/useBluetoothMIDI.js` (si le nom y figure).
+4. **Clés `localStorage`** (`instantchordbt.*`) : les renommer en `pianochordfinder.*` avec une **migration** au premier lancement (copier l'ancienne valeur vers la nouvelle, puis supprimer l'ancienne), pour ne pas perdre les réglages ni le dernier piano Bluetooth connu. À noter : une nouvelle origine (URL différente) a de toute façon son propre `localStorage`, donc la migration ne servira que si l'appli reste servie depuis la même origine.
+5. **Icônes** de `public/` si elles portent le nom ou un logo.
+6. **Vérifier** la disponibilité du nom (autres applis, stores, domaine) avant de publier.
