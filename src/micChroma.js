@@ -313,12 +313,22 @@ const LOW_SUPPORT_HZ = 300;
 const LOW_SUPPORT_RATIO = 0.05;
 const LOW_CLAIMED_FUNDAMENTAL = 0.25;
 
+// Sous LOW_OCTAVE_HZ, une note doit avoir son octave (harmonique 2) à au moins
+// LOW_OCTAVE_RATIO de sa fondamentale : une corde grave de piano en a toujours une
+// forte (de 0,3 à 1 fois la fondamentale dans les enregistrements), alors qu'une
+// résonance du meuble, de la pièce ou des haut-parleurs (pics fixes vers 73, 105 et
+// 140 Hz sur un piano numérique) n'en a pas. Sans cette règle, une telle résonance
+// devient une basse fantôme (Ré1 sous un accord de Fa) en ramassant les notes jouées
+// comme harmoniques 6, 7 et 8.
+const LOW_OCTAVE_HZ = 130.8; // Do2 en français (C3)
+const LOW_OCTAVE_RATIO = 0.02;
+
 /**
  * Poids d'une note candidate et amplitudes de ses harmoniques (0 si absent).
  * rules : { octaveFix, lowSupport } (voir detectNotes) ; claimed : pics qui sont la
  * fondamentale d'une note déjà retenue.
  */
-function salience(peaks, residual, f0, { octaveFix = true, lowSupport = true } = {}, claimed = new Set()) {
+function salience(peaks, residual, f0, { octaveFix = true, lowSupport = true, lowOctave = true } = {}, claimed = new Set()) {
   const found = harmonicPeaks(peaks, residual, f0);
   // Un même pic ne compte qu'une fois par candidate (fenêtres voisines dans l'aigu)
   const used = new Set();
@@ -338,6 +348,12 @@ function salience(peaks, residual, f0, { octaveFix = true, lowSupport = true } =
       return { value: 0, found, amps };
     }
   }
+  if (lowOctave && f0 < LOW_OCTAVE_HZ) {
+    // Pics bruts : l'octave a pu être retirée comme harmonique d'une autre note
+    // (Sol2, octave de Sol1, est aussi l'harmonique 3 de Do1)
+    const octave = found[1] >= 0 ? peaks[found[1]].mag : 0;
+    if (octave === 0 || octave < peaks[found[0]].mag * LOW_OCTAVE_RATIO) return { value: 0, found, amps };
+  }
   let value = 0;
   amps.forEach((a, h) => { value += a * HARMONIC_WEIGHTS[h]; });
   return { value, found, amps };
@@ -352,9 +368,9 @@ function salience(peaks, residual, f0, { octaveFix = true, lowSupport = true } =
  * harmoniques 2 à 4.
  */
 export function detectNotes(peaks, tuningCents = 0, {
-  octaveFix = true, lowSupport = true, lowOctaveGhost = lowSupport, maxMidi = MIC_MAX_MIDI,
+  octaveFix = true, lowSupport = true, lowOctaveGhost = lowSupport, lowOctave = lowSupport, maxMidi = MIC_MAX_MIDI,
 } = {}) {
-  const rules = { octaveFix, lowSupport };
+  const rules = { octaveFix, lowSupport, lowOctave };
   if (peaks.length === 0) return [];
   const residual = peaks.map((p) => p.mag);
   const notes = [];
@@ -477,9 +493,10 @@ export function classEnergy(spectra, sampleRate, tuningCents = 0, maxMidi = MIC_
  * 2 : + classEnergy, pour la règle « pas de nouvelle note sans attaque » du suivi ;
  * 3 : + correction des erreurs d'octave dans le médium et l'aigu ;
  * 4 : + note grave sans ses harmoniques 2 à 4 écartée ; fenêtre d'attaque plus
- *     longue (500 ms).
+ *     longue (500 ms) ;
+ * 5 : + note grave sans son octave écartée (résonances fixes).
  */
-export const CHROMA_LATEST = 4;
+export const CHROMA_LATEST = 5;
 
 export function createChromaEngine({ sampleRate, version = CHROMA_LATEST, rules = {} }) {
   const attackGate = version >= 2;
@@ -487,6 +504,7 @@ export function createChromaEngine({ sampleRate, version = CHROMA_LATEST, rules 
   const detection = {
     octaveFix,
     lowSupport: version >= 4,
+    lowOctave: version >= 5,
     maxMidi: version >= 4 ? MIC_MAX_MIDI_HIGH : MIC_MAX_MIDI,
     ...rules,
   };

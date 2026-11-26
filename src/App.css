@@ -2131,10 +2131,10 @@
 }
 .mic-btn--starting .usb-btn__icon { color: inherit; }
 
-/* Essais : cinq ronds micro (A1 à A4, B1) dans la largeur de deux */
+/* Essais : six ronds micro (A1 à A5, B1) dans la largeur de deux */
 .bt-connect-row--many {
   --connect-gap: 6px;
-  --connect-round: calc((var(--connect-row) - 4 * 6px) / 5);
+  --connect-round: calc((var(--connect-row) - 5 * 6px) / 6);
 }
 .bt-connect-row--many .usb-btn__label { font-size: 0.55rem; letter-spacing: 0.04em; }
 

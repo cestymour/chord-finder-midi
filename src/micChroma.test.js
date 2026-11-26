@@ -3,6 +3,7 @@ import {
   MIC_MAX_MIDI,
   MIC_MIN_MIDI,
   createChromaEngine,
+  detectNotes,
   estimateTuning,
   fft,
   findPeaks,
@@ -357,5 +358,37 @@ describe("moteur A + suivi : notes qui s'éteignent", () => {
     const gone = shown.findIndex(({ time, held }) => time > 0.5 && time < 2 && !held.includes(76));
     expect(gone).toBeGreaterThan(-1);
     expect(shown.some(({ time, held }) => time > 2 && held.includes(76))).toBe(true);
+  });
+});
+
+describe("moteur A, version 5 : note grave sans son octave", () => {
+  // Pics relevés dans un enregistrement réel (piano numérique, micro d'ordinateur),
+  // en Hz et relatifs au plus fort. Le son synthétique ne reproduit pas le défaut.
+  const peaksOf = (list) => list.map(([hz, mag]) => ({ hz, mag }));
+  const names = (peaks, lowOctave) => detectNotes(peaks, 0, { lowOctave, maxMidi: 108 }).map((n) => n.midi).sort((a, b) => a - b);
+
+  // Fa3-La3-Do4-Fa4 joué doucement : résonance fixe à 72,9 Hz (pas de pic à 146,8 Hz,
+  // seulement la résonance voisine de 139 Hz), qui ramassait La3, Do4 et Ré4 comme
+  // harmoniques 6, 7 et 8 : Ré1 affiché sous l'accord de Fa
+  const fChord = peaksOf([
+    [72.9, 0.036], [104.7, 0.027], [139.3, 0.013], [172.7, 0.011], [228.6, 0.014], [240.8, 0.043],
+    [294.8, 0.016], [348.9, 0.485], [440.2, 1], [471.2, 0.012], [524.2, 0.19], [698.5, 0.543],
+    [881, 0.1], [1047.7, 0.037],
+  ]);
+  test("Fa3-La3-Do4-Fa4 et la résonance à 73 Hz : plus de Ré1", () => {
+    expect(names(fChord, false)).toContain(38);
+    expect(names(fChord, true)).not.toContain(38);
+  });
+
+  // Vrai Ré1-Fa1-La1 joué : chaque corde grave a son octave (146, 174, 219 Hz)
+  const dmLow = peaksOf([
+    [73.1, 0.582], [86.8, 0.865], [109.7, 0.994], [133.9, 0.019], [146.2, 0.432], [160.6, 0.018],
+    [173.8, 0.79], [219.4, 0.323], [233, 0.012], [246.4, 0.013], [261.3, 0.159], [292.7, 0.383],
+    [329.1, 0.26], [348.5, 0.136], [366, 0.215], [436.7, 0.546], [492.1, 0.013], [522.5, 1],
+    [549.1, 0.129], [586.1, 0.019], [610.1, 0.086], [659, 0.217], [734.1, 0.33], [785.1, 0.063],
+    [808.3, 0.1], [873.4, 0.16], [958.1, 0.167], [990, 0.156], [1030.9, 0.046], [1048.5, 0.049],
+  ]);
+  test("un vrai Ré1-Fa1-La1 reste entendu", () => {
+    expect(names(dmLow, true)).toEqual(expect.arrayContaining([38, 41, 45]));
   });
 });

@@ -517,6 +517,7 @@ function MicButton({ engine, mic, onStart }) {
           {engine === "A2" && "Moteur A avec « pas de nouvelle note sans attaque ». "}
           {engine === "A3" && "A2 + correction des erreurs d'octave dans le médium et l'aigu. "}
           {engine === "A4" && "A3 + notes graves parasites écartées, extinction plus rapide au relâchement, plage étendue jusqu'au dernier Do. "}
+          {engine === "A5" && "A4 + résonances graves fixes (meuble, haut-parleurs) écartées : une note grave sans son octave n'est pas une corde. "}
           {t(`mic.engine${engine[0]}`)} {t("mic.help")}
         </PopupInfoButton>
       </span>

@@ -97,26 +97,36 @@ function midiTimeline() {
 
 /**
  * Accords joués : de la première touche d'un groupe (touches à moins de 80 ms) au
- * premier relâchement. { start, end, notes, velocities }.
+ * premier relâchement, ou, pédale enfoncée, jusqu'à ce que la pédale remonte ou que
+ * l'accord suivant commence (les notes sonnent encore). { start, end, notes,
+ * velocities, pedal } : pedal indique un accord prolongé par la pédale.
  */
 function chordSegments() {
   const segments = [];
   let current = null;
-  const held = new Map();
+  let pedal = false;
+  const close = (seg, t) => {
+    if (seg && seg.end === null) seg.end = t;
+  };
   for (const e of journal.events) {
-    if (e.type === "midiOn") {
+    if (e.type === "midiState") pedal = e.pedal;
+    else if (e.type === "pedal") {
+      if (pedal && !e.down && current?.released) close(current, e.t);
+      pedal = e.down;
+    } else if (e.type === "midiOn") {
       if (!current || e.t - current.start > 80) {
-        if (current && current.end === null) current.end = e.t;
-        current = { start: e.t, end: null, notes: [], velocities: [] };
+        close(current, e.t);
+        current = { start: e.t, end: null, notes: [], velocities: [], released: false, pedal: false };
         segments.push(current);
       }
       current.notes.push(e.note);
       current.velocities.push(e.velocity);
-      held.set(e.note, current);
     } else if (e.type === "midiOff") {
-      const seg = held.get(e.note);
-      held.delete(e.note);
-      if (seg && seg.end === null) seg.end = e.t;
+      if (current && current.notes.includes(e.note) && !current.released) {
+        current.released = true;
+        if (pedal) current.pedal = true;
+        else close(current, e.t);
+      }
     }
   }
   return segments.filter((s) => s.end !== null).map((s) => ({ ...s, notes: s.notes.sort((a, b) => a - b) }));
@@ -185,7 +195,7 @@ const fmt = (notes) => (notes.length ? notes.map(noteName).join(" ") : "rien");
  */
 function evaluate(timeline, segments) {
   return segments.map((seg) => {
-    const truth = readingKey(seg.notes);
+    const truth = readingKey(seg.sounding);
     let latency = null;
     let ok = 0;
     let total = 0;
@@ -194,7 +204,8 @@ function evaluate(timeline, segments) {
       const notes = at(timeline, t);
       const good = readingKey(notes) === truth;
       if (good && latency === null) latency = t - seg.start;
-      if (t >= seg.start + 400) {
+      // Accord bref (répété vite) : on juge sa seconde moitié
+      if (t >= seg.start + Math.min(400, (seg.end - seg.start) / 2)) {
         total++;
         if (good) ok++;
         const key = notes.join(",");
@@ -220,12 +231,14 @@ function evaluate(timeline, segments) {
 }
 
 // ─── Rapport ───
-const segments = chordSegments();
-const inRange = (seg) => seg.notes.every((n) => n >= MIC_MIN_MIDI && n <= MIC_MAX_MIDI);
+// Vérité de chaque accord : tout ce qui sonne juste après ses frappes (touches encore
+// tenues d'avant, notes prolongées par la pédale), pas seulement les touches frappées
+const midiChanges = midiTimeline();
+const segments = chordSegments().map((seg) => ({ ...seg, sounding: at(midiChanges, seg.start + 100) }));
+const inRange = (seg) => seg.sounding.every((n) => n >= MIC_MIN_MIDI && n <= MIC_MAX_MIDI);
 const timelines = { live: liveTimeline() };
 for (const id of engines) timelines[id] = replayTimeline(id);
 const results = Object.fromEntries(Object.entries(timelines).map(([k, tl]) => [k, evaluate(tl, segments)]));
-void midiTimeline;
 
 console.log(`${journalPath} : moteur ${journal.engine}, ${(journal.samples / sampleRate).toFixed(1)} s, ${segments.length} accords (${segments.filter(inRange).length} dans la plage MIDI ${MIC_MIN_MIDI}-${MIC_MAX_MIDI})\n`);
 
@@ -253,6 +266,6 @@ segments.forEach((seg, i) => {
     const lat = r.latency === null ? "" : ` ${r.latency}ms`;
     return `${key}:${good ? "✓" : "✗"}${lat}${good && !detail ? "" : ` [${fmt(r.mode)}]`}`;
   });
-  const range = inRange(seg) ? "" : " (hors plage)";
-  console.log(`${(seg.start / 1000).toFixed(1).padStart(6)}s ${fmt(seg.notes).padEnd(28)} ${chordName(seg.notes).padEnd(8)} v${Math.round(seg.velocities.reduce((a, b) => a + b) / seg.velocities.length)}${range}\n         ${cols.join("  ")}`);
+  const range = (inRange(seg) ? "" : " (hors plage)") + (seg.pedal ? " (pédale)" : "");
+  console.log(`${(seg.start / 1000).toFixed(1).padStart(6)}s ${fmt(seg.sounding).padEnd(28)} ${chordName(seg.sounding).padEnd(8)} v${seg.velocities.join(",")}${range}\n         ${cols.join("  ")}`);
 });

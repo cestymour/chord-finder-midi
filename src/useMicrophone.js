@@ -19,9 +19,9 @@ const CAPTURE_SECONDS = 2.5;
 // Vumètre : niveau des 50 dernières ms environ
 const METER_SAMPLES = 2048;
 
-// Moteurs proposés, le temps des essais : A1 à A4 (versions du moteur A, voir
+// Moteurs proposés, le temps des essais : A1 à A5 (versions du moteur A, voir
 // createChromaEngine dans micChroma.js), B1 (moteur B)
-export const MIC_ENGINES = ["A1", "A2", "A3", "A4", "B1"];
+export const MIC_ENGINES = ["A1", "A2", "A3", "A4", "A5", "B1"];
 
 /** Prépare le moteur demandé (le B charge TensorFlow.js et son modèle à la demande). */
 async function createEngine(id, sampleRate) {
@@ -112,7 +112,7 @@ export default function useMicrophone(callbacks) {
     setState((prev) => (prev.micStatus === "unsupported" ? prev : { micStatus: "idle", micEngine: null, micError: null }));
   }, [teardown]);
 
-  const startMic = useCallback(async (engineId = "A4") => {
+  const startMic = useCallback(async (engineId = "A5") => {
     if (!microphoneSupported()) return;
     const attempt = ++attemptRef.current;
     const stale = () => attempt !== attemptRef.current;
