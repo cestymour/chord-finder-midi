@@ -52,7 +52,7 @@ export default defineConfig({
     simulationLogs(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico', 'apple-touch-icon.png'],
+      includeAssets: ['favicon.ico', 'favicon.svg', 'apple-touch-icon.png'],
       // L'appli (JS, CSS, HTML, icônes) est déjà précachée par le service worker.
       // Les polices Google viennent d'un autre site : mises en cache à la première
       // ouverture, pour garder le même affichage hors ligne.

@@ -6,6 +6,10 @@ Le format s’inspire de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/
 
 ## [Non publié]
 
+### Modifié
+
+- **Nouveau logo** : un clavier dont trois touches turquoise (un accord) se rejoignent en un anneau, sur un fond bleu nuit qui remplit toute l’icône (plus de double bord). Dans l’onglet du navigateur, une version simplifiée : le clavier seul.
+
 ## [1.1.1] — 2026-11-27
 
 ### Corrigé
