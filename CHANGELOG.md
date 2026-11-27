@@ -6,6 +6,8 @@ Le format s’inspire de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/
 
 ## [Non publié]
 
+## [1.1.3] — 2026-11-27
+
 ### Modifié
 
 - **Couleur de l’application** : le vert devient turquoise, la couleur du logo (boutons, touches allumées, lueurs).
@@ -263,7 +265,8 @@ Première version numérotée. Elle regroupe tout ce qui a été développé dep
 - Application installable (PWA).
 - Déploiement automatique sur GitHub Pages à chaque mise à jour de la branche `main`.
 
-[Non publié]: https://github.com/cestymour/chord-finder-midi/compare/v1.1.2...HEAD
+[Non publié]: https://github.com/cestymour/chord-finder-midi/compare/v1.1.3...HEAD
+[1.1.3]: https://github.com/cestymour/chord-finder-midi/compare/v1.1.2...v1.1.3
 [1.1.2]: https://github.com/cestymour/chord-finder-midi/compare/v1.1.1...v1.1.2
 [1.1.1]: https://github.com/cestymour/chord-finder-midi/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/cestymour/chord-finder-midi/compare/v1.0.0...v1.1.0
