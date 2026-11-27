@@ -6,9 +6,11 @@ Le format s’inspire de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/
 
 ## [Non publié]
 
+## [1.1.1] — 2026-11-27
+
 ### Corrigé
 
-- **Micro** : un accord relâché puis rejoué aussi fort (le même accord, ou un autre qui partage des notes avec lui) ne s'affichait plus, ou seulement en partie.
+- **Micro** : un accord relâché puis rejoué aussi fort (le même accord, ou un autre qui partage des notes avec lui) ne s’affichait plus, ou seulement en partie.
 
 ## [1.1.0] — 2026-11-26
 
@@ -250,7 +252,8 @@ Première version numérotée. Elle regroupe tout ce qui a été développé dep
 - Application installable (PWA).
 - Déploiement automatique sur GitHub Pages à chaque mise à jour de la branche `main`.
 
-[Non publié]: https://github.com/cestymour/chord-finder-midi/compare/v1.1.0...HEAD
+[Non publié]: https://github.com/cestymour/chord-finder-midi/compare/v1.1.1...HEAD
+[1.1.1]: https://github.com/cestymour/chord-finder-midi/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/cestymour/chord-finder-midi/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/cestymour/chord-finder-midi/compare/v0.11.1...v1.0.0
 [0.11.1]: https://github.com/cestymour/chord-finder-midi/compare/v0.11.0...v0.11.1
