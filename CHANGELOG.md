@@ -6,6 +6,11 @@ Le format s’inspire de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/
 
 ## [Non publié]
 
+### Modifié
+
+- **Couleur de l’application** : le vert devient turquoise, la couleur du logo (boutons, touches allumées, lueurs).
+- **Logo** : les trois touches de l’accord sont reliées par une barre qui monte vers un point, et le dessin laisse un peu plus de marge.
+
 ## [1.1.2] — 2026-11-27
 
 ### Modifié

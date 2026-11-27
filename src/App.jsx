@@ -834,7 +834,7 @@ function VirtualKeyboard({ activeNotes, onKeyClick, scrollToNotes, noteLabels, t
   useEffect(() => subscribePianoNotes((midi, delay) => {
     const key = scrollerRef.current?.querySelector(`[data-midi="${midi}"]`);
     key?.animate(
-      [{ filter: "brightness(1.7)", boxShadow: "0 0 22px #7fffd4" }, {}],
+      [{ filter: "brightness(1.7)", boxShadow: "0 0 22px #9ffaf3" }, {}],
       { duration: 450, delay: delay * 1000, easing: "ease-out" }
     );
   }), []);

@@ -13,12 +13,12 @@
     </filter>
   </defs>
   <rect width="512" height="512" fill="url(#bg)"/>
-  <g transform="translate(256 256) scale(1.25) translate(-256 -256)">
+  <g transform="translate(256 256) scale(1.15) translate(-256 -256)">
   
-  <path d="M136 240C136 196 256 206 256 162M256 240V162M376 240C376 196 256 206 256 162" fill="none" stroke="#3ef0e6" stroke-width="18" stroke-linejoin="round" stroke-linecap="round" filter="url(#glow)" opacity="0.8" />
-  <path d="M136 240C136 196 256 206 256 162M256 240V162M376 240C376 196 256 206 256 162" fill="none" stroke="url(#lit)" stroke-width="12" stroke-linejoin="round" stroke-linecap="round" />
-  <circle cx="256" cy="128" r="30" fill="none" stroke="#3ef0e6" stroke-width="16" filter="url(#glow)" opacity="0.8"/>
-  <circle cx="256" cy="128" r="28" fill="none" stroke="url(#lit)" stroke-width="12"/>
+  <path d="M136 240V182H376V240M256 240V142" fill="none" stroke="#3ef0e6" stroke-width="18" stroke-linejoin="round" stroke-linecap="round" filter="url(#glow)" opacity="0.8" />
+  <path d="M136 240V182H376V240M256 240V142" fill="none" stroke="url(#lit)" stroke-width="12" stroke-linejoin="round" stroke-linecap="round" />
+  <circle cx="256" cy="120" r="30" fill="#3ef0e6" filter="url(#glow)" opacity="0.8"/>
+  <circle cx="256" cy="120" r="26" fill="url(#lit)"/>
   
   <g filter="url(#glow)" opacity="0.75"><path d="M108 246h55.2v134q0 10 -10 10h-35.2q-10 0 -10 -10z" fill="#3ef0e6"/><path d="M226.4 246h55.2v134q0 10 -10 10h-35.2q-10 0 -10 -10z" fill="#3ef0e6"/><path d="M344.8 246h55.2v134q0 10 -10 10h-35.2q-10 0 -10 -10z" fill="#3ef0e6"/></g>
   <path d="M108 246h55.2v134q0 10 -10 10h-35.2q-10 0 -10 -10z" fill="url(#lit)"/><path d="M167.2 246h55.2v134q0 10 -10 10h-35.2q-10 0 -10 -10z" fill="#eef5f8"/><path d="M226.4 246h55.2v134q0 10 -10 10h-35.2q-10 0 -10 -10z" fill="url(#lit)"/><path d="M285.6 246h55.2v134q0 10 -10 10h-35.2q-10 0 -10 -10z" fill="#eef5f8"/><path d="M344.8 246h55.2v134q0 10 -10 10h-35.2q-10 0 -10 -10z" fill="url(#lit)"/>
