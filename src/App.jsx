@@ -654,7 +654,7 @@ function BackIcon({ className }) {
 }
 
 /** Onglet « Notes → Accord » : trois notes empilées (un accord sur une portée). */
-function NotesTabIcon({ className }) {
+function ChordTabIcon({ className }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor"
       strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
@@ -1028,7 +1028,7 @@ function ChordExplorer({ rootPc, template, onRootChange, onSuffixChange }) {
 
 const MODE_TABS = [
   { mode: "midi",    labelKey: "tabs.notesToChord", Icon: KeysTabIcon },
-  { mode: "explore", labelKey: "tabs.chordToNotes", Icon: NotesTabIcon },
+  { mode: "explore", labelKey: "tabs.chordToNotes", Icon: ChordTabIcon },
 ];
 
 function TopBar({ mode, onModeChange, onOpenSettings, settingsOpen }) {
