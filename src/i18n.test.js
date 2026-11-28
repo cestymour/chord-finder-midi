@@ -37,8 +37,8 @@ describe("traductions complètes", () => {
 
 describe("createI18n", () => {
   test("t : libellé de la langue, sinon anglais, sinon la clé", () => {
-    expect(createI18n("en", "sharp").t("status.home")).toBe(MESSAGES.en["status.home"]);
-    expect(createI18n("xx", "sharp").t("status.home")).toBe(MESSAGES.en["status.home"]);
+    expect(createI18n("en", "sharp").t("status.back")).toBe(MESSAGES.en["status.back"]);
+    expect(createI18n("xx", "sharp").t("status.back")).toBe(MESSAGES.en["status.back"]);
     expect(createI18n("fr", "sharp").t("clé.inconnue")).toBe("clé.inconnue");
   });
 

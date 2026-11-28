@@ -194,14 +194,14 @@
      -webkit-tap-highlight-color: transparent;
    }
 
-   /* « Accueil » : maison et libellé */
-   .midi-status__action--home {
+   /* « Retour » : flèche et libellé */
+   .midi-status__action--back {
      display: inline-flex;
      align-items: center;
      gap: 5px;
    }
 
-   .midi-status__home-icon {
+   .midi-status__back-icon {
      width: 12px;
      height: 12px;
      flex-shrink: 0;
@@ -1112,6 +1112,7 @@
   }
 
   .app-header .mode-tab {
+    min-height: 38px;
     padding: 5px 4px;
   }
 
@@ -1158,8 +1159,7 @@
 
   .app-header .settings-btn {
     order: 3;
-    width: 32px;
-    height: 32px;
+    width: 40px;
   }
 }
 
@@ -1177,35 +1177,35 @@
 }
 
 /* Contrôle segmenté : un onglet toujours actif, jamais de « désélection » */
+/* Les deux onglets et la roue crantée sont trois boutons côte à côte, au même niveau :
+   le conteneur des onglets ne se voit pas (il ne sert qu'au role="tablist") */
 .mode-tabs {
   flex: 1;
   min-width: 0;
   display: flex;
-  padding: 3px;
-  gap: 3px;
-  background: var(--bg-deep);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
+  gap: 8px;
 }
 
+/* Onglets : icône dessinée + libellé en police système (minuscules, bien lisible),
+   plus hauts que les autres boutons de la barre */
 .mode-tab {
   flex: 1 1 0;
   min-width: 0;
+  min-height: 46px;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 7px;
   white-space: nowrap;
-  font-family: var(--font-mono);
-  font-size: 0.62rem;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  font-size: 0.95rem;
   font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  letter-spacing: 0;
   color: var(--txt-secondary);
   background: transparent;
-  border: 1px solid transparent;
-  border-radius: calc(var(--radius-md) - 4px);
-  padding: 7px 4px;
+  border: 1px solid var(--border-mid);
+  border-radius: var(--radius-md);
+  padding: 8px 6px;
   cursor: pointer;
   transition: color 0.2s, border-color 0.2s, background 0.2s;
   -webkit-tap-highlight-color: transparent;
@@ -1218,6 +1218,37 @@
   }
 }
 
+.mode-tab__icon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.mode-tab__label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Téléphone étroit : l'icône laisse la place au libellé, toujours sur une ligne */
+@media (max-width: 419px) {
+  .mode-tab__icon {
+    display: none;
+  }
+}
+
+/* Très petit téléphone (≈ 320 px) : texte un peu plus petit, roue plus étroite */
+@media (max-width: 359px) {
+  .mode-tab {
+    font-size: 0.8rem;
+    padding-inline: 3px;
+  }
+
+  .settings-btn {
+    width: 42px;
+  }
+}
+
 .mode-tab--active,
 .mode-tab--active:hover {
   color: var(--accent);
@@ -1225,25 +1256,26 @@
   background: var(--accent-dim);
 }
 
+/* Roue crantée : même hauteur que le bloc des onglets (étirée par la ligne) */
 .settings-btn {
   flex-shrink: 0;
+  align-self: stretch;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
+  width: 48px;
   padding: 0;
   color: var(--txt-secondary);
   background: transparent;
   border: 1px solid var(--border-mid);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
 
 .settings-btn svg {
-  width: 18px;
-  height: 18px;
+  width: 22px;
+  height: 22px;
 }
 
 @media (hover: hover) {
@@ -1251,6 +1283,14 @@
     color: var(--accent);
     border-color: var(--accent);
   }
+}
+
+/* Paramètres ouverts : comme l'onglet actif */
+.settings-btn--active,
+.settings-btn--active:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-dim);
 }
 
 /* ─────────────────────────────────────────────
@@ -2260,7 +2300,8 @@
 .vpiano-btn__keys {
   display: block;
   width: 100%;
-  height: clamp(64px, 18vw, 84px);
+  /* Proportionnelle aux ronds au-dessus (taille déjà calculée pour tenir en hauteur) */
+  height: calc(var(--connect-round) * 0.8);
 }
 
 .mini-keys__white { fill: #c9ced8; transition: fill 0.2s; }
@@ -2397,7 +2438,7 @@
      celle des cartes et des grilles en dessous */
   .app .top-bar::before {
     content: "";
-    flex: 0 0 36px;
+    flex: 0 0 48px;
   }
 
   /* Accord principal à gauche, autres possibilités à droite */

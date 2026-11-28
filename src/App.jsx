@@ -642,14 +642,41 @@ function ConnectScreen({ btProps, midi, mic, onUseKeyboard, onUsePiano }) {
   );
 }
 
-/** Maison (bouton « Accueil » de la ligne d'état). */
-function HomeIcon({ className }) {
+/** Flèche de retour (bouton « Retour » de la ligne d'état). */
+function BackIcon({ className }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor"
-      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M3.5 11 12 3.5l8.5 7.5" />
-      <path d="M5.5 9.5V20.5h13V9.5" />
-      <path d="M10 20.5v-6h4v6" />
+      strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M9 5 4 10l5 5" />
+      <path d="M4 10h10.5a5.5 5.5 0 0 1 0 11H11" />
+    </svg>
+  );
+}
+
+/** Onglet « Notes → Accord » : trois notes empilées (un accord sur une portée). */
+function NotesTabIcon({ className }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
+      <path d="M2 6h20M2 10h20M2 14h20M2 18h20" opacity="0.35" />
+      <ellipse cx="10" cy="18" rx="3" ry="2" fill="currentColor" stroke="none" />
+      <ellipse cx="10" cy="14" rx="3" ry="2" fill="currentColor" stroke="none" />
+      <ellipse cx="10" cy="10" rx="3" ry="2" fill="currentColor" stroke="none" />
+      <path d="M13 10V2.5" />
+    </svg>
+  );
+}
+
+/** Onglet « Accord → Notes » : trois touches de piano allumées. */
+function KeysTabIcon({ className }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="1.6" strokeLinejoin="round" aria-hidden="true">
+      <rect x="2" y="4" width="20" height="16" rx="2" />
+      <path d="M7 4v16M12 4v16M17 4v16" />
+      <rect x="2.8" y="12.5" width="3.4" height="6.7" fill="currentColor" stroke="none" />
+      <rect x="12.8" y="12.5" width="3.4" height="6.7" fill="currentColor" stroke="none" />
+      <rect x="17.8" y="12.5" width="3.4" height="6.7" fill="currentColor" stroke="none" opacity="0.4" />
     </svg>
   );
 }
@@ -736,9 +763,9 @@ function ConnectionStatus({ btStatus, btKnownDevice, midi, mic, onHome, onSwitch
         </span>
       )}
       {onHome && (
-        <button className="midi-status__action midi-status__action--home" onClick={onHome}>
-          <HomeIcon className="midi-status__home-icon" />
-          {t("status.home")}
+        <button className="midi-status__action midi-status__action--back" onClick={onHome}>
+          <BackIcon className="midi-status__back-icon" />
+          {t("status.back")}
         </button>
       )}
     </div>
@@ -1000,11 +1027,11 @@ function ChordExplorer({ rootPc, template, onRootChange, onSuffixChange }) {
 // ─────────────────────────────────────────────
 
 const MODE_TABS = [
-  { mode: "midi",    labelKey: "tabs.notesToChord", icon: "🎹" },
-  { mode: "explore", labelKey: "tabs.chordToNotes", icon: "📖" },
+  { mode: "midi",    labelKey: "tabs.notesToChord", Icon: NotesTabIcon },
+  { mode: "explore", labelKey: "tabs.chordToNotes", Icon: KeysTabIcon },
 ];
 
-function TopBar({ mode, onModeChange, onOpenSettings }) {
+function TopBar({ mode, onModeChange, onOpenSettings, settingsOpen }) {
   const { t } = useI18n();
   return (
     <header className="top-bar">
@@ -1018,12 +1045,18 @@ function TopBar({ mode, onModeChange, onOpenSettings }) {
             className={`mode-tab${mode === tab.mode ? " mode-tab--active" : ""}`}
             onClick={() => onModeChange(tab.mode)}
           >
-            <span aria-hidden="true">{tab.icon}</span>
-            {t(tab.labelKey)}
+            <tab.Icon className="mode-tab__icon" />
+            <span className="mode-tab__label">{t(tab.labelKey)}</span>
           </button>
         ))}
       </nav>
-      <button className="settings-btn" onClick={onOpenSettings} aria-label={t("settings.open")}>
+      {/* Paramètres ouverts : roue marquée comme l'onglet actif */}
+      <button
+        className={`settings-btn${settingsOpen ? " settings-btn--active" : ""}`}
+        onClick={onOpenSettings}
+        aria-label={t("settings.open")}
+        aria-expanded={settingsOpen}
+      >
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
           strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <circle cx="12" cy="12" r="3" />
@@ -1808,6 +1841,7 @@ export default function ChordIdentifier() {
             mode={mode}
             onModeChange={changeMode}
             onOpenSettings={() => setSettingsOpen(true)}
+            settingsOpen={settingsOpen}
           />
 
           {/* ── MIDI Status (écran Piano uniquement) ── */}

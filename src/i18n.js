@@ -69,7 +69,7 @@ export const MESSAGES = {
     "midi.denied": "MIDI non autorisé",
     "midi.unsupported": "MIDI non disponible",
     "status.virtual": "Piano virtuel",
-    "status.home": "Accueil",
+    "status.back": "Retour",
 
     "connect.title": "Connectez votre piano",
     "connect.listen": "Écoutez votre piano",
@@ -171,7 +171,7 @@ export const MESSAGES = {
     "midi.denied": "MIDI not allowed",
     "midi.unsupported": "MIDI unavailable",
     "status.virtual": "Virtual piano",
-    "status.home": "Home",
+    "status.back": "Back",
 
     "connect.title": "Connect your piano",
     "connect.listen": "Listen to your piano",
@@ -273,7 +273,7 @@ export const MESSAGES = {
     "midi.denied": "MIDI nicht erlaubt",
     "midi.unsupported": "MIDI nicht verfügbar",
     "status.virtual": "Virtuelles Klavier",
-    "status.home": "Start",
+    "status.back": "Zurück",
 
     "connect.title": "Verbinde dein Klavier",
     "connect.listen": "Hör dein Klavier ab",
@@ -375,7 +375,7 @@ export const MESSAGES = {
     "midi.denied": "MIDI no autorizado",
     "midi.unsupported": "MIDI no disponible",
     "status.virtual": "Piano virtual",
-    "status.home": "Inicio",
+    "status.back": "Volver",
 
     "connect.title": "Conecta tu piano",
     "connect.listen": "Escucha tu piano",
@@ -477,7 +477,7 @@ export const MESSAGES = {
     "midi.denied": "MIDI não autorizado",
     "midi.unsupported": "MIDI indisponível",
     "status.virtual": "Piano virtual",
-    "status.home": "Início",
+    "status.back": "Voltar",
 
     "connect.title": "Conecte o seu piano",
     "connect.listen": "Ouça o seu piano",
@@ -579,7 +579,7 @@ export const MESSAGES = {
     "midi.denied": "MIDI 未获授权",
     "midi.unsupported": "MIDI 不可用",
     "status.virtual": "虚拟钢琴",
-    "status.home": "首页",
+    "status.back": "返回",
 
     "connect.title": "连接你的钢琴",
     "connect.listen": "聆听你的钢琴",
@@ -681,7 +681,7 @@ export const MESSAGES = {
     "midi.denied": "MIDI が許可されていません",
     "midi.unsupported": "MIDI は使用できません",
     "status.virtual": "バーチャルピアノ",
-    "status.home": "ホーム",
+    "status.back": "戻る",
 
     "connect.title": "ピアノを接続しましょう",
     "connect.listen": "ピアノの音を聴きましょう",
@@ -783,7 +783,7 @@ export const MESSAGES = {
     "midi.denied": "MIDI 허용 안 됨",
     "midi.unsupported": "MIDI 사용 불가",
     "status.virtual": "가상 피아노",
-    "status.home": "홈",
+    "status.back": "뒤로",
 
     "connect.title": "피아노를 연결하세요",
     "connect.listen": "피아노 소리를 들어 보세요",
