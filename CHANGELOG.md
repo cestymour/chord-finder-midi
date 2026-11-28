@@ -6,6 +6,14 @@ Le format s’inspire de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/
 
 ## [Non publié]
 
+## [1.1.4] — 2026-11-28
+
+### Modifié
+
+- **Onglets** : plus hauts, libellés plus grands dans une police plus lisible, avec une icône dessinée (un accord sur une portée, des touches allumées) à la place des emoji (masquée sur petit écran pour que le texte tienne sur une ligne). Les deux onglets et la roue crantée sont trois boutons séparés, côte à côte et de même hauteur ; la roue reste entourée de turquoise tant que les paramètres sont ouverts.
+- **Bouton « Accueil »** renommé « Retour », avec une flèche de retour.
+- **Bouton « Piano virtuel »** de l’accueil plus haut, proportionné aux ronds au-dessus.
+
 ## [1.1.3] — 2026-11-27
 
 ### Modifié
@@ -265,7 +273,8 @@ Première version numérotée. Elle regroupe tout ce qui a été développé dep
 - Application installable (PWA).
 - Déploiement automatique sur GitHub Pages à chaque mise à jour de la branche `main`.
 
-[Non publié]: https://github.com/cestymour/chord-finder-midi/compare/v1.1.3...HEAD
+[Non publié]: https://github.com/cestymour/chord-finder-midi/compare/v1.1.4...HEAD
+[1.1.4]: https://github.com/cestymour/chord-finder-midi/compare/v1.1.3...v1.1.4
 [1.1.3]: https://github.com/cestymour/chord-finder-midi/compare/v1.1.2...v1.1.3
 [1.1.2]: https://github.com/cestymour/chord-finder-midi/compare/v1.1.1...v1.1.2
 [1.1.1]: https://github.com/cestymour/chord-finder-midi/compare/v1.1.0...v1.1.1
