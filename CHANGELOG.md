@@ -6,6 +6,10 @@ Le format s’inspire de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/
 
 ## [Non publié]
 
+### Modifié
+
+- **Onglets** : les icônes sont inversées, les touches allumées pour « Notes → Accord » et l'accord sur une portée pour « Accord → Notes ».
+
 ## [1.1.4] — 2026-11-28
 
 ### Modifié

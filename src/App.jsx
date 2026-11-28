@@ -1027,8 +1027,8 @@ function ChordExplorer({ rootPc, template, onRootChange, onSuffixChange }) {
 // ─────────────────────────────────────────────
 
 const MODE_TABS = [
-  { mode: "midi",    labelKey: "tabs.notesToChord", Icon: NotesTabIcon },
-  { mode: "explore", labelKey: "tabs.chordToNotes", Icon: KeysTabIcon },
+  { mode: "midi",    labelKey: "tabs.notesToChord", Icon: KeysTabIcon },
+  { mode: "explore", labelKey: "tabs.chordToNotes", Icon: NotesTabIcon },
 ];
 
 function TopBar({ mode, onModeChange, onOpenSettings, settingsOpen }) {
